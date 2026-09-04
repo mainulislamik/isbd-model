@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import json
+import fcntl
 import argparse
 from pathlib import Path
 
@@ -45,6 +46,17 @@ def main():
 
     torch.manual_seed(7)
     device = "cpu"
+
+    # single-instance lock: never two trainings on the same checkpoint
+    lockfile = CKPT / "train.lock"
+    lockfile.parent.mkdir(exist_ok=True)
+    lock = open(lockfile, "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print("[lock] another training is running — exiting")
+        sys.exit(0)
+    lock.write(str(os.getpid()))
 
     model = TinyUNet()
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
