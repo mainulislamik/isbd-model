@@ -212,13 +212,16 @@ async def train(
 async def learn_from_real_pair_api(
     before: UploadFile = File(...),
     after:  UploadFile = File(...),
+    instruction_file: UploadFile = File(None),
+    instruction_text: str = Query("", description="ক্লায়েন্টের সরাসরি টেক্সট নির্দেশনা"),
     label:  str = Query("", description="ট্যাগ — যেমন retouching, color_correction"),
     augment: int = Query(8, ge=1, le=16),
 ):
     """
-    AI Real Pair Learning API.
-    Uploads a genuine Before→After human-edited image pair.
-    The AI immediately learns the transformation + kicks off a micro fine-tune.
+    AI Real Pair Learning API with Client Instruction Parser.
+    Accepts:
+    - Before & After Images
+    - Client Instruction Text or Document (PDF, Word DOCX, TXT, MD, JPG/PNG markup)
     """
     raw_b = await before.read()
     raw_a = await after.read()
@@ -232,11 +235,41 @@ async def learn_from_real_pair_api(
     except Exception:
         raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
 
+    # Parse client instruction from File / Text
+    extracted_instruction = instruction_text.strip() if instruction_text else ""
+    client_brief_filename = None
+    
+    if instruction_file and instruction_file.filename:
+        client_brief_filename = instruction_file.filename
+        raw_doc = await instruction_file.read()
+        fname = instruction_file.filename.lower()
+        try:
+            if fname.endswith(('.txt', '.md', '.json', '.csv')):
+                doc_txt = raw_doc.decode('utf-8', errors='ignore').strip()
+                if doc_txt:
+                    extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[{fname}]: {doc_txt}"
+            elif fname.endswith('.pdf'):
+                import pypdf
+                pdf_reader = pypdf.PdfReader(io.BytesIO(raw_doc))
+                pdf_text = "\n".join([page.extract_text() or "" for page in pdf_reader.pages]).strip()
+                if pdf_text:
+                    extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[PDF: {fname}]: {pdf_text}"
+            elif fname.endswith(('.docx', '.doc')):
+                import docx
+                doc_obj = docx.Document(io.BytesIO(raw_doc))
+                doc_text = "\n".join([p.text for p in doc_obj.paragraphs if p.text.strip()])
+                if doc_text:
+                    extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[Word: {fname}]: {doc_text}"
+            elif fname.endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[Visual Markup Ref: {fname}]"
+        except Exception as e:
+            extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[{fname} Attached]"
+
     from isbd.self_learner import learn_from_real_pair
     result = learn_from_real_pair(
         before_pil=img_b,
         after_pil=img_a,
-        label=label,
+        label=label or "client_directed",
         augment=augment,
         trigger_finetune=True,
     )
@@ -330,7 +363,9 @@ async def learn_from_real_pair_api(
         "finetune_pid" : result["finetune_pid"],
         "diff_stats"   : diff_stats,
         "heatmap_preview": heatmap_preview,
-        "learning_insights": learning_insights
+        "learning_insights": learning_insights,
+        "client_instruction": extracted_instruction[:500] if extracted_instruction else None,
+        "instruction_source": client_brief_filename or ("Direct Text Note" if instruction_text else None)
     }
 
 

@@ -581,8 +581,25 @@ body {
             <option value="neck_joint">👔 Neck Joint (ম্যানিকুইন)</option>
             <option value="enhancement">🔮 Enhancement (এনহ্যান্সমেন্ট)</option>
             <option value="manipulation">🌌 Manipulation (ম্যানিপুলেশন)</option>
+            <option value="client_custom">📝 ক্লায়েন্ট কাস্টম জব</option>
             <option value="other">📁 অন্যান্য</option>
           </select>
+        </div>
+
+        <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: var(--radius-sm); padding: 10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="font-size:11px; font-weight:700; color:var(--cyan); display:flex; align-items:center; gap:6px;">
+              <span>📝 ক্লায়েন্টের এডিটিং নির্দেশনা (Optional Instruction):</span>
+            </label>
+            <span style="font-size:10px; color:var(--tx-muted);">PDF, Word, TXT, Image বা টেক্সট</span>
+          </div>
+          <textarea id="school-instruction-text" class="param-input" rows="2" placeholder="ক্লায়েন্ট কী কী এডিট করতে বলেছে এখানে লিখুন বা পেস্ট করুন (যেমন: remove background, smooth skin, make warm tone)..." style="resize:vertical; font-size:11.5px; margin-bottom:8px;"></textarea>
+          
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="font-size:10.5px; color:var(--tx-muted); white-space:nowrap;">বা নির্দেশনা ফাইল দিন:</label>
+            <input type="file" id="school-instruction-file" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg" class="param-input" style="padding:3px 6px; font-size:10.5px;">
+          </div>
         </div>
 
         <!-- Augmentation slider -->
@@ -1136,17 +1153,28 @@ async function submitSchoolPair() {
 
   const label  = document.getElementById('school-label').value;
   const augment= document.getElementById('school-aug').value;
+  const instructionText = document.getElementById('school-instruction-text').value;
+  const instructionFile = document.getElementById('school-instruction-file').files[0];
 
   const statusEl = document.getElementById('school-status');
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span style="color:#6ee7b7;">⏳ AI শিখছে — পেয়ার আপলোড ও মাইক্রো ফাইন-টিউন শুরু হচ্ছে…</span>';
+  statusEl.innerHTML = '<span style="color:#6ee7b7;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
 
   const fd = new FormData();
   fd.append('before', fileB);
   fd.append('after',  fileA);
+  if (instructionFile) {
+    fd.append('instruction_file', instructionFile);
+  }
 
   try {
-    const res  = await fetch(`/api/learn-pair?label=${encodeURIComponent(label)}&augment=${augment}`, { method:'POST', body:fd });
+    const queryParams = new URLSearchParams({
+      label: label,
+      augment: augment,
+      instruction_text: instructionText
+    });
+    
+    const res  = await fetch(`/api/learn-pair?${queryParams.toString()}`, { method:'POST', body:fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ত্রুটি');
 
@@ -1178,6 +1206,12 @@ async function submitSchoolPair() {
         🔁 Pool Size: <strong style="color:#a5f3fc;">${data.total_pool}</strong> &nbsp;|&nbsp;
         ⚡ Micro Fine-tune PID: <strong style="color:#fbbf24;">${data.finetune_pid || 'background'}</strong>
       </div>
+      ${data.client_instruction ? `
+        <div style="background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.3); padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:11.5px;">
+          <div style="color:var(--cyan); font-weight:700; margin-bottom:2px;">📑 ক্লায়েন্ট নির্দেশনা (${data.instruction_source || 'Attached'}):</div>
+          <div style="color:#e2e8f0; font-family:inherit; white-space:pre-wrap;">${data.client_instruction}</div>
+        </div>
+      ` : ''}
       ${insightsHtml}
       ${data.diff_stats && data.diff_stats.interpretation ? `
         <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); padding:8px 10px; border-radius:6px; margin-top:8px;">
