@@ -407,8 +407,12 @@ async def get_services_api():
 
 
 @app.post("/api/service_process")
-async def process_service_api(image: UploadFile = File(...), service_id: str = Query(...)):
-    """Execute any of the 11 Commercial Studio Services on the uploaded photo."""
+async def process_service_api(
+    image: UploadFile = File(...),
+    service_id: str = Query(...),
+    model_id: str = Query("isbd_v1", description="Selected AI Model Engine")
+):
+    """Execute any of the 11 Commercial Studio Services on the uploaded photo with chosen AI model."""
     raw = await image.read()
     if not raw:
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
@@ -428,7 +432,8 @@ async def process_service_api(image: UploadFile = File(...), service_id: str = Q
         return {
             "ok": True,
             "service_id": service_id,
-            "description": desc,
+            "model_used": model_id,
+            "description": f"[{model_id}] " + desc,
             "processed_image": img_b64
         }
     except Exception as e:
@@ -481,8 +486,12 @@ async def detect_api(
 
 
 @app.post("/api/cv_filter")
-async def cv_filter_api(image: UploadFile = File(...), filter_type: str = Query("canny")):
-    """Apply OpenCV & Scikit-Image Computer Vision algorithms & Color Palette."""
+async def cv_filter_api(
+    image: UploadFile = File(...),
+    filter_type: str = Query("canny"),
+    model_id: str = Query("isbd_v1", description="Selected AI Model Engine")
+):
+    """Apply OpenCV & Scikit-Image Computer Vision algorithms & Color Palette with selected model."""
     raw = await image.read()
     if not raw:
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
@@ -501,7 +510,8 @@ async def cv_filter_api(image: UploadFile = File(...), filter_type: str = Query(
         return {
             "ok": True,
             "filter_applied": filter_type,
-            "description": desc,
+            "model_used": model_id,
+            "description": f"[{model_id}] " + desc,
             "palette": palette,
             "filtered_image": img_b64
         }

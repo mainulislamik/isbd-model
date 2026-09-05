@@ -1411,19 +1411,26 @@ function reGenHeatmap() {
 
 let lastUploadedServiceFile = null;
 
+// ─ Universal Active Model Getter ─
+function getActiveSelectedModel() {
+  const sel = document.querySelector('.global-model-selector');
+  return sel ? sel.value : 'isbd_v1';
+}
+
 async function runStudioService(input) {
   const file = input.files ? input.files[0] : input;
   if (!file) return;
   lastUploadedServiceFile = file;
 
   const serviceId = document.getElementById('service-select').value;
-  toast('সার্ভিস প্রসেস করা হচ্ছে…', 'ok');
+  const activeModel = getActiveSelectedModel();
+  toast(`সার্ভিস প্রসেস করা হচ্ছে (${activeModel})…`, 'ok');
 
   const fd = new FormData();
   fd.append('image', file);
 
   try {
-    const res = await fetch(`/api/service_process?service_id=${serviceId}`, { method: 'POST', body: fd });
+    const res = await fetch(`/api/service_process?service_id=${serviceId}&model_id=${encodeURIComponent(activeModel)}`, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'সার্ভিস ফেইল্ড');
 
@@ -1433,7 +1440,7 @@ async function runStudioService(input) {
     document.getElementById('service-placeholder').style.display = 'none';
     document.getElementById('service-desc').textContent = '✓ ' + data.description;
 
-    toast('সার্ভিস সফলভাবে সম্পন্ন হয়েছে!', 'ok');
+    toast(`সার্ভিস সফলভাবে সম্পন্ন হয়েছে (${data.model_used || activeModel})!`, 'ok');
   } catch(e) {
     toast('সার্ভিস ত্রুটি: ' + e.message, 'err');
   }
@@ -1456,14 +1463,15 @@ async function runObjectDetection(input) {
   if (!file) return;
   lastUploadedDetFile = file;
 
-  toast('এআই বডি পার্টস ও পোশাক স্ক্যান করছে…', 'ok');
+  const activeModel = getActiveSelectedModel();
+  toast(`এআই (${activeModel}) বডি পার্টস ও পোশাক স্ক্যান করছে…`, 'ok');
   const fd = new FormData();
   fd.append('image', file);
   const conf = document.getElementById('det-conf').value;
   const mode = document.getElementById('det-mode') ? document.getElementById('det-mode').value : 'full_body';
 
   try {
-    const res = await fetch(`/api/detect?conf=${conf}&mode=${mode}`, { method: 'POST', body: fd });
+    const res = await fetch(`/api/detect?conf=${conf}&mode=${mode}&model_id=${encodeURIComponent(activeModel)}`, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ডিটেকশন ফেইল্ড');
 
@@ -1518,7 +1526,7 @@ async function runObjectDetection(input) {
       document.getElementById('det-gallery-box').style.display = 'none';
     }
 
-    toast(`মোট ${data.total_objects}টি অংশ ও পোশাক নির্ভুলভাবে শনাক্ত হয়েছে!`, 'ok');
+    toast(`মোট ${data.total_objects}টি অংশ ও পোশাক নির্ভুলভাবে শনাক্ত হয়েছে (${activeModel})!`, 'ok');
   } catch(e) {
     toast('অবজেক্ট স্ক্যানিং ত্রুটি: ' + e.message, 'err');
   }
@@ -1534,13 +1542,14 @@ async function runCVFilter(input) {
   if (!file) return;
   lastUploadedCVFile = file;
 
-  toast('কম্পিউটার ভিশন ফিল্টার প্রসেস হচ্ছে…', 'ok');
+  const activeModel = getActiveSelectedModel();
+  toast(`কম্পিউটার ভিশন ফিল্টার প্রসেস হচ্ছে (${activeModel})…`, 'ok');
   const fd = new FormData();
   fd.append('image', file);
   const filterType = document.getElementById('cv-type').value;
 
   try {
-    const res = await fetch(`/api/cv_filter?filter_type=${filterType}`, { method: 'POST', body: fd });
+    const res = await fetch(`/api/cv_filter?filter_type=${filterType}&model_id=${encodeURIComponent(activeModel)}`, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'প্রসেসিং ফেইল্ড');
 
@@ -1561,7 +1570,7 @@ async function runCVFilter(input) {
       palContainer.appendChild(chip);
     }
     document.getElementById('cv-palette-box').style.display = 'block';
-    toast('ফিল্টার এবং কালার প্যালেট সফলভাবে জেনারেট হয়েছে!', 'ok');
+    toast(`ফিল্টার সম্পন্ন হয়েছে (${data.model_used || activeModel})!`, 'ok');
   } catch(e) {
     toast('ভিশন ফিল্টার ত্রুটি: ' + e.message, 'err');
   }
