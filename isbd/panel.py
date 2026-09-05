@@ -342,6 +342,44 @@ async def infer_image(image: UploadFile = File(...)):
         raise HTTPException(500, f"ইনফারেন্স ত্রুটি: {str(e)}")
 
 
+@app.post("/api/heatmap")
+async def heatmap_api(
+    before: UploadFile = File(...),
+    after: UploadFile = File(...),
+    colormap: str = Query("turbo"),
+    blend: float = Query(0.55, ge=0.1, le=0.9),
+    sensitivity: float = Query(1.5, ge=0.5, le=5.0)
+):
+    """Generate precise per-pixel Difference Heatmap between Before and After images."""
+    raw_b = await before.read()
+    raw_a = await after.read()
+    if not raw_b or not raw_a:
+        raise HTTPException(400, "Before এবং After দুটি ছবিই প্রদান করুন")
+    try:
+        from isbd.heatmap import generate_difference_heatmap
+        img_b = Image.open(io.BytesIO(raw_b)).convert("RGB")
+        img_a = Image.open(io.BytesIO(raw_a)).convert("RGB")
+
+        hm_img, ov_img, stats = generate_difference_heatmap(
+            img_b, img_a, colormap_type=colormap, blend_alpha=blend, boost_sensitivity=sensitivity
+        )
+
+        buf_hm, buf_ov = io.BytesIO(), io.BytesIO()
+        hm_img.save(buf_hm, format="JPEG", quality=85)
+        ov_img.save(buf_ov, format="JPEG", quality=85)
+        buf_hm.seek(0)
+        buf_ov.seek(0)
+
+        return {
+            "ok": True,
+            "stats": stats,
+            "heatmap_image": "data:image/jpeg;base64," + base64.b64encode(buf_hm.read()).decode("utf-8"),
+            "overlay_image": "data:image/jpeg;base64," + base64.b64encode(buf_ov.read()).decode("utf-8")
+        }
+    except Exception as e:
+        raise HTTPException(500, f"হিটম্যাপ জেনারেশন ত্রুটি: {str(e)}")
+
+
 @app.post("/api/inpaint")
 async def inpaint_api(
     image: UploadFile = File(...),
@@ -702,6 +740,62 @@ body {
     </div>
   </div>
 
+  <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
+    <div class="panel-header">
+      <h2><span class="step-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🔥</span> এআই বিফোর/আফটার হিটম্যাপ ভিজ্যুয়ালাইজার (Pixel Difference Heatmap)</h2>
+      <span style="font-size: 11px; color: #fbbf24; font-weight: 700;">Thermal Error & Modification Mapping</span>
+    </div>
+    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+      অনেক সময় খালি চোখে বিফোর ও আফটার ছবির সূক্ষ্ম পার্থক্য বোঝা যায় না — এআই প্রতিটি পিক্সেলের পার্থক্য থার্মাল হিটম্যাপে (উজ্জ্বল লাল/হলুদ দিয়ে পরিবর্তিত অংশ) স্পষ্ট ফুটিয়ে তোলে।
+    </p>
+
+    <div class="det-grid">
+      <div class="det-controls">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size:11px; font-weight:600; color:var(--tx-muted); display:block; margin-bottom:4px;">আসল ছবি (Before):</label>
+            <input type="file" id="hm-before" accept="image/*" class="param-input" style="padding:4px;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:600; color:var(--tx-muted); display:block; margin-bottom:4px;">এডিটেড ছবি (After):</label>
+            <input type="file" id="hm-after" accept="image/*" class="param-input" style="padding:4px;">
+          </div>
+        </div>
+
+        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #f59e0b, #ef4444);" onclick="generateHeatmap()">
+          🔥 হিটম্যাপ জেনারেট করুন
+        </button>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
+          <span>হিটম্যাপ কালার প্যালেট:</span>
+          <select class="param-select" id="hm-cmap" style="width: 130px; padding: 4px 8px;" onchange="reGenHeatmap()">
+            <option value="turbo" selected>Turbo (হাই-কনট্রাস্ট)</option>
+            <option value="jet">Jet (ক্লাসিক রেইনবো)</option>
+            <option value="inferno">Inferno (ডার্ক ফায়ার)</option>
+            <option value="magma">Magma (ম্যাগমা)</option>
+            <option value="hot">Hot (হোয়াইট-হট)</option>
+          </select>
+        </div>
+
+        <div id="hm-stats-box" style="display:none; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); padding:10px 14px; border-radius:var(--radius-sm); font-size:11.5px;">
+          <div style="color:#fbbf24; font-weight:700; margin-bottom:2px;" id="hm-stat-text"></div>
+          <div style="color:var(--tx-secondary); font-size:11px;" id="hm-stat-sub"></div>
+        </div>
+      </div>
+
+      <div>
+        <div id="hm-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          Before ও After আপলোড করে হিটম্যাপ রান করলে এখানে থার্মাল এনালাইসিস দেখতে পাবেন
+        </div>
+        <div id="hm-result-wrap" style="display:none; flex-direction:column; gap:8px;">
+          <img id="hm-overlay-img" class="det-result-img" style="display:block;">
+          <span style="font-size:11px; color:var(--tx-muted); text-align:center;">🔴 লাল/হলুদ = সর্বোচ্চ পরিবর্তন | 🔵 নীল/কালো = অপরিবর্তিত অংশ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
   <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
     <div class="panel-header">
@@ -991,6 +1085,49 @@ function toast(msg, type='ok') {
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+// ─ Heatmap Difference Logic ─
+async function generateHeatmap() {
+  const fileB = document.getElementById('hm-before').files[0];
+  const fileA = document.getElementById('hm-after').files[0];
+
+  if (!fileB || !fileA) {
+    toast('Before এবং After দুটি ছবিই সিলেক্ট করুন', 'warn');
+    return;
+  }
+
+  toast('এআই পিক্সেল ডিফারেন্স হিটম্যাপ ক্যালকুলেট করছে…', 'ok');
+
+  const fd = new FormData();
+  fd.append('before', fileB);
+  fd.append('after', fileA);
+  const cmap = document.getElementById('hm-cmap').value;
+
+  try {
+    const res = await fetch(`/api/heatmap?colormap=${cmap}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'হিটম্যাপ ফেইল্ড');
+
+    const ovImg = document.getElementById('hm-overlay-img');
+    ovImg.src = data.overlay_image;
+    document.getElementById('hm-result-wrap').style.display = 'flex';
+    document.getElementById('hm-placeholder').style.display = 'none';
+
+    document.getElementById('hm-stat-text').textContent = '✓ ' + data.stats.interpretation;
+    document.getElementById('hm-stat-sub').textContent = `Mean Pixel Diff: ${data.stats.mean_diff} | Max Diff: ${data.stats.max_diff} | Modified Area: ${data.stats.altered_pct}%`;
+    document.getElementById('hm-stats-box').style.display = 'block';
+
+    toast('হিটম্যাপ তৈরি সম্পন্ন হয়েছে!', 'ok');
+  } catch(e) {
+    toast('হিটম্যাপ ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+function reGenHeatmap() {
+  const fileB = document.getElementById('hm-before').files[0];
+  const fileA = document.getElementById('hm-after').files[0];
+  if (fileB && fileA) generateHeatmap();
 }
 
 let lastUploadedServiceFile = null;
