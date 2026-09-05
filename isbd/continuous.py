@@ -1,8 +1,8 @@
 """
 ISBD v1.00 — Continuous Trainer (never-stop learning)
 Runs training in endless rounds of N steps. Auto-restarts on crash (with backoff).
+Evals unseen quality each round; nightly cron commits + pushes.
 Use: .venv/bin/python isbd/continuous.py [--round-steps 2000] [--batch 8]
-Run under: nohup / systemd / cron — the loop keeps the model learning forever.
 """
 import subprocess
 import sys
@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PY = ROOT / ".venv" / "bin" / "python"
 TRAIN = ROOT / "isbd" / "train.py"
+EVAL = ROOT / "isbd" / "eval.py"
 
 
 def read_step():
@@ -28,7 +29,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--round-steps", type=int, default=2000)
     ap.add_argument("--batch", type=int, default=8)
-    ap.add_argument("--max-restarts", type=int, default=50)
+    ap.add_argument("--max-restarts", type=int, default=60)
     args = ap.parse_args()
 
     restarts = 0
@@ -44,6 +45,14 @@ def main():
         dt = time.time() - t0
         print(f"[continuous] round done: step {before} -> {after} ({dt:.0f}s, rc={r.returncode})", flush=True)
 
+        # eval unseen quality every round
+        try:
+            ev = subprocess.run([str(PY), str(EVAL)], cwd=str(ROOT),
+                                 capture_output=True, text=True, timeout=600)
+            print(f"[eval] {ev.stdout.strip()}", flush=True)
+        except Exception as e:
+            print(f"[eval] skipped: {e}", flush=True)
+
         if after == before:  # no progress -> crash or lock held; backoff
             restarts += 1
             wait = min(30 * restarts, 300)
@@ -52,6 +61,8 @@ def main():
         else:
             restarts = 0  # progress resets the counter
             time.sleep(2)  # tiny breather between rounds
+
+    print("[continuous] max restarts reached — giving up (systemd will restart service)", flush=True)
 
 
 if __name__ == "__main__":

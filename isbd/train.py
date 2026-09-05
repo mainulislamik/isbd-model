@@ -28,7 +28,16 @@ HISTORY = CKPT / "history.json"
 
 def load_history():
     if HISTORY.exists():
-        return json.loads(HISTORY.read_text())
+        h = json.loads(HISTORY.read_text())
+        # keep history bounded: downsample to every 20th step beyond the recent 2000
+        if len(h.get("losses", [])) > 4000:
+            old = h["losses"][:-2000]
+            recent = h["losses"][-2000:]
+            old_steps = h["steps"][:-2000]
+            recent_steps = h["steps"][-2000:]
+            h["losses"] = old[::20] + recent
+            h["steps"] = old_steps[::20] + recent_steps
+        return h
     return {"steps": [], "losses": [], "total_steps": 0}
 
 
