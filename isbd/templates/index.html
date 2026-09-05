@@ -9,1385 +9,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: {
-          sans: ['Inter', 'system-ui', 'sans-serif'],
-          mono: ['JetBrains Mono', 'monospace'],
-        },
-        colors: {
-          brand: {
-            50: '#eef2ff',
-            100: '#e0e7ff',
-            500: '#6366f1',
-            600: '#4f46e5',
-            700: '#4338ca',
-          }
-        }
-      }
-    }
-  }
-</script>
-</head>
-<body>
-
-<div class="toasts" id="toasts"></div>
-
-<div class="workspace-layout">
-  <!-- ═════════ SIDEBAR NAVIGATION ═════════ -->
-  <aside class="workspace-sidebar">
-    <div class="ws-brand">
-      <div class="brand">
-        <div class="brand-icon">🚀</div>
-        <div class="brand-text">
-          <h1>ISBD Studio</h1>
-          <span>AI Train & Test Suite</span>
-        </div>
-      </div>
-      <div class="top-pill" style="margin-top: 14px; width: 100%; justify-content: center;">
-        <span class="pulse-dot"></span>
-        <span id="nav-status">Vision & Trainer Live</span>
-      </div>
-    </div>
-
-    <nav class="ws-nav">
-      <div class="ws-category">🧠 AI ট্রেনিং (Training)</div>
-      <button class="ws-btn active" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard')">
-        <span class="icon">📊</span> লাইভ ড্যাশবোর্ড
-      </button>
-      <button class="ws-btn" data-tab="tab-school" onclick="switchTab('tab-school')">
-        <span class="icon">🎓</span> Before/After এডিটিং স্কুল
-      </button>
-      <button class="ws-btn" data-tab="tab-finetune" onclick="switchTab('tab-finetune')">
-        <span class="icon">⚡</span> পেয়ার ফাইন-টিউন ল্যাব
-      </button>
-
-      <div class="ws-category" style="margin-top: 6px;">🧪 AI টেস্টিং (Testing Lab)</div>
-      <button class="ws-btn" data-tab="tab-restore" onclick="switchTab('tab-restore')">
-        <span class="icon">✨</span> এআই রিস্টোরেশন ল্যাব
-      </button>
-      <button class="ws-btn" data-tab="tab-heatmap" onclick="switchTab('tab-heatmap')">
-        <span class="icon">🔥</span> ডিফারেন্স হিটম্যাপ
-      </button>
-      <button class="ws-btn" data-tab="tab-services" onclick="switchTab('tab-services')">
-        <span class="icon">💎</span> ১১টি কমার্শিয়াল সার্ভিস
-      </button>
-      <button class="ws-btn" data-tab="tab-magic" onclick="switchTab('tab-magic')">
-        <span class="icon">🪄</span> ম্যাজিক ইরেজার (Inpaint)
-      </button>
-      <button class="ws-btn" data-tab="tab-yolo" onclick="switchTab('tab-yolo')">
-        <span class="icon">👁️</span> অবজেক্ট ট্র্যাকিং (YOLO)
-      </button>
-      <button class="ws-btn" data-tab="tab-cv" onclick="switchTab('tab-cv')">
-        <span class="icon">🎨</span> কালার প্যালেট ও ফিল্টার
-      </button>
-    </nav>
-
-    <div class="ws-footer">
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>২৪/৭ সেলফ-লার্নিং:</span>
-          <span id="side-train-status" style="color: var(--success); font-weight:700;">Active</span>
-        </div>
-        <button id="btn-toggle-train" onclick="toggleContinuousTraining()" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 11px; padding: 6px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
-          ⏸️ সেলফ-লার্নিং বন্ধ করুন
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- ═════════ CONTENT AREA ═════════ -->
-  <main class="workspace-content">
-    
-    <!-- Tab 1: Dashboard -->
-    <div id="tab-dashboard" class="tab-pane active">
-      
-<div class="panel-header" style="margin-bottom: 18px;">
-  <h2><span class="step-badge">📊</span> এআই ট্রেনিং স্ট্যাটাস ও লাইভ পারফরম্যান্স ওভারভিউ</h2>
-  <div style="display:flex; align-items:center; gap:10px;">
-    <button id="dash-btn-toggle" onclick="toggleContinuousTraining()" class="btn btn-outline" style="font-size: 11.5px; padding: 6px 14px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
-      ⏸️ সেলফ-লার্নিং পজ করুন
-    </button>
-    <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Autonomous Learning</span>
-  </div>
-</div>
-
-<!-- ─ Stats Row ─ -->
-  <div class="stats-grid">
-    <div class="stat-card" id="card-step">
-      <div class="stat-top">
-        <span class="stat-title">24/7 Continuous Step</span>
-        <span class="stat-icon">🔥</span>
-      </div>
-      <div class="stat-val" id="v-step">—</div>
-      <div class="stat-footer">মোট ট্রেইন্ড আইটারেশন</div>
-    </div>
-
-    <div class="stat-card" id="card-loss">
-      <div class="stat-top">
-        <span class="stat-title">Training Loss</span>
-        <span class="stat-icon">📉</span>
-      </div>
-      <div class="stat-val" id="v-loss">—</div>
-      <div class="stat-footer">L1 + MSE কম্পোজিট লস</div>
-    </div>
-
-    <div class="stat-card" id="card-pairs">
-      <div class="stat-top">
-        <span class="stat-title">Self-Learned & Custom</span>
-        <span class="stat-icon">🧠</span>
-      </div>
-      <div class="stat-val" id="v-pairs">0</div>
-      <div class="stat-footer" id="v-self-sub">অটোনোমাস সেলফ-লার্নিং সক্রিয়</div>
-    </div>
-
-    <div class="stat-card" id="card-lock">
-      <div class="stat-top">
-        <span class="stat-title">Engine Lock</span>
-        <span class="stat-icon">🔒</span>
-      </div>
-      <div class="stat-val" id="v-lock">Free</div>
-      <div class="stat-footer" id="v-lock-sub">ট্রেনিং সেফটি কন্ট্রোল</div>
-    </div>
-  </div>
-
-  
-
-<div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 24px;">
-  <div class="panel-box">
-    <div class="panel-header">
-      <h2><span class="step-badge">📜</span> লাইভ ট্রেইনিং ইঞ্জিন লগ (Console Tail)</h2>
-      <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
-    </div>
-    <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
-  </div>
-
-  <div class="panel-box">
-    <div class="panel-header">
-      <h2><span class="step-badge">💡</span> ISBD স্টুডিও গাইড ও ফিচার শর্টকাট</h2>
-    </div>
-    <div style="font-size: 12.5px; color: var(--tx-secondary); line-height: 1.9;">
-      <div style="margin-bottom: 8px;">🎓 <strong>এডিটিং স্কুল:</strong> ফটোশপের Before/After পেয়ার দিয়ে এআই-কে নতুন স্কিল শেখান।</div>
-      <div style="margin-bottom: 8px;">🔥 <strong>ডিফারেন্স হিটম্যাপ:</strong> ছবির পরিবর্তিত এরিয়া থার্মাল কালারে পরীক্ষা করুন।</div>
-      <div style="margin-bottom: 8px;">💎 <strong>১১টি কমার্শিয়াল সার্ভিস:</strong> এক ক্লিকে ক্লিপিং পাথ, রিটাচিং, শ্যাডো তৈরি।</div>
-      <div style="margin-bottom: 8px;">🪄 <strong>ম্যাজিক ইরেজার:</strong> ব্রাশ দিয়ে দাগ, অনাকাঙ্ক্ষিত অবজেক্ট বা ওয়াটারমার্ক মুছুন।</div>
-      <div>👁️ <strong>অবজেক্ট ট্র্যাকিং:</strong> YOLOv8 এআই দিয়ে ছবিতে থাকা সব উপাদান চিহ্নিত করুন।</div>
-    </div>
-  </div>
-</div>
-
-    </div>
-
-    <!-- Tab 2: AI School -->
-    <div id="tab-school" class="tab-pane">
-      <!-- ══════════════════════════════════════════════════════════
-       🎓 AI REAL EDITING SCHOOL — Before→After Direct Learning
-       ══════════════════════════════════════════════════════════ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
-    <div class="panel-header">
-      <h2><span class="step-badge" style="background: linear-gradient(135deg, #10b981, #6366f1);">🎓</span> AI রিয়েল এডিটিং স্কুল — Before/After পেয়ার থেকে সরাসরি শেখো (Real Pair Learning)</h2>
-      <span style="font-size:11px; color:#047857; font-weight:700;">Human-Edited Pair → AI Direct Learning + Instant Micro Fine-Tune</span>
-    </div>
-    <p style="font-size:12.5px; color:var(--tx-secondary); margin-bottom:16px; line-height:1.7;">
-      এখানে একটি <strong>আসল এডিটিং উদাহরণ</strong> দিন — আপনি বা আপনার টিম যে ছবি Photoshop/Lightroom-এ এডিট করেছেন তার আগের ও পরের ভার্সন আপলোড করুন।
-      AI সরাসরি মানুষের এডিটিং দেখে শিখবে, ৮টি অগমেন্টেড কপি তৈরি করে মেমরিতে রাখবে এবং <em>তৎক্ষণাৎ</em> ২০০ স্টেপের মাইক্রো ফাইন-টিউন শুরু করবে।
-    </p>
-
-    <div class="det-grid" style="gap:16px;">
-      <!-- Left: Controls -->
-      <div class="det-controls" style="gap:12px;">
-
-        <!-- Before / After upload -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div>
-            <label style="font-size:11px; font-weight:700; color:#047857; display:block; margin-bottom:5px;">📷 আসল ছবি (Before / Input):</label>
-            <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
-                 style="border:2px dashed rgba(16,185,129,0.4); border-radius:var(--radius-sm); padding:18px 8px; text-align:center; cursor:pointer; transition:.2s; font-size:11px; color:var(--tx-muted);"
-                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
-              <div style="font-size:22px; margin-bottom:4px;">🖼️</div>
-              ক্লিক বা ড্রপ করুন
-            </div>
-            <input type="file" id="school-before" accept="image/*" style="display:none" onchange="schoolPreview(this,'b')">
-            <img id="school-prev-b" style="display:none; width:100%; margin-top:8px; border-radius:6px; border:1px solid var(--card-border);">
-          </div>
-          <div>
-            <label style="font-size:11px; font-weight:700; color:#818cf8; display:block; margin-bottom:5px;">✨ এডিটেড ছবি (After / Target):</label>
-            <div id="school-a-drop" onclick="document.getElementById('school-after').click()"
-                 style="border:2px dashed rgba(99,102,241,0.4); border-radius:var(--radius-sm); padding:18px 8px; text-align:center; cursor:pointer; transition:.2s; font-size:11px; color:var(--tx-muted);"
-                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'after')">
-              <div style="font-size:22px; margin-bottom:4px;">🌟</div>
-              ক্লিক বা ড্রপ করুন
-            </div>
-            <input type="file" id="school-after" accept="image/*" style="display:none" onchange="schoolPreview(this,'a')">
-            <img id="school-prev-a" style="display:none; width:100%; margin-top:8px; border-radius:6px; border:1px solid var(--card-border);">
-          </div>
-        </div>
-
-        <!-- Multi-Select Editing Type Chips / Checkboxes -->
-        <div>
-          <label style="font-size:11px; font-weight:700; color:var(--tx-primary); display:block; margin-bottom:6px;">
-            🎨 এডিটিং টাইপ (Editing Services) — <span style="font-weight:500; color:var(--tx-muted);">একসাথে একাধিক অপশন সিলেক্ট করতে পারেন:</span>
-          </label>
-          <div id="school-labels-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; margin-bottom:4px;">
-            <label class="chip-label"><input type="checkbox" name="school-service" value="clipping_path" onchange="updateSelectedLabels()"> ✂️ Clipping Path</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="multi_clipping" onchange="updateSelectedLabels()"> 🎨 Multi Clipping</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="retouching" checked onchange="updateSelectedLabels()"> ✨ Retouching</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="color_correction" onchange="updateSelectedLabels()"> 🌈 Color Fix</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="shadow_making" onchange="updateSelectedLabels()"> 👥 Shadow Making</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="neck_joint" onchange="updateSelectedLabels()"> 👔 Neck Joint</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="image_masking" onchange="updateSelectedLabels()"> 🎭 Hair Masking</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="reflection" onchange="updateSelectedLabels()"> 🪞 Reflection</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="enhancement" onchange="updateSelectedLabels()"> 🔮 Enhancement</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="manipulation" onchange="updateSelectedLabels()"> 🌌 Manipulation</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="vector_tracing" onchange="updateSelectedLabels()"> 📐 Raster-Vector</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="client_custom" onchange="updateSelectedLabels()"> 📝 Client Custom</label>
-          </div>
-          <input type="hidden" id="school-label" value="retouching">
-        </div>
-
-        <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
-        <div style="background: #f8fafc; border-color: #e2e8f0; border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: var(--radius-sm); padding: 10px 12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <label style="font-size:11px; font-weight:700; color:var(--cyan); display:flex; align-items:center; gap:6px;">
-              <span>📝 ক্লায়েন্টের এডিটিং নির্দেশনা (Optional Instruction):</span>
-            </label>
-            <span style="font-size:10px; color:var(--tx-muted);">PDF, Word, TXT, Image বা টেক্সট</span>
-          </div>
-          <textarea id="school-instruction-text" class="param-input" rows="2" placeholder="ক্লায়েন্ট কী কী এডিট করতে বলেছে এখানে লিখুন বা পেস্ট করুন (যেমন: remove background, smooth skin, make warm tone)..." style="resize:vertical; font-size:11.5px; margin-bottom:8px;"></textarea>
-          
-          <div style="display:flex; gap:8px; align-items:center;">
-            <label style="font-size:10.5px; color:var(--tx-muted); white-space:nowrap;">বা নির্দেশনা ফাইল দিন:</label>
-            <input type="file" id="school-instruction-file" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg" class="param-input" style="padding:3px 6px; font-size:10.5px;">
-          </div>
-        </div>
-
-        <!-- Augmentation slider -->
-        <div style="display:flex; gap:8px; align-items:center;">
-          <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">অগমেন্টেশন:</label>
-          <input type="range" id="school-aug" min="1" max="16" value="8" style="flex:1;"
-                 oninput="document.getElementById('school-aug-val').textContent=this.value">
-          <span id="school-aug-val" style="font-size:11px; font-weight:700; color:#047857; width:20px;">8</span>
-          <span style="font-size:10px; color:var(--tx-muted);">কপি/পেয়ার</span>
-        </div>
-
-        <!-- Submit button -->
-        <button class="btn btn-main" style="width:100%; background:linear-gradient(135deg,#10b981,#6366f1); font-size:13px; padding:10px;"
-                onclick="submitSchoolPair()">
-          🎓 AI-কে এই এডিটিং শেখাও (Learn Now!)
-        </button>
-
-        <!-- Status box -->
-        <div id="school-status" style="display:none; background:rgba(16,185,129,0.07); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-sm); padding:12px; font-size:12px;"></div>
-      </div>
-
-      <!-- Right: History log -->
-      <div>
-        <div style="font-size:11px; font-weight:700; color:var(--tx-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.06em;">📋 সাম্প্রতিক শিক্ষা লগ (Learning History):</div>
-        <div id="school-log-wrap" style="background:#f8fafc; border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; max-height:260px; overflow-y:auto; font-size:11px; font-family:monospace;">
-          <div style="color:var(--tx-muted); text-align:center; padding:20px;">লগ লোড হচ্ছে…</div>
-        </div>
-        <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#047857; font-weight:700;"></div>
-      </div>
-    </div>
-  </div>
-
-  
-    </div>
-
-    <!-- Tab 3: Finetune -->
-    <div id="tab-finetune" class="tab-pane">
-      
-<div class="panel-box" style="margin-bottom: 20px;">
-  <div class="panel-header">
-    <h2><span class="step-badge">⚡</span> পেয়ার ফাইন-টিউন ও ট্রেনিং প্যারামিটার কন্ট্রোল</h2>
-    <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Manual Batch & Fine-tune Config</span>
-  </div>
-  <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-    এখানে ম্যানুয়াল পেয়ার আপলোড করে হাইপারপ্যারামিটার (Steps, Learning Rate, Batch Size) কনফিগার করে ডিপ ফাইন-টিউনিং শুরু করতে পারেন।
-  </p>
-</div>
-<!-- Left Column: Fine-tune & Pairs -->
-    <div>
-      <div class="panel-box">
-        <div class="panel-header">
-          <h2><span class="step-badge">1</span> ডিজাইনার পেয়ার আপলোড</h2>
-          <button class="btn btn-outline" style="padding: 6px 14px; font-size: 11.5px;" onclick="addPairRow()">+ নতুন পেয়ার</button>
-        </div>
-
-        <div class="dropzone" id="dz" onclick="addPairRow()">
-          <div class="dz-icon">📂</div>
-          <div class="dz-text">ক্লিক করুন বা ছবি ড্র্যাগ করে আনুন</div>
-          <div class="dz-sub">ফটোশপের মূল ছবি (Before) এবং এডিটেড ছবি (After) দিন</div>
-        </div>
-
-        <div class="pairs-container" id="pairs-list"></div>
-      </div>
-
-      <div class="panel-box">
-        <div class="panel-header">
-          <h2><span class="step-badge">2</span> অ্যাডভান্সড ফাইন-টিউন কন্ট্রোল</h2>
-        </div>
-
-        <div class="param-grid">
-          <div class="param-field">
-            <label>ট্রেনিং ধাপ (Steps)</label>
-            <select class="param-select" id="p-steps">
-              <option value="100">১০০ ধাপ (কুইক ড্রাফট)</option>
-              <option value="300" selected>৩০০ ধাপ (স্ট্যান্ডার্ড)</option>
-              <option value="600">৬০০ ধাপ (গভীর টিউনিং)</option>
-              <option value="1200">১২০০ ধাপ (ম্যাক্সিমাম পারফেকশন)</option>
-            </select>
-          </div>
-          <div class="param-field">
-            <label>লার্নিং রেট (Learning Rate)</label>
-            <select class="param-select" id="p-lr">
-              <option value="0.00005">0.00005 (খুব সূক্ষ্ম)</option>
-              <option value="0.0001" selected>0.0001 (ব্যালেন্সড)</option>
-              <option value="0.0003">0.0003 (দ্রুত অ্যাডাপ্টেশন)</option>
-            </select>
-          </div>
-          <div class="param-field">
-            <label>ব্যাচ সাইজ (Batch Size)</label>
-            <select class="param-select" id="p-batch">
-              <option value="4">4 (লাইটওয়েট)</option>
-              <option value="8" selected>8 (সুপারফাস্ট 4-থ্রেড)</option>
-              <option value="16">16 (হাই থ্রুপুট)</option>
-            </select>
-          </div>
-          <div class="param-field">
-            <label>রিয়েল ডেটা রেশিও</label>
-            <input class="param-input" type="text" value="40% Real + 60% Synthetic" disabled>
-          </div>
-        </div>
-
-        <div class="btn-group">
-          <button class="btn btn-main" id="btn-train" onclick="startTraining()">⚡ প্রসেস ও ফাইন-টিউন শুরু</button>
-          <button class="btn btn-danger-light" onclick="purgeData()">🗑 ডেটা মুছুন</button>
-        </div>
-      </div>
-    </div>
-
-    
-</div>
-
-    </div>
-
-    <!-- Tab 4: Restoration Playground -->
-    <div id="tab-restore" class="tab-pane">
-      
-<div class="panel-box" style="margin-bottom: 20px;">
-  <div class="panel-header">
-    <h2><span class="step-badge">✨</span> এআই রিস্টোরেশন ল্যাব ও ইন্টারঅ্যাক্টিভ স্লাইডার</h2>
-    <span style="font-size: 11px; color: var(--accent); font-weight:700;">Real-time Model Inference</span>
-  </div>
-  <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-    যেকোনো নষ্ট বা সাধারণ ছবি আপলোড করুন — এআই মডেল রিয়েল-টাইমে রিস্টোর করে বিফোর/আফটার স্লাইডারে তুলনা দেখাবে।
-  </p>
-</div>
-<div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px;">
-<!-- Right Column: Interactive Inference Playground & Specs -->
-    <div>
-      <div class="panel-box playground-box">
-        <div class="panel-header">
-          <h2><span class="step-badge">⚡</span> লাইভ এআই রেস্টোরেশন ল্যাব</h2>
-        </div>
-        <p style="font-size: 11.5px; color: var(--tx-secondary); margin-bottom: 10px;">
-          যেকোনো সাধারণ বা নষ্ট ছবি দিন — বর্তমান ট্রেন হওয়া এআই মডেল রিয়েল-টাইমে রিস্টোর করবে।
-        </p>
-
-        <input type="file" id="play-input" accept="image/*" style="display:none" onchange="runInference(this)">
-        <button class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('play-input').click()">
-          📸 ছবি সিলেক্ট করে টেস্ট করুন
-        </button>
-
-        <div class="compare-container" id="comp-box">
-          <div class="play-placeholder" id="play-placeholder">ছবি আপলোড করলে এখানে Before/After স্লাইডার দেখতে পাবেন</div>
-          <img id="comp-after" class="compare-img" style="display:none">
-          <div class="compare-overlay" id="comp-overlay" style="display:none">
-            <img id="comp-before">
-          </div>
-          <div class="slider-handle" id="comp-handle" style="display:none">⬍</div>
-          <input type="range" class="compare-range" id="comp-range" min="0" max="100" value="50" style="display:none" oninput="slideCompare(this.value)">
-        </div>
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--tx-muted);" id="comp-labels" style="display:none">
-          <span>◀ Original (Before)</span>
-          <span>AI Restored (After) ▶</span>
-        </div>
-      </div>
-
-      <!-- Engine Logs -->
-      <div class="panel-box">
-        <div class="panel-header">
-          <h2><span class="step-badge">📊</span> লাইভ ইঞ্জিন লগ</h2>
-          <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
-        </div>
-        <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
-      </div>
-    </div>
-
-  </div>
-
-</div>
-
-
-</div>
-
-    </div>
-
-    <!-- Tab 5: Heatmap -->
-    <div id="tab-heatmap" class="tab-pane">
-      <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(245, 158, 11, 0.3);">
-    <div class="panel-header">
-      <h2><span class="step-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🔥</span> এআই বিফোর/আফটার হিটম্যাপ ভিজ্যুয়ালাইজার (Pixel Difference Heatmap)</h2>
-      <span style="font-size: 11px; color: #fbbf24; font-weight: 700;">Thermal Error & Modification Mapping</span>
-    </div>
-    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      অনেক সময় খালি চোখে বিফোর ও আফটার ছবির সূক্ষ্ম পার্থক্য বোঝা যায় না — এআই প্রতিটি পিক্সেলের পার্থক্য থার্মাল হিটম্যাপে (উজ্জ্বল লাল/হলুদ দিয়ে পরিবর্তিত অংশ) স্পষ্ট ফুটিয়ে তোলে।
-    </p>
-
-    <div class="det-grid">
-      <div class="det-controls">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div>
-            <label style="font-size:11px; font-weight:600; color:var(--tx-muted); display:block; margin-bottom:4px;">আসল ছবি (Before):</label>
-            <input type="file" id="hm-before" accept="image/*" class="param-input" style="padding:4px;">
-          </div>
-          <div>
-            <label style="font-size:11px; font-weight:600; color:var(--tx-muted); display:block; margin-bottom:4px;">এডিটেড ছবি (After):</label>
-            <input type="file" id="hm-after" accept="image/*" class="param-input" style="padding:4px;">
-          </div>
-        </div>
-
-        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #f59e0b, #ef4444);" onclick="generateHeatmap()">
-          🔥 হিটম্যাপ জেনারেট করুন
-        </button>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
-          <span>হিটম্যাপ কালার প্যালেট:</span>
-          <select class="param-select" id="hm-cmap" style="width: 130px; padding: 4px 8px;" onchange="reGenHeatmap()">
-            <option value="turbo" selected>Turbo (হাই-কনট্রাস্ট)</option>
-            <option value="jet">Jet (ক্লাসিক রেইনবো)</option>
-            <option value="inferno">Inferno (ডার্ক ফায়ার)</option>
-            <option value="magma">Magma (ম্যাগমা)</option>
-            <option value="hot">Hot (হোয়াইট-হট)</option>
-          </select>
-        </div>
-
-        <div id="hm-stats-box" style="display:none; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); padding:10px 14px; border-radius:var(--radius-sm); font-size:11.5px;">
-          <div style="color:#b45309; font-weight:700; margin-bottom:2px;" id="hm-stat-text"></div>
-          <div style="color:var(--tx-secondary); font-size:11px;" id="hm-stat-sub"></div>
-        </div>
-      </div>
-
-      <div>
-        <div id="hm-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          Before ও After আপলোড করে হিটম্যাপ রান করলে এখানে থার্মাল এনালাইসিস দেখতে পাবেন
-        </div>
-        <div id="hm-result-wrap" style="display:none; flex-direction:column; gap:8px;">
-          <img id="hm-overlay-img" class="det-result-img" style="display:block;">
-          <span style="font-size:11px; color:var(--tx-muted); text-align:center;">🔴 লাল/হলুদ = সর্বোচ্চ পরিবর্তন | 🔵 নীল/কালো = অপরিবর্তিত অংশ</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  
-    </div>
-
-    <!-- Tab 6: Commercial Services -->
-    <div id="tab-services" class="tab-pane">
-      <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(6, 182, 212, 0.35);">
-    <div class="panel-header">
-      <h2><span class="step-badge" style="background: linear-gradient(135deg, var(--cyan), var(--accent));">💎</span> প্রফেশনাল ফটো এডিটিং ও গ্রাফিক সার্ভিসেস (Commercial Services Suite)</h2>
-      <span style="font-size: 11px; color: var(--cyan); font-weight: 700;">11 Commercial Studio Services</span>
-    </div>
-    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      ডিজিটাল পোস্ট-প্রোডাকশন ও গ্রাফিক এজেন্সির ১১টি ফুল কমার্শিয়াল সার্ভিস — ক্লিপিং পাথ, নেক জয়েন্ট, শ্যাডো মেকিং, রিফ্লেকশন, মাস্কিং ও রাস্টার টু ভেক্টর এক ক্লিকে এক্সিকিউট করুন।
-    </p>
-
-    <div class="det-grid">
-      <div class="det-controls">
-        <input type="file" id="service-file" accept="image/*" style="display:none" onchange="runStudioService(this)">
-        <button class="btn btn-main" style="width: 100%;" onclick="document.getElementById('service-file').click()">
-          📸 ছবি সিলেক্ট করে সার্ভিস চালান
-        </button>
-
-        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--tx-muted);">
-          <span>কাঙ্ক্ষিত সার্ভিস নির্বাচন করুন:</span>
-          <select class="param-select" id="service-select" style="padding: 8px 12px; font-size: 13px;" onchange="reRunStudioService()">
-            <option value="clipping_path" selected>✂️ Clipping Path (ব্যাকগ্রাউন্ড কাটআউট)</option>
-            <option value="multi_clipping_path">🎨 Multiple Clipping Path (কালার সেগমেন্টেশন)</option>
-            <option value="image_masking">🎭 Image Masking (চুল/পশম মাস্কিং)</option>
-            <option value="neck_joint">👔 Neck Joint (গোস্ট ম্যানিকুইন কলার)</option>
-            <option value="image_retouching">✨ Image Retouching (স্কিন গ্ল্যামার ও স্মুথ)</option>
-            <option value="shadow_making">👥 Shadow Making (ড্রপ ও কন্টাক্ট শ্যাডো)</option>
-            <option value="reflection">🪞 Reflection (মিরর গ্লসি রিফ্লেকশন)</option>
-            <option value="color_correction">🌈 Color Correction (হোয়াইট ব্যালেন্স ও টোন)</option>
-            <option value="image_enhancement">🔮 Image Enhancement (এইচডিআর ও শার্পনেস)</option>
-            <option value="image_manipulation">🌌 Image Manipulation (ক্রিয়েটিভ লাইটিং)</option>
-            <option value="raster_to_vector">📐 Raster To Vector (ভেক্টর লাইন ট্রেসিং)</option>
-          </select>
-        </div>
-        <div id="service-desc" style="font-size: 12px; color: #38bdf8; font-weight:600; margin-top: 4px;"></div>
-      </div>
-
-      <div>
-        <div id="service-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          ছবি আপলোড করে সার্ভিস সিলেক্ট করলে এখানে প্রসেসড রেজাল্ট দেখতে পাবেন
-        </div>
-        <img id="service-result" class="det-result-img">
-      </div>
-    </div>
-  </div>
-
-  
-    </div>
-
-    <!-- Tab 7: Magic Eraser -->
-    <div id="tab-magic" class="tab-pane">
-      <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(236, 72, 153, 0.25);">
-    <div class="panel-header">
-      <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
-      <span style="font-size: 11px; color: #f472b6; font-weight: 600;">Interactive Mask Drawing Studio</span>
-    </div>
-    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      ছবি আপলোড করে ব্রাশ দিয়ে যে অংশ মুছতে চান (ওয়াটারমার্ক, দাগ বা অনাকাঙ্ক্ষিত অবজেক্ট) তার ওপর আঁকুন — এআই ব্যাকগ্রাউন্ডের সাথে ম্যাচ করে তা অদৃশ্য করে দেবে!
-    </p>
-
-    <div class="det-grid">
-      <div class="det-controls">
-        <input type="file" id="inpaint-file" accept="image/*" style="display:none" onchange="loadInpaintImage(this)">
-        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="document.getElementById('inpaint-file').click()">
-          🖼️ ছবি আপলোড করে ব্রাশ শুরু করুন
-        </button>
-        <div style="display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--tx-muted);">
-          <span>ব্রাশ সাইজ:</span>
-          <input type="range" id="brush-size" min="5" max="50" value="20" style="flex:1;">
-          <span id="brush-val">20px</span>
-        </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn btn-main" style="flex:1;" onclick="applyInpaint()">✨ মুছে ফেলুন (Erase)</button>
-          <button class="btn btn-outline" onclick="clearInpaintMask()">রি-সেট ব্রাশ</button>
-        </div>
-      </div>
-
-      <div>
-        <div id="inpaint-canvas-wrap" style="position:relative; display:none; max-width:100%; border:1px solid var(--card-border); border-radius:var(--radius-md); overflow:hidden; background:#000;">
-          <canvas id="inpaint-canvas" style="max-width:100%; height:auto; cursor:crosshair; display:block;"></canvas>
-        </div>
-        <div id="inpaint-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          ছবি লোড হলে এখানে ব্রাশ দিয়ে মার্ক করার ক্যানভাস দেখতে পাবেন
-        </div>
-        <img id="inpaint-result" class="det-result-img" style="margin-top:12px;">
-      </div>
-    </div>
-  </div>
-
-  
-    </div>
-
-    <!-- Tab 8: YOLO -->
-    <div id="tab-yolo" class="tab-pane">
-      <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
-  <div class="detector-banner">
-    <div class="panel-header">
-      <h2><span class="step-badge">👁️</span> এআই অবজেক্ট ট্র্যাকিং ও আইডেন্টিফায়ার (Object Recognition)</h2>
-      <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">YOLOv8 Engine (বাংলা নাম সহ)</span>
-    </div>
-    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      যেকোনো ছবি আপলোড করুন — এআই নিজে নিজে ছবিতে থাকা মানুষ, গাড়ি, পশু-পাখি, ফোন, ল্যাপটপ ইত্যাদি সব অবজেক্ট চিনে বাউন্ডিং বক্স সহ বাংলায় চিহ্নিত করবে।
-    </p>
-
-    <div class="det-grid">
-      <div class="det-controls">
-        <input type="file" id="det-file" accept="image/*" style="display:none" onchange="runObjectDetection(this)">
-        <button class="btn btn-main" style="width: 100%;" onclick="document.getElementById('det-file').click()">
-          📷 ছবি আপলোড করে অবজেক্ট স্ক্যান করুন
-        </button>
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
-          <span>Confidence থ্রেশহোল্ড:</span>
-          <select class="param-select" id="det-conf" style="width: 120px; padding: 4px 8px;" onchange="reScanDet()">
-            <option value="0.15">15% (বেশি অবজেক্ট)</option>
-            <option value="0.25" selected>25% (স্ট্যান্ডার্ড)</option>
-            <option value="0.45">45% (হাই অ্যাকুরেসি)</option>
-          </select>
-        </div>
-        <div id="det-summary-box" style="display:none;">
-          <span style="font-size: 12px; font-weight: 700; color: var(--tx-primary);">শনাক্তকৃত অবজেক্ট সমূহ:</span>
-          <div class="det-tags" id="det-tags"></div>
-        </div>
-      </div>
-
-      <div>
-        <div id="det-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          ছবি স্ক্যান করার পর এখানে বাউন্ডিং বক্স সহ ভিজ্যুয়ালাইজেশন দেখতে পাবেন
-        </div>
-        <img id="det-result" class="det-result-img">
-      </div>
-    </div>
-  </div>
-
-  
-    </div>
-
-    <!-- Tab 9: Computer Vision Lab -->
-    <div id="tab-cv" class="tab-pane">
-      <!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
-  <div class="cv-lab-banner">
-    <div class="panel-header">
-      <h2><span class="step-badge">🧪</span> কম্পিউটার ভিশন ও কালার প্যালেট ল্যাব (OpenCV & Scikit-Image)</h2>
-      <span style="font-size: 11px; color: var(--accent); font-weight: 600;">Edge Detection, CLAHE, Denoising, Palette</span>
-    </div>
-    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      ওপেনসিভি ও সাইকিট-ইমেজ লাইব্রেরির মাধ্যমে ফিল্টারিং, এজ ডিটেকশন, ডিনয়েজ এবং ডমিন্যান্ট কালার প্যালেট এক্সট্রাকশন।
-    </p>
-
-    <div class="det-grid">
-      <div class="det-controls">
-        <input type="file" id="cv-file" accept="image/*" style="display:none" onchange="runCVFilter(this)">
-        <button class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('cv-file').click()">
-          🎨 ছবি সিলেক্ট করে প্রসেস করুন
-        </button>
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
-          <span>প্রি-ট্রেইন্ড এডিটিং ইঞ্জিন:</span>
-          <select class="param-select" id="cv-type" style="width: 220px; padding: 5px 8px;" onchange="reApplyCV()">
-            <option value="hdr" selected>✨ HDR Detail Enhancement</option>
-            <option value="wb">🎨 Auto White Balance (Fix Colors)</option>
-            <option value="sharpen">🔪 Unsharp Masking (Sharpen)</option>
-            <option value="smooth">🫧 Edge-Preserving Smooth</option>
-            <option value="stylize">🖌️ Artistic Water-Color</option>
-            <option value="sketch">✏️ AI Pencil Sketch</option>
-            <option value="clahe">⚡ CLAHE Contrast Boost</option>
-            <option value="denoise">🧼 Fast NLM Denoising</option>
-            <option value="tv_denoise">🌊 Total Variation Denoise</option>
-            <option value="canny">📐 Canny Edge & Contour</option>
-          </select>
-        </div>
-        <div id="cv-desc" style="font-size: 11.5px; color: var(--cyan); margin-top: 4px;"></div>
-        <div id="cv-palette-box" style="display:none;">
-          <span style="font-size: 11px; font-weight: 700; color: var(--tx-primary);">ছবির প্রধান কালার প্যালেট (Dominant Colors):</span>
-          <div class="cv-palette" id="cv-palette"></div>
-        </div>
-      </div>
-
-      <div>
-        <div id="cv-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          কম্পিউটার ভিশন ফিল্টার প্রসেসের পর এখানে আউটপুট দেখতে পাবেন
-        </div>
-        <img id="cv-result" class="det-result-img">
-      </div>
-    </div>
-  </div>
-
-  
-    </div>
-
-  </main>
-</div>
-
-
-<script>
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.ws-btn').forEach(b => b.classList.remove('active'));
-  
-  const target = document.getElementById(tabId);
-  if (target) target.classList.add('active');
-  
-  const btn = document.querySelector(`[data-tab="${tabId}"]`);
-  if (btn) btn.classList.add('active');
-  
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-</script>
-
-<script>
-// ─ Continuous Self-Learning Toggle Logic ─
-let isContinuousTrainActive = true;
-
-async function checkTrainingStatus() {
-  try {
-    const res = await fetch('/api/training/toggle?action=status');
-    const data = await res.json();
-    updateTrainingUI(data.active);
-  } catch(e) {}
-}
-
-function updateTrainingUI(active) {
-  isContinuousTrainActive = active;
-  const sideStatus = document.getElementById('side-train-status');
-  const sideBtn = document.getElementById('btn-toggle-train');
-  const dashBtn = document.getElementById('dash-btn-toggle');
-  
-  if (active) {
-    if (sideStatus) { sideStatus.textContent = 'Active (চলমান)'; sideStatus.style.color = 'var(--success)'; }
-    if (sideBtn) {
-      sideBtn.innerHTML = '⏸️ সেলফ-লার্নিং বন্ধ করুন';
-      sideBtn.style.color = '#f87171';
-      sideBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-    }
-    if (dashBtn) {
-      dashBtn.innerHTML = '⏸️ সেলফ-লার্নিং পজ করুন';
-      dashBtn.style.color = '#f87171';
-      dashBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-    }
-  } else {
-    if (sideStatus) { sideStatus.textContent = 'Paused (বন্ধ)'; sideStatus.style.color = 'var(--warning)'; }
-    if (sideBtn) {
-      sideBtn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
-      sideBtn.style.color = '#34d399';
-      sideBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-    }
-    if (dashBtn) {
-      dashBtn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
-      dashBtn.style.color = '#34d399';
-      dashBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-    }
-  }
-}
-
-async function toggleContinuousTraining() {
-  const nextAction = isContinuousTrainActive ? 'stop' : 'start';
-  toast(nextAction === 'start' ? 'সেলফ-লার্নিং শুরু করা হচ্ছে…' : 'সেলফ-লার্নিং বন্ধ করা হচ্ছে…', 'ok');
-  
-  try {
-    const res = await fetch(`/api/training/toggle?action=${nextAction}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'কমান্ড ব্যর্থ');
-    
-    updateTrainingUI(data.active);
-    toast(data.message, 'ok');
-  } catch(e) {
-    toast('ত্রুটি: ' + e.message, 'err');
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => { checkTrainingStatus(); });
-
-let lastUploadedDetFile = null;
-let lastUploadedCVFile = null;
-
-function toast(msg, type='ok') {
-  const c = document.getElementById('toasts');
-  const t = document.createElement('div');
-  t.className = 'toast ' + type;
-  t.textContent = msg;
-  c.appendChild(t);
-  setTimeout(() => t.remove(), 4000);
-}
-
-// ─ AI Real Editing School Logic ─
-// ─ Multi-select Labels Helper ─
-function updateSelectedLabels() {
-  const checkboxes = document.querySelectorAll('input[name="school-service"]:checked');
-  const values = Array.from(checkboxes).map(cb => cb.value);
-  const hiddenInput = document.getElementById('school-label');
-  hiddenInput.value = values.length > 0 ? values.join(', ') : 'general_editing';
-}
-
-function schoolPreview(input, slot) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const imgEl = document.getElementById(slot === 'b' ? 'school-prev-b' : 'school-prev-a');
-    imgEl.src = e.target.result;
-    imgEl.style.display = 'block';
-    const dropEl = document.getElementById(slot === 'b' ? 'school-b-drop' : 'school-a-drop');
-    dropEl.innerHTML = `<div style="font-size:18px;">✅</div><div style="font-size:10px;">${file.name}</div>`;
-  };
-  reader.readAsDataURL(file);
-}
-
-function schoolDrop(event, slot) {
-  event.preventDefault();
-  const file = event.dataTransfer.files[0];
-  if (!file) return;
-  const inputId = slot === 'before' ? 'school-before' : 'school-after';
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  document.getElementById(inputId).files = dt.files;
-  schoolPreview({files: [file]}, slot === 'before' ? 'b' : 'a');
-}
-
-async function submitSchoolPair() {
-  const fileB = document.getElementById('school-before').files[0];
-  const fileA = document.getElementById('school-after').files[0];
-  if (!fileB || !fileA) { toast('Before ও After দুটি ছবিই দিন!', 'warn'); return; }
-
-  const label  = document.getElementById('school-label').value;
-  const augment= document.getElementById('school-aug').value;
-  const instructionText = document.getElementById('school-instruction-text').value;
-  const instructionFile = document.getElementById('school-instruction-file').files[0];
-
-  const statusEl = document.getElementById('school-status');
-  statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span style="color:#047857;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
-
-  const fd = new FormData();
-  fd.append('before', fileB);
-  fd.append('after',  fileA);
-  if (instructionFile) {
-    fd.append('instruction_file', instructionFile);
-  }
-
-  try {
-    const queryParams = new URLSearchParams({
-      label: label,
-      augment: augment,
-      instruction_text: instructionText
-    });
-    
-    const res  = await fetch(`/api/learn-pair?${queryParams.toString()}`, { method:'POST', body:fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'ত্রুটি');
-
-    const insights = data.learning_insights;
-    let insightsHtml = '';
-    if (insights && (insights.bangla || insights.english)) {
-      insightsHtml = `
-        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border:1px solid rgba(99,102,241,0.3); padding:10px 12px; border-radius:6px; margin-top:8px;">
-          <div style="color:#0369a1; font-weight:700; font-size:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span>🧠 এআই এই ছবি থেকে যা শিখেছে (What AI Learned):</span>
-            <span style="font-size:10px; color:var(--tx-muted);">Bilingual Live Insight</span>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px; font-size:11.5px;">
-            ${(insights.bangla || []).map((bn, idx) => `
-              <div style="border-left:2px solid #6366f1; padding-left:8px;">
-                <div style="color:#0f172a; font-weight:600;">🇧🇩 <strong>বাংলা:</strong> ${bn}</div>
-                <div style="color:#475569; font-size:10.5px; font-style:italic;">🇬🇧 <strong>EN:</strong> ${insights.english[idx] || ''}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    statusEl.innerHTML = `
-      <div style="color:#047857; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
-      <div style="color:var(--tx-muted); margin-bottom:8px;">
-        📦 মোট Real Pairs: <strong style="color:#0369a1;">${data.total_real}</strong> &nbsp;|&nbsp;
-        🔁 Pool Size: <strong style="color:#0369a1;">${data.total_pool}</strong> &nbsp;|&nbsp;
-        ⚡ Micro Fine-tune PID: <strong style="color:#b45309;">${data.finetune_pid || 'background'}</strong>
-      </div>
-      ${data.client_instruction ? `
-        <div style="background:#f0fdfa; border:1px solid #99f6e4; border:1px solid rgba(6,182,212,0.3); padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:11.5px;">
-          <div style="color:var(--cyan); font-weight:700; margin-bottom:2px;">📑 ক্লায়েন্ট নির্দেশনা (${data.instruction_source || 'Attached'}):</div>
-          <div style="color:#1e293b; font-family:inherit; white-space:pre-wrap;">${data.client_instruction}</div>
-        </div>
-      ` : ''}
-      ${insightsHtml}
-      ${data.diff_stats && data.diff_stats.interpretation ? `
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border:1px solid rgba(16,185,129,0.3); padding:8px 10px; border-radius:6px; margin-top:8px;">
-          <div style="color:#b45309; font-size:11.5px; font-weight:700;">🔍 হিটম্যাপ এনালাইসিস: ${data.diff_stats.interpretation}</div>
-          <div style="color:var(--tx-muted); font-size:10.5px;">গড় পার্থক্য: ${data.diff_stats.mean_diff} | পরিবর্তিত অংশ: ${data.diff_stats.altered_pct}%</div>
-          ${data.heatmap_preview ? `<img src="${data.heatmap_preview}" style="width:100%; max-height:160px; object-fit:contain; border-radius:4px; margin-top:6px; border:1px solid var(--card-border);">` : ''}
-        </div>
-      ` : ''}
-    `;
-
-    toast('🎓 AI নতুন এডিটিং শিখছে!', 'ok');
-    loadSchoolLog();
-  } catch(e) {
-    statusEl.innerHTML = `<span style="color:#f87171;">❌ ত্রুটি: ${e.message}</span>`;
-    toast('Real Pair Learning ফেইল্ড: ' + e.message, 'err');
-  }
-}
-
-async function loadSchoolLog() {
-  try {
-    const res  = await fetch('/api/real-pair-log?limit=15');
-    const data = await res.json();
-    const wrap = document.getElementById('school-log-wrap');
-    if (!data.log || data.log.length === 0) {
-      wrap.innerHTML = '<div style="color:var(--tx-muted); text-align:center; padding:20px;">এখনো কোনো রিয়েল পেয়ার শেখানো হয়নি।<br>উপরে প্রথম পেয়ার আপলোড করুন!</div>';
-    } else {
-      wrap.innerHTML = [...data.log].reverse().map(r => `
-        <div style="border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; color:var(--tx-secondary);">
-          <span style="color:#047857;">✔</span>
-          <strong style="color:#0369a1;">${r.label}</strong>
-          &nbsp;·&nbsp;${r.before_px}→${r.after_px}
-          &nbsp;·&nbsp;<span style="color:var(--tx-muted);">${r.ts}</span>
-          &nbsp;·&nbsp;Pool: ${r.total_pairs}
-        </div>`).join('');
-    }
-    document.getElementById('school-total-badge').textContent =
-      `🎓 মোট Real Pair Learning: ${data.total_real} পেয়ার সম্পন্ন`;
-  } catch(e) {}
-}
-
-// Load log on page start
-document.addEventListener('DOMContentLoaded', () => { loadSchoolLog(); });
-
-// ─ Heatmap Difference Logic ─
-async function generateHeatmap() {
-  const fileB = document.getElementById('hm-before').files[0];
-  const fileA = document.getElementById('hm-after').files[0];
-
-  if (!fileB || !fileA) {
-    toast('Before এবং After দুটি ছবিই সিলেক্ট করুন', 'warn');
-    return;
-  }
-
-  toast('এআই পিক্সেল ডিফারেন্স হিটম্যাপ ক্যালকুলেট করছে…', 'ok');
-
-  const fd = new FormData();
-  fd.append('before', fileB);
-  fd.append('after', fileA);
-  const cmap = document.getElementById('hm-cmap').value;
-
-  try {
-    const res = await fetch(`/api/heatmap?colormap=${cmap}`, { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'হিটম্যাপ ফেইল্ড');
-
-    const ovImg = document.getElementById('hm-overlay-img');
-    ovImg.src = data.overlay_image;
-    document.getElementById('hm-result-wrap').style.display = 'flex';
-    document.getElementById('hm-placeholder').style.display = 'none';
-
-    document.getElementById('hm-stat-text').textContent = '✓ ' + data.stats.interpretation;
-    document.getElementById('hm-stat-sub').textContent = `Mean Pixel Diff: ${data.stats.mean_diff} | Max Diff: ${data.stats.max_diff} | Modified Area: ${data.stats.altered_pct}%`;
-    document.getElementById('hm-stats-box').style.display = 'block';
-
-    toast('হিটম্যাপ তৈরি সম্পন্ন হয়েছে!', 'ok');
-  } catch(e) {
-    toast('হিটম্যাপ ত্রুটি: ' + e.message, 'err');
-  }
-}
-
-function reGenHeatmap() {
-  const fileB = document.getElementById('hm-before').files[0];
-  const fileA = document.getElementById('hm-after').files[0];
-  if (fileB && fileA) generateHeatmap();
-}
-
-let lastUploadedServiceFile = null;
-
-async function runStudioService(input) {
-  const file = input.files ? input.files[0] : input;
-  if (!file) return;
-  lastUploadedServiceFile = file;
-
-  const serviceId = document.getElementById('service-select').value;
-  toast('সার্ভিস প্রসেস করা হচ্ছে…', 'ok');
-
-  const fd = new FormData();
-  fd.append('image', file);
-
-  try {
-    const res = await fetch(`/api/service_process?service_id=${serviceId}`, { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'সার্ভিস ফেইল্ড');
-
-    const resImg = document.getElementById('service-result');
-    resImg.src = data.processed_image;
-    resImg.style.display = 'block';
-    document.getElementById('service-placeholder').style.display = 'none';
-    document.getElementById('service-desc').textContent = '✓ ' + data.description;
-
-    toast('সার্ভিস সফলভাবে সম্পন্ন হয়েছে!', 'ok');
-  } catch(e) {
-    toast('সার্ভিস ত্রুটি: ' + e.message, 'err');
-  }
-}
-
-function reRunStudioService() {
-  if (lastUploadedServiceFile) runStudioService(lastUploadedServiceFile);
-}
-
-// ─ Object Detection Scanner ─
-async function runObjectDetection(input) {
-  const file = input.files ? input.files[0] : input;
-  if (!file) return;
-  lastUploadedDetFile = file;
-
-  toast('এআই অবজেক্ট স্ক্যান করছে…', 'ok');
-  const fd = new FormData();
-  fd.append('image', file);
-  const conf = document.getElementById('det-conf').value;
-
-  try {
-    const res = await fetch(`/api/detect?conf=${conf}`, { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'ডিটেকশন ফেইল্ড');
-
-    const resImg = document.getElementById('det-result');
-    resImg.src = data.annotated_image;
-    resImg.style.display = 'block';
-    document.getElementById('det-placeholder').style.display = 'none';
-
-    const tagContainer = document.getElementById('det-tags');
-    tagContainer.innerHTML = '';
-    for (const [bnName, count] of Object.entries(data.summary)) {
-      const tag = document.createElement('div');
-      tag.className = 'det-tag';
-      tag.innerHTML = `<span>${bnName}</span> <span class="count">${count}</span>`;
-      tagContainer.appendChild(tag);
-    }
-    document.getElementById('det-summary-box').style.display = 'block';
-    toast(`মোট ${data.total_objects}টি অবজেক্ট চিহ্নিত হয়েছে!`, 'ok');
-  } catch(e) {
-    toast('অবজেক্ট স্ক্যানিং ত্রুটি: ' + e.message, 'err');
-  }
-}
-
-function reScanDet() {
-  if (lastUploadedDetFile) runObjectDetection(lastUploadedDetFile);
-}
-
-// ─ Computer Vision & Color Palette Lab ─
-async function runCVFilter(input) {
-  const file = input.files ? input.files[0] : input;
-  if (!file) return;
-  lastUploadedCVFile = file;
-
-  toast('কম্পিউটার ভিশন ফিল্টার প্রসেস হচ্ছে…', 'ok');
-  const fd = new FormData();
-  fd.append('image', file);
-  const filterType = document.getElementById('cv-type').value;
-
-  try {
-    const res = await fetch(`/api/cv_filter?filter_type=${filterType}`, { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'প্রসেসিং ফেইল্ড');
-
-    const resImg = document.getElementById('cv-result');
-    resImg.src = data.filtered_image;
-    resImg.style.display = 'block';
-    document.getElementById('cv-placeholder').style.display = 'none';
-    document.getElementById('cv-desc').textContent = data.description;
-
-    const palContainer = document.getElementById('cv-palette');
-    palContainer.innerHTML = '';
-    for (const c of data.palette) {
-      const chip = document.createElement('div');
-      chip.className = 'palette-chip';
-      chip.style.backgroundColor = c.hex;
-      chip.style.color = (c.rgb[0]*0.299 + c.rgb[1]*0.587 + c.rgb[2]*0.114) > 150 ? '#000' : '#fff';
-      chip.innerHTML = `${c.hex} (${c.percent}%)`;
-      palContainer.appendChild(chip);
-    }
-    document.getElementById('cv-palette-box').style.display = 'block';
-    toast('ফিল্টার এবং কালার প্যালেট সফলভাবে জেনারেট হয়েছে!', 'ok');
-  } catch(e) {
-    toast('ভিশন ফিল্টার ত্রুটি: ' + e.message, 'err');
-  }
-}
-
-function reApplyCV() {
-  if (lastUploadedCVFile) runCVFilter(lastUploadedCVFile);
-}
-
-// ─ Magic Eraser & Inpainting Canvas Logic ─
-let inpaintImgObj = null;
-let inpaintCanvas = null;
-let inpaintCtx = null;
-let maskCanvas = null;
-let maskCtx = null;
-let isDrawing = false;
-
-document.getElementById('brush-size').addEventListener('input', e => {
-  document.getElementById('brush-val').textContent = e.target.value + 'px';
-});
-
-function loadInpaintImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    inpaintImgObj = new Image();
-    inpaintImgObj.onload = () => {
-      inpaintCanvas = document.getElementById('inpaint-canvas');
-      inpaintCtx = inpaintCanvas.getContext('2d');
-      
-      inpaintCanvas.width = inpaintImgObj.width;
-      inpaintCanvas.height = inpaintImgObj.height;
-      inpaintCtx.drawImage(inpaintImgObj, 0, 0);
-
-      // Create separate hidden mask canvas (black background, white strokes)
-      maskCanvas = document.createElement('canvas');
-      maskCanvas.width = inpaintImgObj.width;
-      maskCanvas.height = inpaintImgObj.height;
-      maskCtx = maskCanvas.getContext('2d');
-      maskCtx.fillStyle = '#000000';
-      maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-      document.getElementById('inpaint-canvas-wrap').style.display = 'block';
-      document.getElementById('inpaint-placeholder').style.display = 'none';
-      document.getElementById('inpaint-result').style.display = 'none';
-
-      setupCanvasEvents();
-      toast('ছবি লোড হয়েছে — অনাকাঙ্ক্ষিত অংশের ওপর ব্রাশ করুন', 'ok');
-    };
-    inpaintImgObj.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function setupCanvasEvents() {
-  inpaintCanvas.onmousedown = e => { isDrawing = true; drawBrush(e); };
-  window.onmouseup = () => { isDrawing = false; };
-  inpaintCanvas.onmousemove = drawBrush;
-  
-  // Touch support for mobile
-  inpaintCanvas.ontouchstart = e => { isDrawing = true; drawBrush(e.touches[0]); };
-  window.ontouchend = () => { isDrawing = false; };
-  inpaintCanvas.ontouchmove = e => { drawBrush(e.touches[0]); };
-}
-
-function drawBrush(e) {
-  if (!isDrawing || !inpaintCtx) return;
-  const rect = inpaintCanvas.getBoundingClientRect();
-  const scaleX = inpaintCanvas.width / rect.width;
-  const scaleY = inpaintCanvas.height / rect.height;
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
-  const radius = document.getElementById('brush-size').value;
-
-  // Draw semi-transparent pink on visible canvas
-  inpaintCtx.beginPath();
-  inpaintCtx.arc(x, y, radius, 0, Math.PI * 2);
-  inpaintCtx.fillStyle = 'rgba(236, 72, 153, 0.6)';
-  inpaintCtx.fill();
-
-  // Draw white on mask canvas
-  maskCtx.beginPath();
-  maskCtx.arc(x, y, radius, 0, Math.PI * 2);
-  maskCtx.fillStyle = '#ffffff';
-  maskCtx.fill();
-}
-
-function clearInpaintMask() {
-  if (!inpaintImgObj) return;
-  inpaintCtx.drawImage(inpaintImgObj, 0, 0);
-  maskCtx.fillStyle = '#000000';
-  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-  document.getElementById('inpaint-result').style.display = 'none';
-  toast('ব্রাশ রিসেট করা হয়েছে', 'ok');
-}
-
-async function applyInpaint() {
-  if (!inpaintImgObj) { toast('আগে ছবি আপলোড করুন', 'warn'); return; }
-  toast('এআই ব্যাকগ্রাউন্ড ব্লেন্ড করে মুছে ফেলছে…', 'ok');
-
-  const fileInput = document.getElementById('inpaint-file');
-  const imgFile = fileInput.files[0];
-
-  maskCanvas.toBlob(async maskBlob => {
-    const fd = new FormData();
-    fd.append('image', imgFile);
-    fd.append('mask', maskBlob, 'mask.png');
-
-    try {
-      const res = await fetch('/api/inpaint', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('ইনপেইন্টিং ব্যর্থ');
-      const blob = await res.blob();
-      const resImg = document.getElementById('inpaint-result');
-      resImg.src = URL.createObjectURL(blob);
-      resImg.style.display = 'block';
-      toast('সফলভাবে মুছে ফেলা হয়েছে!', 'ok');
-    } catch(e) {
-      toast('ইরেজার ত্রুটি: ' + e.message, 'err');
-    }
-  }, 'image/png');
-}
-
-// ─ Drag and drop ─
-const dz = document.getElementById('dz');
-['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
-['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
-dz.addEventListener('drop', ev => {
-  ev.preventDefault();
-  const f = ev.dataTransfer.files;
-  if (f.length >= 2) {
-    addPairRow(f[0], f[1]);
-    toast('ড্র্যাগ করা পেয়ার যোগ হয়েছে!', 'ok');
-  } else {
-    toast('আগে ও পরের দুটি ছবি ড্রপ করুন', 'warn');
-  }
-});
-
-// ─ Pair Rows ─
-function addPairRow(bfFile, afFile) {
-  const container = document.getElementById('pairs-list');
-  const row = document.createElement('div');
-  row.className = 'pair-item';
-  row.innerHTML = `
-    <div class="pair-side">
-      <label>আসল ছবি (Before)</label>
-      <input type="file" accept="image/*" onchange="previewThumb(this)">
-      <img class="thumb-preview">
-    </div>
-    <div class="pair-side">
-      <label>ডিজাইনার এডিট (After)</label>
-      <input type="file" accept="image/*" onchange="previewThumb(this)">
-      <img class="thumb-preview">
-    </div>
-    <button class="btn-del-pair" onclick="this.closest('.pair-item').remove()" title="মুছুন">✕</button>
-  `;
-  container.appendChild(row);
-
-  if (bfFile) {
-    const dt = new DataTransfer(); dt.items.add(bfFile);
-    row.querySelectorAll('input')[0].files = dt.files;
-    previewThumb(row.querySelectorAll('input')[0]);
-  }
-  if (afFile) {
-    const dt = new DataTransfer(); dt.items.add(afFile);
-    row.querySelectorAll('input')[1].files = dt.files;
-    previewThumb(row.querySelectorAll('input')[1]);
-  }
-}
-
-function previewThumb(inp) {
-  const file = inp.files[0];
-  if (!file) return;
-  const img = inp.parentNode.querySelector('.thumb-preview');
-  img.src = URL.createObjectURL(file);
-  img.style.display = 'block';
-}
-
-// ─ Fine-tune trigger ─
-async function startTraining() {
-  const rows = document.querySelectorAll('.pair-item');
-  if (!rows.length) { toast('আগে অন্তত একটি পেয়ার যোগ করুন', 'warn'); return; }
-
-  const btn = document.getElementById('btn-train');
-  btn.disabled = true;
-  btn.textContent = 'আপলোড ও প্রসেসিং হচ্ছে…';
-
-  let successCount = 0;
-  for (let r of rows) {
-    const [bf, af] = r.querySelectorAll('input[type=file]');
-    if (!bf.files[0] || !af.files[0]) continue;
-
-    const fd = new FormData();
-    fd.append('before', bf.files[0]);
-    fd.append('after', af.files[0]);
-    try {
-      const res = await fetch('/api/pair', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (res.ok) successCount++;
-    } catch(e) {}
-  }
-
-  const steps = document.getElementById('p-steps').value;
-  const lr = document.getElementById('p-lr').value;
-  const batch = document.getElementById('p-batch').value;
-
-  try {
-    const res = await fetch(`/api/train?steps=${steps}&lr=${lr}&batch=${batch}`, { method: 'POST' });
-    const j = await res.json();
-    if (res.ok) {
-      toast(`ফাইন-টিউন কিউড: ${steps} ধাপ, lr: ${lr}`, 'ok');
-    } else {
-      toast(j.detail || 'ট্রেনিং শুরু করা যায়নি', 'err');
-    }
-  } catch(e) {
-    toast('সার্ভার এরর', 'err');
-  }
-  btn.disabled = false;
-  btn.textContent = '⚡ প্রসেস ও ফাইন-টিউন শুরু';
-}
-
-function purgeData() {
-  if (!confirm('সব পেয়ার ডেটা মুছে ফেলবেন?')) return;
-  fetch('/api/purge', { method: 'POST' }).then(r => r.json()).then(() => {
-    toast('সব পেয়ার টেনসর মুছে ফেলা হয়েছে', 'ok');
-    document.getElementById('pairs-list').innerHTML = '';
-  });
-}
-
-// ─ Live Inference Lab ─
-async function runInference(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  toast('এআই মডেল রিস্টোর করছে…', 'ok');
-  const fd = new FormData();
-  fd.append('image', file);
-
-  try {
-    const res = await fetch('/api/infer', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('Inference error');
-    const blob = await res.blob();
-    const restoredUrl = URL.createObjectURL(blob);
-    const origUrl = URL.createObjectURL(file);
-
-    document.getElementById('play-placeholder').style.display = 'none';
-    const aft = document.getElementById('comp-after');
-    const bef = document.getElementById('comp-before');
-    aft.src = restoredUrl; aft.style.display = 'block';
-    bef.src = origUrl;
-    document.getElementById('comp-overlay').style.display = 'block';
-    document.getElementById('comp-handle').style.display = 'flex';
-    document.getElementById('comp-range').style.display = 'block';
-    slideCompare(50);
-  } catch(e) {
-    toast('রিস্টোরেশনে ব্যর্থ', 'err');
-  }
-}
-
-function slideCompare(val) {
-  document.getElementById('comp-overlay').style.width = val + '%';
-  document.getElementById('comp-handle').style.left = val + '%';
-}
-
-// ─ Polling ─
-async function poll() {
-  try {
-    const res = await fetch('/api/status');
-    const j = await res.json();
-
-    document.getElementById('v-step').textContent = j.live.step ? j.live.step.toLocaleString() : '—';
-    document.getElementById('v-loss').textContent = j.live.loss ? j.live.loss.toFixed(4) : '—';
-    document.getElementById('v-pairs').textContent = j.pairs;
-
-    const lock = document.getElementById('v-lock');
-    lock.textContent = j.lock_busy ? 'Busy (Training)' : 'Free';
-    document.getElementById('card-lock').className = 'stat-card ' + (j.lock_busy ? 'warn' : 'ok');
-
-    const badge = document.getElementById('badge-ft');
-    if (j.ft.running) {
-      badge.textContent = 'Running Fine-tune…';
-      badge.style.background = 'rgba(99,102,241,0.2)';
-      badge.style.color = '#818cf8';
-    } else {
-      badge.textContent = 'Idle';
-      badge.style.background = 'rgba(255,255,255,0.05)';
-      badge.style.color = 'var(--tx-muted)';
-    }
-
-    if (j.log) {
-      document.getElementById('term-log').textContent = j.log;
-    }
-  } catch(e) {}
-}
-setInterval(poll, 3000);
-poll();
-addPairRow();
-</script>
-</body>
-</html>
-
 <style>
 :root {
   --bg-app: #f8fafc;
-  --sidebar-bg: #ffffff;
-  --card-bg: #ffffff;
-  --card-border: #e2e8f0;
   --text-main: #0f172a;
   --text-sub: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
   --primary: #4f46e5;
-  --primary-light: #eef2ff;
   --cyan: #0284c7;
   --success: #10b981;
   --warning: #f59e0b;
@@ -1395,22 +23,22 @@ addPairRow();
   --radius-xl: 16px;
   --radius-lg: 12px;
   --radius-md: 8px;
+  --radius-sm: 6px;
 }
 
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', 'Noto Sans Bengali', system-ui, sans-serif;
   background-color: var(--bg-app);
   color: var(--text-main);
-  margin: 0;
-  padding: 0;
+  min-height: 100vh;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─ Modern Master Workspace Layout ─ */
 .workspace-layout {
   display: flex;
   min-height: 100vh;
-  background: #f8fafc;
 }
 
 .workspace-sidebar {
@@ -1462,7 +90,7 @@ body {
   cursor: pointer;
   background: transparent;
   border: 1px solid transparent;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
   width: 100%;
   text-align: left;
 }
@@ -1502,19 +130,28 @@ body {
   overflow-y: auto;
 }
 
-/* ─ Modern Cards & Panels ─ */
+.tab-pane {
+  display: none;
+  animation: paneFadeIn 0.2s ease forwards;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes paneFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─ Modern Cards & Banners ─ */
 .panel-box, .cv-lab-banner {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: var(--radius-xl);
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
-  transition: box-shadow 0.2s;
-}
-
-.panel-box:hover, .cv-lab-banner:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }
 
 .panel-header {
@@ -1531,7 +168,6 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  letter-spacing: -0.01em;
 }
 
 .step-badge {
@@ -1548,7 +184,7 @@ body {
   border: 1px solid #c7d2fe;
 }
 
-/* ─ Modern Metric Stats Cards ─ */
+/* ─ Modern Stats Grid ─ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1567,7 +203,7 @@ body {
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.06);
 }
 
 .stat-title {
@@ -1589,20 +225,38 @@ body {
 .stat-footer {
   font-size: 12px;
   color: #64748b;
-  font-weight: 500;
 }
 
-/* ─ Modern Buttons ─ */
+/* ─ Inputs & Buttons ─ */
+.param-input, .param-select {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-weight: 500;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s;
+}
+
+.param-input:focus, .param-select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
 .btn {
   padding: 9px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
   border: 1px solid transparent;
   font-family: inherit;
 }
@@ -1623,37 +277,25 @@ body {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #334155;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 .btn-outline:hover {
   background: #f8fafc;
+  color: #0f172a;
   border-color: #94a3b8;
-  color: #0f172a;
 }
 
-/* ─ Modern Input Fields ─ */
-.param-input, .param-select {
-  width: 100%;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #0f172a;
-  font-weight: 500;
-  padding: 9px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  transition: all 0.15s;
-  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.02);
+.btn-danger-light {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
 }
 
-.param-input:focus, .param-select:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+.btn-danger-light:hover {
+  background: #fee2e2;
 }
 
-/* ─ Chip Label Checkboxes ─ */
+/* ─ Chip Labels ─ */
 .chip-label {
   display: flex;
   align-items: center;
@@ -1689,44 +331,121 @@ body {
   height: 15px;
 }
 
-.tab-pane {
-  display: none;
-  animation: paneFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+/* ─ Grids & Layouts ─ */
+.det-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start; }
+@media (max-width: 860px) { .det-grid { grid-template-columns: 1fr; } }
+.det-controls { display: flex; flex-direction: column; gap: 14px; }
+.det-result-img {
+  width: 100%; max-height: 380px; object-fit: contain; border-radius: var(--radius-md);
+  border: 1px solid #e2e8f0; background: #000; display: none;
+}
+.det-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.det-tag {
+  background: #f1f5f9; border: 1px solid #e2e8f0;
+  padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px; color: #1e293b;
+}
+.det-tag .count { background: #0284c7; color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 10px; }
+
+.cv-palette { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.palette-chip {
+  padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px; border: 1px solid rgba(0,0,0,0.1);
 }
 
-.tab-pane.active {
-  display: block;
+.compare-container {
+  position: relative; width: 100%; height: 260px; border-radius: var(--radius-md);
+  overflow: hidden; background: #0f172a; border: 1px solid #e2e8f0; margin: 14px 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.compare-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+.compare-overlay {
+  position: absolute; top: 0; left: 0; width: 50%; height: 100%; overflow: hidden;
+  border-right: 2px solid #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+}
+.compare-overlay img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+.slider-handle {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 28px; height: 28px; border-radius: 50%; background: #fff; color: #000;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+  pointer-events: none; box-shadow: 0 0 15px rgba(0,0,0,0.8);
+}
+.compare-range {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: ew-resize; z-index: 10;
+}
+.play-placeholder { text-align: center; color: #94a3b8; font-size: 13px; }
+
+.terminal-area {
+  background: #0f172a; border: 1px solid #334155; border-radius: var(--radius-md);
+  padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #38bdf8;
+  max-height: 260px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;
 }
 
-@keyframes paneFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+.toasts { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  padding: 10px 18px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600;
+  backdrop-filter: blur(16px); border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1); animation: toastIn 0.3s ease;
 }
+.toast.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.toast.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.toast.err { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+@keyframes toastIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-@media (max-width: 960px) {
-  .workspace-layout { flex-direction: column; }
-  .workspace-sidebar { width: 100%; height: auto; position: static; }
-  .workspace-content { padding: 20px 16px 60px; }
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; display: inline-block; }
+
+.pairs-container { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.pair-item {
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md); padding: 12px; display: grid;
+  grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: center;
 }
+.pair-side label {
+  font-size: 11px; font-weight: 600; color: #64748b;
+  display: block; margin-bottom: 4px;
+}
+.pair-side input[type=file] { width: 100%; font-size: 11px; color: #334155; }
+.thumb-preview { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; margin-top: 4px; display: none; border: 1px solid #cbd5e1; }
+.btn-del-pair {
+  background: #ffffff; border: 1px solid #e2e8f0; color: #dc2626;
+  border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s;
+}
+.btn-del-pair:hover { background: #fee2e2; border-color: #fca5a5; }
+
+.dropzone {
+  border: 2px dashed #cbd5e1; border-radius: var(--radius-md);
+  padding: 26px 16px; text-align: center; cursor: pointer; transition: all 0.2s;
+  background: #f8fafc;
+}
+.dropzone:hover, .dropzone.dragover {
+  border-color: #6366f1; background: #eef2ff;
+}
+.dz-icon { font-size: 32px; margin-bottom: 6px; }
+.dz-text { font-size: 13.5px; font-weight: 600; color: #1e293b; }
+.dz-sub { font-size: 11.5px; color: #64748b; margin-top: 2px; }
+
+.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.param-field label { font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 5px; }
 </style>
-
 </head>
+
 <body>
 
 <div class="toasts" id="toasts"></div>
 
 <div class="workspace-layout">
-  <!-- ═════════ SIDEBAR NAVIGATION ═════════ -->
+  <!-- ═════════ SIDEBAR ═════════ -->
   <aside class="workspace-sidebar">
     <div class="ws-brand">
-      <div class="brand">
-        <div class="brand-icon">🚀</div>
-        <div class="brand-text">
-          <h1>ISBD Studio</h1>
-          <span>AI Train & Test Suite</span>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:40px; height:40px; border-radius:10px; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; box-shadow:0 4px 12px rgba(79,70,229,0.25);">🚀</div>
+        <div>
+          <h1 style="font-size:18px; font-weight:800; color:#0f172a; line-height:1.2;">ISBD Studio</h1>
+          <span style="font-size:11px; font-weight:600; color:#0284c7; text-transform:uppercase; letter-spacing:0.5px;">AI Workspace</span>
         </div>
       </div>
-      <div class="top-pill" style="margin-top: 14px; width: 100%; justify-content: center;">
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; padding:6px 12px; border-radius:20px; background:#f1f5f9; border:1px solid #e2e8f0; color:#475569; margin-top:14px; justify-content:center;">
         <span class="pulse-dot"></span>
         <span id="nav-status">Vision & Trainer Live</span>
       </div>
@@ -1744,7 +463,7 @@ body {
         <span class="icon">⚡</span> পেয়ার ফাইন-টিউন ল্যাব
       </button>
 
-      <div class="ws-category" style="margin-top: 6px;">🧪 AI টেস্টিং (Testing Lab)</div>
+      <div class="ws-category">🧪 AI টেস্টিং (Testing Lab)</div>
       <button class="ws-btn" data-tab="tab-restore" onclick="switchTab('tab-restore')">
         <span class="icon">✨</span> এআই রিস্টোরেশন ল্যাব
       </button>
@@ -1767,11 +486,11 @@ body {
 
     <div class="ws-footer">
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size:12px;">
           <span>২৪/৭ সেলফ-লার্নিং:</span>
-          <span id="side-train-status" style="color: var(--success); font-weight:700;">Active</span>
+          <span id="side-train-status" style="color: #059669; font-weight:700;">Active</span>
         </div>
-        <button id="btn-toggle-train" onclick="toggleContinuousTraining()" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 11px; padding: 6px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
+        <button id="btn-toggle-train" onclick="toggleContinuousTraining()" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 11.5px; padding: 6px; border-color: #fca5a5; color: #dc2626;">
           ⏸️ সেলফ-লার্নিং বন্ধ করুন
         </button>
       </div>
@@ -1783,17 +502,15 @@ body {
     
     <!-- Tab 1: Dashboard -->
     <div id="tab-dashboard" class="tab-pane active">
-      
-<div class="panel-header" style="margin-bottom: 18px;">
-  <h2><span class="step-badge">📊</span> এআই ট্রেনিং স্ট্যাটাস ও লাইভ পারফরম্যান্স ওভারভিউ</h2>
-  <div style="display:flex; align-items:center; gap:10px;">
-    <button id="dash-btn-toggle" onclick="toggleContinuousTraining()" class="btn btn-outline" style="font-size: 11.5px; padding: 6px 14px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
-      ⏸️ সেলফ-লার্নিং পজ করুন
-    </button>
-    <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Autonomous Learning</span>
-  </div>
-</div>
-
+      <div class="panel-header" style="margin-bottom: 18px;">
+        <h2><span class="step-badge">📊</span> এআই ট্রেনিং স্ট্যাটাস ও লাইভ পারফরম্যান্স ওভারভিউ</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button id="dash-btn-toggle" onclick="toggleContinuousTraining()" class="btn btn-outline" style="font-size: 11.5px; padding: 6px 14px; border-color: #fca5a5; color: #dc2626;">
+            ⏸️ সেলফ-লার্নিং পজ করুন
+          </button>
+          <span style="font-size: 11px; color: #0284c7; font-weight:700;">Autonomous Learning</span>
+        </div>
+      </div>
 <!-- ─ Stats Row ─ -->
   <div class="stats-grid">
     <div class="stat-card" id="card-step">
@@ -1834,41 +551,39 @@ body {
   </div>
 
   
+      <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 24px;">
+        <div class="panel-box">
+          <div class="panel-header">
+            <h2><span class="step-badge">📜</span> লাইভ ট্রেইনিং ইঞ্জিন লগ (Console Tail)</h2>
+            <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #f1f5f9; color:#475569;">Idle</span>
+          </div>
+          <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
+        </div>
 
-<div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 24px;">
-  <div class="panel-box">
-    <div class="panel-header">
-      <h2><span class="step-badge">📜</span> লাইভ ট্রেইনিং ইঞ্জিন লগ (Console Tail)</h2>
-      <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
-    </div>
-    <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
-  </div>
-
-  <div class="panel-box">
-    <div class="panel-header">
-      <h2><span class="step-badge">💡</span> ISBD স্টুডিও গাইড ও ফিচার শর্টকাট</h2>
-    </div>
-    <div style="font-size: 12.5px; color: var(--tx-secondary); line-height: 1.9;">
-      <div style="margin-bottom: 8px;">🎓 <strong>এডিটিং স্কুল:</strong> ফটোশপের Before/After পেয়ার দিয়ে এআই-কে নতুন স্কিল শেখান।</div>
-      <div style="margin-bottom: 8px;">🔥 <strong>ডিফারেন্স হিটম্যাপ:</strong> ছবির পরিবর্তিত এরিয়া থার্মাল কালারে পরীক্ষা করুন।</div>
-      <div style="margin-bottom: 8px;">💎 <strong>১১টি কমার্শিয়াল সার্ভিস:</strong> এক ক্লিকে ক্লিপিং পাথ, রিটাচিং, শ্যাডো তৈরি।</div>
-      <div style="margin-bottom: 8px;">🪄 <strong>ম্যাজিক ইরেজার:</strong> ব্রাশ দিয়ে দাগ, অনাকাঙ্ক্ষিত অবজেক্ট বা ওয়াটারমার্ক মুছুন।</div>
-      <div>👁️ <strong>অবজেক্ট ট্র্যাকিং:</strong> YOLOv8 এআই দিয়ে ছবিতে থাকা সব উপাদান চিহ্নিত করুন।</div>
-    </div>
-  </div>
-</div>
-
+        <div class="panel-box">
+          <div class="panel-header">
+            <h2><span class="step-badge">💡</span> ISBD স্টুডিও গাইড ও ফিচার শর্টকাট</h2>
+          </div>
+          <div style="font-size: 13px; color: #475569; line-height: 1.9;">
+            <div style="margin-bottom: 8px;">🎓 <strong>এডিটিং স্কুল:</strong> ফটোশপের Before/After পেয়ার দিয়ে এআই-কে নতুন স্কিল শেখান।</div>
+            <div style="margin-bottom: 8px;">🔥 <strong>ডিফারেন্স হিটম্যাপ:</strong> ছবির পরিবর্তিত এরিয়া থার্মাল কালারে পরীক্ষা করুন।</div>
+            <div style="margin-bottom: 8px;">💎 <strong>১১টি কমার্শিয়াল সার্ভিস:</strong> এক ক্লিকে ক্লিপিং পাথ, রিটাচিং, শ্যাডো তৈরি।</div>
+            <div style="margin-bottom: 8px;">🪄 <strong>ম্যাজিক ইরেজার:</strong> ব্রাশ দিয়ে দাগ, অনাকাঙ্ক্ষিত অবজেক্ট বা ওয়াটারমার্ক মুছুন।</div>
+            <div>👁️ <strong>অবজেক্ট ট্র্যাকিং:</strong> YOLOv8 এআই দিয়ে ছবিতে থাকা সব উপাদান চিহ্নিত করুন।</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Tab 2: AI School -->
     <div id="tab-school" class="tab-pane">
-      <!-- ══════════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════════════════
        🎓 AI REAL EDITING SCHOOL — Before→After Direct Learning
        ══════════════════════════════════════════════════════════ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(99,102,241,0.08) 100%); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #10b981, #6366f1);">🎓</span> AI রিয়েল এডিটিং স্কুল — Before/After পেয়ার থেকে সরাসরি শেখো (Real Pair Learning)</h2>
-      <span style="font-size:11px; color:#047857; font-weight:700;">Human-Edited Pair → AI Direct Learning + Instant Micro Fine-Tune</span>
+      <span style="font-size:11px; color:#6ee7b7; font-weight:700;">Human-Edited Pair → AI Direct Learning + Instant Micro Fine-Tune</span>
     </div>
     <p style="font-size:12.5px; color:var(--tx-secondary); margin-bottom:16px; line-height:1.7;">
       এখানে একটি <strong>আসল এডিটিং উদাহরণ</strong> দিন — আপনি বা আপনার টিম যে ছবি Photoshop/Lightroom-এ এডিট করেছেন তার আগের ও পরের ভার্সন আপলোড করুন।
@@ -1882,7 +597,7 @@ body {
         <!-- Before / After upload -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="font-size:11px; font-weight:700; color:#047857; display:block; margin-bottom:5px;">📷 আসল ছবি (Before / Input):</label>
+            <label style="font-size:11px; font-weight:700; color:#6ee7b7; display:block; margin-bottom:5px;">📷 আসল ছবি (Before / Input):</label>
             <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
                  style="border:2px dashed rgba(16,185,129,0.4); border-radius:var(--radius-sm); padding:18px 8px; text-align:center; cursor:pointer; transition:.2s; font-size:11px; color:var(--tx-muted);"
                  ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
@@ -1905,42 +620,20 @@ body {
           </div>
         </div>
 
-        <!-- Multi-Select Editing Type Chips / Checkboxes -->
-        <div>
-          <label style="font-size:11px; font-weight:700; color:var(--tx-primary); display:block; margin-bottom:6px;">
-            🎨 এডিটিং টাইপ (Editing Services) — <span style="font-weight:500; color:var(--tx-muted);">একসাথে একাধিক অপশন সিলেক্ট করতে পারেন:</span>
-          </label>
-          <div id="school-labels-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; margin-bottom:4px;">
-            <label class="chip-label"><input type="checkbox" name="school-service" value="clipping_path" onchange="updateSelectedLabels()"> ✂️ Clipping Path</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="multi_clipping" onchange="updateSelectedLabels()"> 🎨 Multi Clipping</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="retouching" checked onchange="updateSelectedLabels()"> ✨ Retouching</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="color_correction" onchange="updateSelectedLabels()"> 🌈 Color Fix</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="shadow_making" onchange="updateSelectedLabels()"> 👥 Shadow Making</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="neck_joint" onchange="updateSelectedLabels()"> 👔 Neck Joint</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="image_masking" onchange="updateSelectedLabels()"> 🎭 Hair Masking</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="reflection" onchange="updateSelectedLabels()"> 🪞 Reflection</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="enhancement" onchange="updateSelectedLabels()"> 🔮 Enhancement</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="manipulation" onchange="updateSelectedLabels()"> 🌌 Manipulation</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="vector_tracing" onchange="updateSelectedLabels()"> 📐 Raster-Vector</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="client_custom" onchange="updateSelectedLabels()"> 📝 Client Custom</label>
-          </div>
-          <input type="hidden" id="school-label" value="retouching">
-        </div>
-
-        <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
-        <div style="background: #f8fafc; border-color: #e2e8f0; border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: var(--radius-sm); padding: 10px 12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <label style="font-size:11px; font-weight:700; color:var(--cyan); display:flex; align-items:center; gap:6px;">
-              <span>📝 ক্লায়েন্টের এডিটিং নির্দেশনা (Optional Instruction):</span>
-            </label>
-            <span style="font-size:10px; color:var(--tx-muted);">PDF, Word, TXT, Image বা টেক্সট</span>
-          </div>
-          <textarea id="school-instruction-text" class="param-input" rows="2" placeholder="ক্লায়েন্ট কী কী এডিট করতে বলেছে এখানে লিখুন বা পেস্ট করুন (যেমন: remove background, smooth skin, make warm tone)..." style="resize:vertical; font-size:11.5px; margin-bottom:8px;"></textarea>
-          
-          <div style="display:flex; gap:8px; align-items:center;">
-            <label style="font-size:10.5px; color:var(--tx-muted); white-space:nowrap;">বা নির্দেশনা ফাইল দিন:</label>
-            <input type="file" id="school-instruction-file" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg" class="param-input" style="padding:3px 6px; font-size:10.5px;">
-          </div>
+        <!-- Label tag -->
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">এডিটিং টাইপ:</label>
+          <select id="school-label" class="param-select" style="flex:1; padding:5px 8px;">
+            <option value="retouching">✨ Retouching (রিটাচিং)</option>
+            <option value="color_correction">🌈 Color Correction (কালার কারেকশন)</option>
+            <option value="clipping_path">✂️ Clipping Path (ক্লিপিং পাথ)</option>
+            <option value="image_masking">🎭 Image Masking (মাস্কিং)</option>
+            <option value="shadow_making">👥 Shadow Making (শ্যাডো)</option>
+            <option value="neck_joint">👔 Neck Joint (ম্যানিকুইন)</option>
+            <option value="enhancement">🔮 Enhancement (এনহ্যান্সমেন্ট)</option>
+            <option value="manipulation">🌌 Manipulation (ম্যানিপুলেশন)</option>
+            <option value="other">📁 অন্যান্য</option>
+          </select>
         </div>
 
         <!-- Augmentation slider -->
@@ -1948,7 +641,7 @@ body {
           <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">অগমেন্টেশন:</label>
           <input type="range" id="school-aug" min="1" max="16" value="8" style="flex:1;"
                  oninput="document.getElementById('school-aug-val').textContent=this.value">
-          <span id="school-aug-val" style="font-size:11px; font-weight:700; color:#047857; width:20px;">8</span>
+          <span id="school-aug-val" style="font-size:11px; font-weight:700; color:#6ee7b7; width:20px;">8</span>
           <span style="font-size:10px; color:var(--tx-muted);">কপি/পেয়ার</span>
         </div>
 
@@ -1965,10 +658,10 @@ body {
       <!-- Right: History log -->
       <div>
         <div style="font-size:11px; font-weight:700; color:var(--tx-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.06em;">📋 সাম্প্রতিক শিক্ষা লগ (Learning History):</div>
-        <div id="school-log-wrap" style="background:#f8fafc; border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; max-height:260px; overflow-y:auto; font-size:11px; font-family:monospace;">
+        <div id="school-log-wrap" style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; max-height:260px; overflow-y:auto; font-size:11px; font-family:monospace;">
           <div style="color:var(--tx-muted); text-align:center; padding:20px;">লগ লোড হচ্ছে…</div>
         </div>
-        <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#047857; font-weight:700;"></div>
+        <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#6ee7b7; font-weight:700;"></div>
       </div>
     </div>
   </div>
@@ -1978,16 +671,15 @@ body {
 
     <!-- Tab 3: Finetune -->
     <div id="tab-finetune" class="tab-pane">
-      
-<div class="panel-box" style="margin-bottom: 20px;">
-  <div class="panel-header">
-    <h2><span class="step-badge">⚡</span> পেয়ার ফাইন-টিউন ও ট্রেনিং প্যারামিটার কন্ট্রোল</h2>
-    <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Manual Batch & Fine-tune Config</span>
-  </div>
-  <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-    এখানে ম্যানুয়াল পেয়ার আপলোড করে হাইপারপ্যারামিটার (Steps, Learning Rate, Batch Size) কনফিগার করে ডিপ ফাইন-টিউনিং শুরু করতে পারেন।
-  </p>
-</div>
+      <div class="panel-box" style="margin-bottom: 20px;">
+        <div class="panel-header">
+          <h2><span class="step-badge">⚡</span> পেয়ার ফাইন-টিউন ও ট্রেনিং প্যারামিটার কন্ট্রোল</h2>
+          <span style="font-size: 11px; color: #0284c7; font-weight:700;">Manual Batch & Fine-tune Config</span>
+        </div>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+          এখানে ম্যানুয়াল পেয়ার আপলোড করে হাইপারপ্যারামিটার (Steps, Learning Rate, Batch Size) কনফিগার করে ডিপ ফাইন-টিউনিং শুরু করতে পারেন।
+        </p>
+      </div>
 <!-- Left Column: Fine-tune & Pairs -->
     <div>
       <div class="panel-box">
@@ -2050,23 +742,21 @@ body {
     </div>
 
     
-</div>
-
+      </div>
     </div>
 
-    <!-- Tab 4: Restoration Playground -->
+    <!-- Tab 4: Restoration Playground (TESTING 1) -->
     <div id="tab-restore" class="tab-pane">
-      
-<div class="panel-box" style="margin-bottom: 20px;">
-  <div class="panel-header">
-    <h2><span class="step-badge">✨</span> এআই রিস্টোরেশন ল্যাব ও ইন্টারঅ্যাক্টিভ স্লাইডার</h2>
-    <span style="font-size: 11px; color: var(--accent); font-weight:700;">Real-time Model Inference</span>
-  </div>
-  <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-    যেকোনো নষ্ট বা সাধারণ ছবি আপলোড করুন — এআই মডেল রিয়েল-টাইমে রিস্টোর করে বিফোর/আফটার স্লাইডারে তুলনা দেখাবে।
-  </p>
-</div>
-<div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px;">
+      <div class="panel-box" style="margin-bottom: 20px;">
+        <div class="panel-header">
+          <h2><span class="step-badge">✨</span> এআই রিস্টোরেশন ল্যাব ও ইন্টারঅ্যাক্টিভ স্লাইডার</h2>
+          <span style="font-size: 11px; color: #4f46e5; font-weight:700;">Real-time Model Inference</span>
+        </div>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+          যেকোনো নষ্ট বা সাধারণ ছবি আপলোড করুন — এআই মডেল রিয়েল-টাইমে রিস্টোর করে বিফোর/আফটার স্লাইডারে তুলনা দেখাবে।
+        </p>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px;">
 <!-- Right Column: Interactive Inference Playground & Specs -->
     <div>
       <div class="panel-box playground-box">
@@ -2112,14 +802,13 @@ body {
 </div>
 
 
-</div>
-
+      </div>
     </div>
 
-    <!-- Tab 5: Heatmap -->
+    <!-- Tab 5: Heatmap (TESTING 2) -->
     <div id="tab-heatmap" class="tab-pane">
-      <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(245, 158, 11, 0.3);">
+<!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🔥</span> এআই বিফোর/আফটার হিটম্যাপ ভিজ্যুয়ালাইজার (Pixel Difference Heatmap)</h2>
       <span style="font-size: 11px; color: #fbbf24; font-weight: 700;">Thermal Error & Modification Mapping</span>
@@ -2157,7 +846,7 @@ body {
         </div>
 
         <div id="hm-stats-box" style="display:none; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); padding:10px 14px; border-radius:var(--radius-sm); font-size:11.5px;">
-          <div style="color:#b45309; font-weight:700; margin-bottom:2px;" id="hm-stat-text"></div>
+          <div style="color:#fbbf24; font-weight:700; margin-bottom:2px;" id="hm-stat-text"></div>
           <div style="color:var(--tx-secondary); font-size:11px;" id="hm-stat-sub"></div>
         </div>
       </div>
@@ -2177,10 +866,10 @@ body {
   
     </div>
 
-    <!-- Tab 6: Commercial Services -->
+    <!-- Tab 6: Commercial Services (TESTING 3) -->
     <div id="tab-services" class="tab-pane">
-      <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(6, 182, 212, 0.35);">
+<!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, var(--cyan), var(--accent));">💎</span> প্রফেশনাল ফটো এডিটিং ও গ্রাফিক সার্ভিসেস (Commercial Services Suite)</h2>
       <span style="font-size: 11px; color: var(--cyan); font-weight: 700;">11 Commercial Studio Services</span>
@@ -2227,10 +916,10 @@ body {
   
     </div>
 
-    <!-- Tab 7: Magic Eraser -->
+    <!-- Tab 7: Magic Eraser (TESTING 4) -->
     <div id="tab-magic" class="tab-pane">
-      <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
-  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(236, 72, 153, 0.25);">
+<!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
       <span style="font-size: 11px; color: #f472b6; font-weight: 600;">Interactive Mask Drawing Studio</span>
@@ -2271,9 +960,9 @@ body {
   
     </div>
 
-    <!-- Tab 8: YOLO -->
+    <!-- Tab 8: YOLO (TESTING 5) -->
     <div id="tab-yolo" class="tab-pane">
-      <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
+<!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
   <div class="detector-banner">
     <div class="panel-header">
       <h2><span class="step-badge">👁️</span> এআই অবজেক্ট ট্র্যাকিং ও আইডেন্টিফায়ার (Object Recognition)</h2>
@@ -2315,9 +1004,9 @@ body {
   
     </div>
 
-    <!-- Tab 9: Computer Vision Lab -->
+    <!-- Tab 9: Computer Vision Lab (TESTING 6) -->
     <div id="tab-cv" class="tab-pane">
-      <!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
+<!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
   <div class="cv-lab-banner">
     <div class="panel-header">
       <h2><span class="step-badge">🧪</span> কম্পিউটার ভিশন ও কালার প্যালেট ল্যাব (OpenCV & Scikit-Image)</h2>
@@ -2370,7 +1059,6 @@ body {
   </main>
 </div>
 
-
 <script>
 function switchTab(tabId) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -2379,7 +1067,7 @@ function switchTab(tabId) {
   const target = document.getElementById(tabId);
   if (target) target.classList.add('active');
   
-  const btn = document.querySelector(`[data-tab="${tabId}"]`);
+  const btn = document.querySelector('[data-tab="' + tabId + '"]');
   if (btn) btn.classList.add('active');
   
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2387,68 +1075,6 @@ function switchTab(tabId) {
 </script>
 
 <script>
-// ─ Continuous Self-Learning Toggle Logic ─
-let isContinuousTrainActive = true;
-
-async function checkTrainingStatus() {
-  try {
-    const res = await fetch('/api/training/toggle?action=status');
-    const data = await res.json();
-    updateTrainingUI(data.active);
-  } catch(e) {}
-}
-
-function updateTrainingUI(active) {
-  isContinuousTrainActive = active;
-  const sideStatus = document.getElementById('side-train-status');
-  const sideBtn = document.getElementById('btn-toggle-train');
-  const dashBtn = document.getElementById('dash-btn-toggle');
-  
-  if (active) {
-    if (sideStatus) { sideStatus.textContent = 'Active (চলমান)'; sideStatus.style.color = 'var(--success)'; }
-    if (sideBtn) {
-      sideBtn.innerHTML = '⏸️ সেলফ-লার্নিং বন্ধ করুন';
-      sideBtn.style.color = '#f87171';
-      sideBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-    }
-    if (dashBtn) {
-      dashBtn.innerHTML = '⏸️ সেলফ-লার্নিং পজ করুন';
-      dashBtn.style.color = '#f87171';
-      dashBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-    }
-  } else {
-    if (sideStatus) { sideStatus.textContent = 'Paused (বন্ধ)'; sideStatus.style.color = 'var(--warning)'; }
-    if (sideBtn) {
-      sideBtn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
-      sideBtn.style.color = '#34d399';
-      sideBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-    }
-    if (dashBtn) {
-      dashBtn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
-      dashBtn.style.color = '#34d399';
-      dashBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-    }
-  }
-}
-
-async function toggleContinuousTraining() {
-  const nextAction = isContinuousTrainActive ? 'stop' : 'start';
-  toast(nextAction === 'start' ? 'সেলফ-লার্নিং শুরু করা হচ্ছে…' : 'সেলফ-লার্নিং বন্ধ করা হচ্ছে…', 'ok');
-  
-  try {
-    const res = await fetch(`/api/training/toggle?action=${nextAction}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'কমান্ড ব্যর্থ');
-    
-    updateTrainingUI(data.active);
-    toast(data.message, 'ok');
-  } catch(e) {
-    toast('ত্রুটি: ' + e.message, 'err');
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => { checkTrainingStatus(); });
-
 let lastUploadedDetFile = null;
 let lastUploadedCVFile = null;
 
@@ -2462,14 +1088,6 @@ function toast(msg, type='ok') {
 }
 
 // ─ AI Real Editing School Logic ─
-// ─ Multi-select Labels Helper ─
-function updateSelectedLabels() {
-  const checkboxes = document.querySelectorAll('input[name="school-service"]:checked');
-  const values = Array.from(checkboxes).map(cb => cb.value);
-  const hiddenInput = document.getElementById('school-label');
-  hiddenInput.value = values.length > 0 ? values.join(', ') : 'general_editing';
-}
-
 function schoolPreview(input, slot) {
   const file = input.files[0];
   if (!file) return;
@@ -2502,74 +1120,27 @@ async function submitSchoolPair() {
 
   const label  = document.getElementById('school-label').value;
   const augment= document.getElementById('school-aug').value;
-  const instructionText = document.getElementById('school-instruction-text').value;
-  const instructionFile = document.getElementById('school-instruction-file').files[0];
 
   const statusEl = document.getElementById('school-status');
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span style="color:#047857;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
+  statusEl.innerHTML = '<span style="color:#6ee7b7;">⏳ AI শিখছে — পেয়ার আপলোড ও মাইক্রো ফাইন-টিউন শুরু হচ্ছে…</span>';
 
   const fd = new FormData();
   fd.append('before', fileB);
   fd.append('after',  fileA);
-  if (instructionFile) {
-    fd.append('instruction_file', instructionFile);
-  }
 
   try {
-    const queryParams = new URLSearchParams({
-      label: label,
-      augment: augment,
-      instruction_text: instructionText
-    });
-    
-    const res  = await fetch(`/api/learn-pair?${queryParams.toString()}`, { method:'POST', body:fd });
+    const res  = await fetch(`/api/learn-pair?label=${encodeURIComponent(label)}&augment=${augment}`, { method:'POST', body:fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ত্রুটি');
 
-    const insights = data.learning_insights;
-    let insightsHtml = '';
-    if (insights && (insights.bangla || insights.english)) {
-      insightsHtml = `
-        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border:1px solid rgba(99,102,241,0.3); padding:10px 12px; border-radius:6px; margin-top:8px;">
-          <div style="color:#0369a1; font-weight:700; font-size:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span>🧠 এআই এই ছবি থেকে যা শিখেছে (What AI Learned):</span>
-            <span style="font-size:10px; color:var(--tx-muted);">Bilingual Live Insight</span>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px; font-size:11.5px;">
-            ${(insights.bangla || []).map((bn, idx) => `
-              <div style="border-left:2px solid #6366f1; padding-left:8px;">
-                <div style="color:#0f172a; font-weight:600;">🇧🇩 <strong>বাংলা:</strong> ${bn}</div>
-                <div style="color:#475569; font-size:10.5px; font-style:italic;">🇬🇧 <strong>EN:</strong> ${insights.english[idx] || ''}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
-
     statusEl.innerHTML = `
-      <div style="color:#047857; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
-      <div style="color:var(--tx-muted); margin-bottom:8px;">
-        📦 মোট Real Pairs: <strong style="color:#0369a1;">${data.total_real}</strong> &nbsp;|&nbsp;
-        🔁 Pool Size: <strong style="color:#0369a1;">${data.total_pool}</strong> &nbsp;|&nbsp;
-        ⚡ Micro Fine-tune PID: <strong style="color:#b45309;">${data.finetune_pid || 'background'}</strong>
-      </div>
-      ${data.client_instruction ? `
-        <div style="background:#f0fdfa; border:1px solid #99f6e4; border:1px solid rgba(6,182,212,0.3); padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:11.5px;">
-          <div style="color:var(--cyan); font-weight:700; margin-bottom:2px;">📑 ক্লায়েন্ট নির্দেশনা (${data.instruction_source || 'Attached'}):</div>
-          <div style="color:#1e293b; font-family:inherit; white-space:pre-wrap;">${data.client_instruction}</div>
-        </div>
-      ` : ''}
-      ${insightsHtml}
-      ${data.diff_stats && data.diff_stats.interpretation ? `
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border:1px solid rgba(16,185,129,0.3); padding:8px 10px; border-radius:6px; margin-top:8px;">
-          <div style="color:#b45309; font-size:11.5px; font-weight:700;">🔍 হিটম্যাপ এনালাইসিস: ${data.diff_stats.interpretation}</div>
-          <div style="color:var(--tx-muted); font-size:10.5px;">গড় পার্থক্য: ${data.diff_stats.mean_diff} | পরিবর্তিত অংশ: ${data.diff_stats.altered_pct}%</div>
-          ${data.heatmap_preview ? `<img src="${data.heatmap_preview}" style="width:100%; max-height:160px; object-fit:contain; border-radius:4px; margin-top:6px; border:1px solid var(--card-border);">` : ''}
-        </div>
-      ` : ''}
-    `;
+      <div style="color:#6ee7b7; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
+      <div style="color:var(--tx-muted);">
+        📦 মোট Real Pairs: <strong style="color:#a5f3fc;">${data.total_real}</strong> &nbsp;|&nbsp;
+        🔁 Pool Size: <strong style="color:#a5f3fc;">${data.total_pool}</strong> &nbsp;|&nbsp;
+        ⚡ Micro Fine-tune PID: <strong style="color:#fbbf24;">${data.finetune_pid || 'background'}</strong>
+      </div>`;
 
     toast('🎓 AI নতুন এডিটিং শিখছে!', 'ok');
     loadSchoolLog();
@@ -2589,8 +1160,8 @@ async function loadSchoolLog() {
     } else {
       wrap.innerHTML = [...data.log].reverse().map(r => `
         <div style="border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; color:var(--tx-secondary);">
-          <span style="color:#047857;">✔</span>
-          <strong style="color:#0369a1;">${r.label}</strong>
+          <span style="color:#6ee7b7;">✔</span>
+          <strong style="color:#a5f3fc;">${r.label}</strong>
           &nbsp;·&nbsp;${r.before_px}→${r.after_px}
           &nbsp;·&nbsp;<span style="color:var(--tx-muted);">${r.ts}</span>
           &nbsp;·&nbsp;Pool: ${r.total_pairs}
@@ -3056,4 +1627,3 @@ addPairRow();
 </script>
 </body>
 </html>
-
