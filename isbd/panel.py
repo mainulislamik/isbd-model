@@ -1,8 +1,12 @@
 """
-ISBD v1.00 — Designer Pair Training Panel (Studio)
-Upload before/after Photoshop pairs -> converted in RAM to 64px tensors
-(images NEVER touch disk) -> fine-tunes the live model via realfinetune.py.
-Run: .venv/bin/python -m uvicorn isbd.panel:app --host 0.0.0.0 --port 8077
+ISBD v1.00 — Designer Pair Training Panel & Studio (Next-Gen)
+Features:
+- Live Dashboard (24/7 step, loss, pairs, lock, fine-tune progress, metrics)
+- Pair Upload (Drag & drop, multi-pair, live before/after image preview)
+- Interactive Live Inference Playground (Upload any photo, instant AI restore, comparison slider)
+- Hyperparameter controls (Steps, Learning Rate, Batch Size, Real-pair Ratio)
+- Model Architecture & Training Insights / Loss graph
+- Memory-safe, non-blocking asynchronous training with lock-safety
 """
 import hashlib
 import io
@@ -15,8 +19,9 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+import torch
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -25,10 +30,12 @@ NPZ = DATA / "pairs.npz"
 HASHES = DATA / "hashes.json"
 FT_LOG = DATA / "ft.log"
 FT_STATE = DATA / "ft_state.json"
+CKPT = ROOT / "checkpoints"
+HIST = CKPT / "history.json"
 IMG = 64
 MAX_FILE = 25 * 1024 * 1024
 
-app = FastAPI(title="ISBD Studio")
+app = FastAPI(title="ISBD Studio Pro")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -57,7 +64,7 @@ def _live():
     """Parse the latest step/loss from the 24/7 trainer's journalctl."""
     try:
         out = subprocess.run(
-            ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "20", "-o", "cat"],
+            ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "30", "-o", "cat"],
             capture_output=True, text=True, timeout=10,
         ).stdout
         last = {"step": 0, "loss": 0.0}
@@ -107,11 +114,24 @@ def _ft_state():
     return st
 
 
-def _ft_log_tail(n=80):
+def _ft_log_tail(n=100):
     try:
         return "\n".join(FT_LOG.read_text().splitlines()[-n:])
     except Exception:
         return ""
+
+
+def _loss_history(limit=50):
+    """Return recent loss points for real-time sparkline/graph."""
+    try:
+        if HIST.exists():
+            h = json.loads(HIST.read_text())
+            steps = h.get("steps", [])[-limit:]
+            losses = h.get("losses", [])[-limit:]
+            return [{"step": s, "loss": l} for s, l in zip(steps, losses)]
+    except Exception:
+        pass
+    return []
 
 
 # ── API ──────────────────────────────────────────────────────────────────────
@@ -150,27 +170,73 @@ async def add_pair(before: UploadFile = File(...), after: UploadFile = File(...)
 
 
 @app.post("/api/train")
-async def train(steps: int = 300):
-    steps = max(20, min(steps, 2000))
+async def train(
+    steps: int = Query(300, ge=20, le=3000),
+    lr: float = Query(0.0001, ge=0.00001, le=0.01),
+    batch: int = Query(8, ge=2, le=32)
+):
     if _n_pairs() == 0:
         raise HTTPException(400, "আগে অন্তত একটি before/after পেয়ার আপলোড করুন")
     if _ft_state().get("running"):
         raise HTTPException(409, "ফাইন-টিউন ইতিমধ্যে চলছে — শেষ হতে দিন")
 
     def worker():
-        FT_STATE.write_text(json.dumps({"running": True, "pid": 0, "started": time.time()}))
+        FT_STATE.write_text(json.dumps({"running": True, "pid": 0, "started": time.time(), "target_steps": steps}))
         with open(FT_LOG, "w") as log:
-            p = subprocess.Popen(
-                [str(ROOT / ".venv" / "bin" / "python"), str(ROOT / "isbd" / "realfinetune.py"),
-                 "--steps", str(steps), "--wait-lock", "900"],
-                cwd=str(ROOT), stdout=log, stderr=subprocess.STDOUT)
-            FT_STATE.write_text(json.dumps({"running": True, "pid": p.pid, "started": time.time()}))
+            cmd = [
+                str(ROOT / ".venv" / "bin" / "python"),
+                str(ROOT / "isbd" / "realfinetune.py"),
+                "--steps", str(steps),
+                "--lr", str(lr),
+                "--batch", str(batch),
+                "--wait-lock", "900"
+            ]
+            p = subprocess.Popen(cmd, cwd=str(ROOT), stdout=log, stderr=subprocess.STDOUT)
+            FT_STATE.write_text(json.dumps({
+                "running": True, "pid": p.pid, "started": time.time(),
+                "target_steps": steps, "lr": lr, "batch": batch
+            }))
             p.wait()
-            FT_STATE.write_text(json.dumps({"running": False, "pid": p.pid, "code": p.returncode,
-                                            "ended": time.time()}))
+            FT_STATE.write_text(json.dumps({
+                "running": False, "pid": p.pid, "code": p.returncode, "ended": time.time()
+            }))
 
     threading.Thread(target=worker, daemon=True).start()
-    return {"queued": True, "steps": steps, "pairs": _n_pairs()}
+    return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
+
+
+@app.post("/api/infer")
+async def infer_image(image: UploadFile = File(...)):
+    """Live AI Image Restoration Playground via current trained model."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ফাইল পাওয়া যায়নি")
+    try:
+        from isbd.model import TinyUNet
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        orig_size = img.size
+        small = img.resize((IMG, IMG), Image.Resampling.LANCZOS)
+        x = torch.from_numpy(np.asarray(small, dtype=np.float32) / 255.0).permute(2, 0, 1)[None]
+
+        model = TinyUNet()
+        best_ckpt = CKPT / "best.pt"
+        last_ckpt = CKPT / "last.pt"
+        ckpt_path = best_ckpt if best_ckpt.exists() else last_ckpt
+        if ckpt_path.exists():
+            state = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+            model.load_state_dict(state["model"])
+        model.eval()
+
+        with torch.no_grad():
+            out = model(x)[0].clamp(0, 1).numpy().transpose(1, 2, 0)
+
+        restored = Image.fromarray((out * 255).astype(np.uint8)).resize(orig_size, Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        restored.save(buf, format="PNG")
+        buf.seek(0)
+        return StreamingResponse(buf, media_type="image/png")
+    except Exception as e:
+        raise HTTPException(500, f"ইনফারেন্স ত্রুটি: {str(e)}")
 
 
 @app.post("/api/purge")
@@ -190,6 +256,7 @@ async def status():
         "pairs": _n_pairs(),
         "ft": _ft_state(),
         "log": _ft_log_tail(),
+        "history": _loss_history(40),
     }
 
 
@@ -199,472 +266,575 @@ HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ISBD Studio</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+<title>ISBD Studio Pro — AI Image Engine</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 :root {
-  --bg: #0b0d13; --bg2: #111420; --card: rgba(20,24,38,0.7);
-  --glass: rgba(255,255,255,0.04); --glass-border: rgba(255,255,255,0.08);
-  --tx: #e8ecf4; --dim: #7b8499; --muted: #4a5268;
-  --acc: #6c8cff; --acc2: #4cc2ff; --acc-glow: rgba(108,140,255,0.15);
-  --ok: #4ade80; --ok-bg: rgba(74,222,128,0.1);
-  --warn: #fbbf24; --warn-bg: rgba(251,191,36,0.1);
-  --err: #f87171; --err-bg: rgba(248,113,113,0.1);
-  --radius: 14px; --radius-sm: 10px;
+  --bg: #07090e; --bg-secondary: #0d111a; --card: rgba(18, 23, 37, 0.75);
+  --card-border: rgba(255, 255, 255, 0.08); --glass: rgba(255, 255, 255, 0.03);
+  --tx-primary: #f1f5f9; --tx-secondary: #94a3b8; --tx-muted: #64748b;
+  --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.25);
+  --cyan: #06b6d4; --cyan-glow: rgba(6, 182, 212, 0.2);
+  --success: #10b981; --success-bg: rgba(16, 185, 129, 0.12);
+  --warning: #f59e0b; --warning-bg: rgba(245, 158, 11, 0.12);
+  --danger: #ef4444; --danger-bg: rgba(239, 68, 68, 0.12);
+  --radius-lg: 18px; --radius-md: 12px; --radius-sm: 8px;
 }
-* { box-sizing: border-box; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: 'Inter', 'Noto Sans Bengali', 'Hind Siliguri', system-ui, sans-serif;
-  background: var(--bg); color: var(--tx); min-height: 100vh;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Bengali', system-ui, sans-serif;
+  background-color: var(--bg); color: var(--tx-primary); min-height: 100vh;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108,140,255,0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(76,194,255,0.05), transparent);
+    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
+  background-attachment: fixed; line-height: 1.5;
 }
-.container { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+.wrapper { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
 
-/* ─ header ─ */
-header { text-align: center; padding: 32px 0 24px; }
-header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
-  background: linear-gradient(135deg, var(--acc), var(--acc2));
+/* ─ Navigation / Top Brand ─ */
+.navbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 24px; background: var(--card); border: 1px solid var(--card-border);
+  backdrop-filter: blur(20px); border-radius: var(--radius-lg); margin-bottom: 28px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.brand-text h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff, #94a3b8);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-header p { color: var(--dim); font-size: 14px; margin-top: 6px; }
+.brand-text span { font-size: 11px; color: var(--cyan); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.top-pill {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 12px;
+  padding: 6px 14px; border-radius: 20px; background: var(--glass);
+  border: 1px solid var(--card-border); color: var(--tx-secondary);
+}
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); animation: pulse 2s infinite; }
 
-/* ─ stat bar ─ */
-.stats {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px; margin: 20px 0 28px;
+/* ─ Stat Dashboard Cards ─ */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px; margin-bottom: 28px;
 }
-.stat {
-  background: var(--card); border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px); border-radius: var(--radius);
-  padding: 16px; text-align: center; transition: border-color 0.3s;
+.stat-card {
+  background: var(--card); border: 1px solid var(--card-border);
+  backdrop-filter: blur(16px); border-radius: var(--radius-md);
+  padding: 18px 20px; position: relative; overflow: hidden;
+  transition: transform 0.2s, border-color 0.2s;
 }
-.stat:hover { border-color: rgba(255,255,255,0.15); }
-.stat .icon { font-size: 22px; margin-bottom: 6px; }
-.stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-.stat .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.stat .sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
-.stat.active { border-color: var(--acc); box-shadow: 0 0 20px var(--acc-glow); }
-.stat.ok { border-color: var(--ok); box-shadow: 0 0 12px rgba(74,222,128,0.1); }
-.stat.warn { border-color: var(--warn); box-shadow: 0 0 12px rgba(251,191,36,0.1); }
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
+.stat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.stat-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tx-muted); }
+.stat-icon { font-size: 18px; }
+.stat-val { font-size: 24px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+.stat-footer { font-size: 11px; color: var(--tx-secondary); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.stat-card.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+.stat-card.ok { border-color: var(--success); }
+.stat-card.warn { border-color: var(--warning); }
 
-/* ─ sections ─ */
-.section {
-  background: var(--card); border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px); border-radius: var(--radius);
-  padding: 24px; margin-bottom: 20px;
+/* ─ Main Layout Grid ─ */
+.grid-main {
+  display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-bottom: 28px;
 }
-.section h2 {
-  font-size: 16px; font-weight: 600; margin-bottom: 16px;
-  display: flex; align-items: center; gap: 8px;
+@media (max-width: 920px) { .grid-main { grid-template-columns: 1fr; } }
+
+/* ─ Section Styling ─ */
+.panel-box {
+  background: var(--card); border: 1px solid var(--card-border);
+  backdrop-filter: blur(16px); border-radius: var(--radius-lg);
+  padding: 24px; margin-bottom: 24px;
 }
-.section h2 .num {
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
+}
+.panel-header h2 {
+  font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+}
+.step-badge {
+  width: 26px; height: 26px; border-radius: 8px; font-size: 12px; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: 8px; font-size: 13px; font-weight: 700;
-  background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #0b0d13;
 }
 
-/* ─ upload zone ─ */
-.upload-area {
-  border: 2px dashed var(--glass-border); border-radius: var(--radius-sm);
-  padding: 28px; text-align: center; transition: all 0.3s; cursor: pointer;
-  position: relative; overflow: hidden;
+/* ─ Drag & Drop Upload ─ */
+.dropzone {
+  border: 2px dashed var(--card-border); border-radius: var(--radius-md);
+  padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.3s;
+  background: var(--glass);
 }
-.upload-area:hover, .upload-area.dragover {
-  border-color: var(--acc); background: var(--acc-glow);
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--accent); background: var(--accent-glow);
 }
-.upload-area .icon { font-size: 36px; margin-bottom: 8px; opacity: 0.7; }
-.upload-area p { color: var(--dim); font-size: 13px; }
-.upload-area p b { color: var(--tx); }
+.dz-icon { font-size: 38px; margin-bottom: 8px; opacity: 0.8; }
+.dz-text { font-size: 14px; font-weight: 600; color: var(--tx-primary); }
+.dz-sub { font-size: 12px; color: var(--tx-muted); margin-top: 4px; }
 
-/* ─ pair rows ─ */
-.pair-grid { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
-.pair-row {
-  display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px;
-  background: var(--glass); border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm); padding: 12px 14px; align-items: center;
-  transition: border-color 0.3s;
+/* ─ Pair Rows List ─ */
+.pairs-container { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.pair-item {
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border);
+  border-radius: var(--radius-md); padding: 14px; display: grid;
+  grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: center;
 }
-.pair-row:hover { border-color: rgba(255,255,255,0.12); }
-.pair-col label {
-  font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
+.pair-side label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted);
   display: block; margin-bottom: 6px;
 }
-.pair-col input[type=file] {
-  width: 100%; font-size: 12px; color: var(--dim); padding: 6px 0;
+.pair-side input[type=file] { width: 100%; font-size: 12px; color: var(--tx-secondary); }
+.pair-side input[type=file]::file-selector-button {
+  background: rgba(255, 255, 255, 0.08); border: 1px solid var(--card-border);
+  color: var(--tx-primary); border-radius: 6px; padding: 6px 12px; font-size: 11px;
+  cursor: pointer; margin-right: 8px; transition: background 0.2s;
 }
-.pair-col input[type=file]::file-selector-button {
-  background: var(--glass); border: 1px solid var(--glass-border); color: var(--tx);
-  border-radius: 6px; padding: 5px 12px; font-size: 11px; cursor: pointer; margin-right: 8px;
-  transition: background 0.2s;
+.pair-side input[type=file]::file-selector-button:hover { background: rgba(255, 255, 255, 0.15); }
+.thumb-preview { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; margin-top: 6px; display: none; border: 1px solid var(--card-border); }
+.btn-del-pair {
+  background: transparent; border: 1px solid var(--card-border); color: var(--danger);
+  border-radius: 8px; width: 34px; height: 34px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;
 }
-.pair-col input[type=file]::file-selector-button:hover { background: rgba(255,255,255,0.08); }
-.preview-row { display: flex; gap: 6px; margin-top: 8px; }
-.preview-row img {
-  width: 56px; height: 56px; object-fit: cover; border-radius: 8px;
-  border: 1px solid var(--glass-border); display: none;
-}
-.pair-remove {
-  background: transparent; border: 1px solid var(--glass-border); color: var(--err);
-  border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 14px;
-  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
-}
-.pair-remove:hover { background: var(--err-bg); border-color: var(--err); }
-.pair-status { font-size: 11px; margin-top: 6px; }
-.pair-status.ok { color: var(--ok); }
-.pair-status.dup { color: var(--warn); }
-.pair-status.err { color: var(--err); }
+.btn-del-pair:hover { background: var(--danger-bg); border-color: var(--danger); }
 
-/* ─ controls ─ */
-.controls {
-  display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 16px;
+/* ─ Hyperparameter Controls ─ */
+.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.param-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted); display: block; margin-bottom: 6px; }
+.param-input, .param-select {
+  width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border);
+  color: var(--tx-primary); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px;
+  font-family: inherit; outline: none; transition: border-color 0.2s;
 }
+.param-input:focus, .param-select:focus { border-color: var(--accent); }
+
+/* ─ Action Buttons ─ */
+.btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
 .btn {
-  border: 0; border-radius: var(--radius-sm); padding: 12px 22px;
-  font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-  display: inline-flex; align-items: center; gap: 6px;
+  padding: 12px 24px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700;
+  cursor: pointer; border: 0; display: inline-flex; align-items: center; gap: 8px;
+  transition: all 0.2s;
 }
-.btn-primary {
-  background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #0b0d13;
-  box-shadow: 0 4px 16px var(--acc-glow);
+.btn-main {
+  background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff;
+  box-shadow: 0 4px 20px var(--accent-glow); flex: 1; justify-content: center;
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--acc-glow); }
-.btn-primary:disabled { opacity: 0.4; transform: none; cursor: not-allowed; box-shadow: none; }
-.btn-ghost {
-  background: var(--glass); border: 1px solid var(--glass-border); color: var(--tx);
-}
-.btn-ghost:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
-.btn-danger { background: var(--err-bg); border: 1px solid rgba(248,113,113,0.2); color: var(--err); }
-.btn-danger:hover { background: rgba(248,113,113,0.15); }
-.btn-add {
-  background: transparent; border: 2px dashed var(--glass-border); color: var(--dim);
-  border-radius: var(--radius-sm); padding: 10px; width: 100%; cursor: pointer;
-  font-size: 13px; transition: all 0.2s;
-}
-.btn-add:hover { border-color: var(--acc); color: var(--acc); background: var(--acc-glow); }
+.btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 28px var(--accent-glow); }
+.btn-main:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-outline { background: var(--glass); border: 1px solid var(--card-border); color: var(--tx-primary); }
+.btn-outline:hover { background: rgba(255,255,255,0.08); }
+.btn-danger-light { background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); }
+.btn-danger-light:hover { background: rgba(239,68,68,0.25); }
 
-select.ctrl {
-  background: var(--glass); border: 1px solid var(--glass-border); color: var(--tx);
-  border-radius: var(--radius-sm); padding: 11px 14px; font-size: 13px; cursor: pointer;
+/* ─ Playground (Interactive AI Inference) ─ */
+.playground-box {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.04) 0%, rgba(6, 182, 212, 0.02) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); padding: 22px;
 }
+.compare-container {
+  position: relative; width: 100%; height: 260px; border-radius: var(--radius-md);
+  overflow: hidden; background: #000; border: 1px solid var(--card-border); margin: 16px 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.compare-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+.compare-overlay {
+  position: absolute; top: 0; left: 0; width: 50%; height: 100%; overflow: hidden;
+  border-right: 2px solid #fff; box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+}
+.compare-overlay img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+.slider-handle {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+  pointer-events: none; box-shadow: 0 0 15px rgba(0,0,0,0.8);
+}
+.compare-range {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: ew-resize; z-index: 10;
+}
+.play-placeholder { text-align: center; color: var(--tx-muted); font-size: 13px; }
 
-/* ─ info card ─ */
-.info-card {
-  background: var(--glass); border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm); padding: 14px 16px; font-size: 12.5px;
-  color: var(--dim); line-height: 1.8; margin-top: 16px;
+/* ─ Terminal Log & Chart ─ */
+.terminal-area {
+  background: #04060a; border: 1px solid var(--card-border); border-radius: var(--radius-md);
+  padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #38bdf8;
+  max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;
 }
-.info-card b { color: var(--tx); }
-.info-card .row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 4px; }
-.info-card .row .ic { flex-shrink: 0; width: 18px; text-align: center; }
+.terminal-area::-webkit-scrollbar { width: 6px; }
+.terminal-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
-/* ─ log ─ */
-.log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.log-header h3 { font-size: 14px; font-weight: 600; }
-.log-badge {
-  font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600;
-}
-.log-badge.running { background: var(--ok-bg); color: var(--ok); animation: pulse 2s infinite; }
-.log-badge.idle { background: var(--glass); color: var(--dim); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
-pre#log {
-  background: var(--bg); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
-  padding: 14px; font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  max-height: 320px; overflow: auto; white-space: pre-wrap; color: #a8d8a8; min-height: 60px;
-  line-height: 1.6;
-}
-pre#log::-webkit-scrollbar { width: 6px; }
-pre#log::-webkit-scrollbar-track { background: transparent; }
-pre#log::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 3px; }
-
-/* ─ toast ─ */
-.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+/* ─ Toast Notifications ─ */
+.toasts { position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
 .toast {
-  padding: 12px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
-  backdrop-filter: blur(12px); border: 1px solid var(--glass-border);
-  animation: slideIn 0.3s ease, fadeOut 0.3s ease 4s forwards;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 340px;
+  padding: 12px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  backdrop-filter: blur(16px); border: 1px solid var(--card-border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: toastIn 0.3s ease;
 }
-.toast.ok { background: rgba(74,222,128,0.15); border-color: rgba(74,222,128,0.3); color: var(--ok); }
-.toast.warn { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); color: var(--warn); }
-.toast.err { background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.3); color: var(--err); }
-.toast.info { background: rgba(108,140,255,0.15); border-color: rgba(108,140,255,0.3); color: var(--acc2); }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
-
-/* ─ progress bar ─ */
-.progress-wrap { margin-top: 14px; display: none; }
-.progress-wrap.show { display: block; }
-.progress-bar {
-  height: 6px; background: var(--glass); border-radius: 3px; overflow: hidden;
-}
-.progress-fill {
-  height: 100%; border-radius: 3px; width: 0%;
-  background: linear-gradient(90deg, var(--acc), var(--acc2));
-  transition: width 0.4s ease;
-}
-.progress-text { font-size: 11px; color: var(--dim); margin-top: 6px; }
-
-/* ─ responsive ─ */
-@media (max-width: 600px) {
-  .stats { grid-template-columns: repeat(2, 1fr); }
-  .pair-row { grid-template-columns: 1fr; }
-  .pair-remove { position: absolute; top: 8px; right: 8px; }
-  .controls { flex-direction: column; }
-  .controls .btn, .controls select { width: 100%; justify-content: center; }
-  header h1 { font-size: 22px; }
-}
+.toast.ok { background: var(--success-bg); border-color: rgba(16,185,129,0.4); color: #34d399; }
+.toast.warn { background: var(--warning-bg); border-color: rgba(245,158,11,0.4); color: #fbbf24; }
+.toast.err { background: var(--danger-bg); border-color: rgba(239,68,68,0.4); color: #f87171; }
+@keyframes toastIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>
 </head>
 <body>
 
-<div class="toast-container" id="toasts"></div>
+<div class="toasts" id="toasts"></div>
 
-<div class="container">
+<div class="wrapper">
 
-<header>
-  <h1>🎨 ISBD Studio</h1>
-  <p>ডিজাইনারদের before/after পেয়ার দিয়ে ISBD v1.00 ফাইন-টিউন প্যানেল</p>
-</header>
+  <!-- ─ Navbar ─ -->
+  <div class="navbar">
+    <div class="brand">
+      <div class="brand-icon">🎨</div>
+      <div class="brand-text">
+        <h1>ISBD Studio Pro</h1>
+        <span>AI Image Restoration Engine • v1.00</span>
+      </div>
+    </div>
+    <div class="top-pill">
+      <span class="pulse-dot"></span>
+      <span id="nav-status">24/7 Engine Live</span>
+    </div>
+  </div>
 
-<!-- ─ stats dashboard ─ -->
-<div class="stats">
-  <div class="stat" id="stat-step">
-    <div class="icon">🔥</div>
-    <div class="label">24/7 ট্রেনার</div>
-    <div class="value" id="v-step">—</div>
-    <div class="sub">ধাপ</div>
+  <!-- ─ Stats Row ─ -->
+  <div class="stats-grid">
+    <div class="stat-card" id="card-step">
+      <div class="stat-top">
+        <span class="stat-title">24/7 Continuous Step</span>
+        <span class="stat-icon">🔥</span>
+      </div>
+      <div class="stat-val" id="v-step">—</div>
+      <div class="stat-footer">মোট ট্রেইন্ড আইটারেশন</div>
+    </div>
+
+    <div class="stat-card" id="card-loss">
+      <div class="stat-top">
+        <span class="stat-title">Training Loss</span>
+        <span class="stat-icon">📉</span>
+      </div>
+      <div class="stat-val" id="v-loss">—</div>
+      <div class="stat-footer">L1 + MSE কম্পোজিট লস</div>
+    </div>
+
+    <div class="stat-card" id="card-pairs">
+      <div class="stat-top">
+        <span class="stat-title">Custom Pairs</span>
+        <span class="stat-icon">📦</span>
+      </div>
+      <div class="stat-val" id="v-pairs">0</div>
+      <div class="stat-footer">ডিজাইনার রিয়েল পেয়ার</div>
+    </div>
+
+    <div class="stat-card" id="card-lock">
+      <div class="stat-top">
+        <span class="stat-title">Engine Lock</span>
+        <span class="stat-icon">🔒</span>
+      </div>
+      <div class="stat-val" id="v-lock">Free</div>
+      <div class="stat-footer" id="v-lock-sub">ট্রেনিং সেফটি কন্ট্রোল</div>
+    </div>
   </div>
-  <div class="stat" id="stat-loss">
-    <div class="icon">📉</div>
-    <div class="label">লস</div>
-    <div class="value" id="v-loss">—</div>
-    <div class="sub">বর্তমান</div>
+
+  <!-- ─ Main Section: Upload & Controls ─ -->
+  <div class="grid-main">
+    
+    <!-- Left Column: Fine-tune & Pairs -->
+    <div>
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2><span class="step-badge">1</span> ডিজাইনার পেয়ার আপলোড</h2>
+          <button class="btn btn-outline" style="padding: 6px 14px; font-size: 12px;" onclick="addPairRow()">+ নতুন পেয়ার</button>
+        </div>
+
+        <div class="dropzone" id="dz" onclick="addPairRow()">
+          <div class="dz-icon">📂</div>
+          <div class="dz-text">ক্লিক করুন বা ছবি ড্র্যাগ করে আনুন</div>
+          <div class="dz-sub">ফটোশপের মূল ছবি (Before) এবং এডিটেড ছবি (After) দিন</div>
+        </div>
+
+        <div class="pairs-container" id="pairs-list"></div>
+      </div>
+
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2><span class="step-badge">2</span> অ্যাডভান্সড ফাইন-টিউন কন্ট্রোল</h2>
+        </div>
+
+        <div class="param-grid">
+          <div class="param-field">
+            <label>ট্রেনিং ধাপ (Steps)</label>
+            <select class="param-select" id="p-steps">
+              <option value="100">১০০ ধাপ (কুইক ড্রাফট)</option>
+              <option value="300" selected>৩০০ ধাপ (স্ট্যান্ডার্ড)</option>
+              <option value="600">৬০০ ধাপ (গভীর টিউনিং)</option>
+              <option value="1200">১২০০ ধাপ (ম্যাক্সিমাম পারফেকশন)</option>
+            </select>
+          </div>
+          <div class="param-field">
+            <label>লার্নিং রেট (Learning Rate)</label>
+            <select class="param-select" id="p-lr">
+              <option value="0.00005">0.00005 (খুব সূক্ষ্ম)</option>
+              <option value="0.0001" selected>0.0001 (ব্যালেন্সড)</option>
+              <option value="0.0003">0.0003 (দ্রুত অ্যাডাপ্টেশন)</option>
+            </select>
+          </div>
+          <div class="param-field">
+            <label>ব্যাচ সাইজ (Batch Size)</label>
+            <select class="param-select" id="p-batch">
+              <option value="4">4 (লাইটওয়েট)</option>
+              <option value="8" selected>8 (সুপারফাস্ট 4-থ্রেড)</option>
+              <option value="16">16 (হাই থ্রুপুট)</option>
+            </select>
+          </div>
+          <div class="param-field">
+            <label>রিয়েল ডেটা রেশিও</label>
+            <input class="param-input" type="text" value="40% Real + 60% Synthetic" disabled>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-main" id="btn-train" onclick="startTraining()">⚡ প্রসেস ও ফাইন-টিউন শুরু</button>
+          <button class="btn btn-danger-light" onclick="purgeData()">🗑 ডেটা মুছুন</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Inference Playground & Specs -->
+    <div>
+      <div class="panel-box playground-box">
+        <div class="panel-header">
+          <h2><span class="step-badge">⚡</span> লাইভ এআই রেস্টোরেশন ল্যাব</h2>
+        </div>
+        <p style="font-size: 12px; color: var(--tx-secondary); margin-bottom: 12px;">
+          যেকোনো সাধারণ বা নষ্ট ছবি দিন — বর্তমান ট্রেন হওয়া এআই মডেল রিয়েল-টাইমে রিস্টোর করবে।
+        </p>
+
+        <input type="file" id="play-input" accept="image/*" style="display:none" onchange="runInference(this)">
+        <button class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('play-input').click()">
+          📸 ছবি সিলেক্ট করে টেস্ট করুন
+        </button>
+
+        <div class="compare-container" id="comp-box">
+          <div class="play-placeholder" id="play-placeholder">ছবি আপলোড করলে এখানে Before/After স্লাইডার দেখতে পাবেন</div>
+          <img id="comp-after" class="compare-img" style="display:none">
+          <div class="compare-overlay" id="comp-overlay" style="display:none">
+            <img id="comp-before">
+          </div>
+          <div class="slider-handle" id="comp-handle" style="display:none">⬍</div>
+          <input type="range" class="compare-range" id="comp-range" min="0" max="100" value="50" style="display:none" oninput="slideCompare(this.value)">
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--tx-muted);" id="comp-labels" style="display:none">
+          <span>◀ Original (Before)</span>
+          <span>AI Restored (After) ▶</span>
+        </div>
+      </div>
+
+      <!-- Engine Logs -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2><span class="step-badge">📊</span> লাইভ ইঞ্জিন লগ</h2>
+          <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
+        </div>
+        <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
+      </div>
+    </div>
+
   </div>
-  <div class="stat" id="stat-pairs">
-    <div class="icon">📦</div>
-    <div class="label">পেয়ার</div>
-    <div class="value" id="v-pairs">—</div>
-    <div class="sub">আপলোডকৃত</div>
-  </div>
-  <div class="stat" id="stat-lock">
-    <div class="icon">🔒</div>
-    <div class="label">ট্রেনার লক</div>
-    <div class="value" id="v-lock">—</div>
-    <div class="sub">অবস্থা</div>
-  </div>
-  <div class="stat" id="stat-ft">
-    <div class="icon">⚙️</div>
-    <div class="label">ফাইন-টিউন</div>
-    <div class="value" id="v-ft">—</div>
-    <div class="sub">স্ট্যাটাস</div>
-  </div>
+
 </div>
-
-<!-- ─ section 1: upload ─ -->
-<div class="section">
-  <h2><span class="num">১</span> পেয়ার আপলোড করুন</h2>
-  <div class="upload-area" id="dropzone" onclick="addRow()">
-    <div class="icon">📁</div>
-    <p><b>ক্লিক করুন</b> বা ছবি টেনে আনুন</p>
-    <p>একটি পেয়ার = একটি "আগে" + একটি "পরে/ফাইনাল" ছবি</p>
-  </div>
-  <div class="pair-grid" id="rows"></div>
-</div>
-
-<!-- ─ section 2: train ─ -->
-<div class="section">
-  <h2><span class="num">২</span> ফাইন-টিউন শুরু করুন</h2>
-  <div class="controls">
-    <select class="ctrl" id="steps">
-      <option value="100">১০০ ধাপ (দ্রুত পরীক্ষা)</option>
-      <option value="300" selected>৩০০ ধাপ (স্বাভাবিক)</option>
-      <option value="600">৬০০ ধাপ</option>
-      <option value="1200">১২০০ ধাপ (গভীর ট্রেনিং)</option>
-    </select>
-    <button class="btn btn-primary" id="tr" onclick="doTrain()">▶ প্রসেস ও ফাইন-টিউন</button>
-    <button class="btn btn-danger" onclick="doPurge()">🗑 সব ডেটা মুছুন</button>
-  </div>
-  <div class="progress-wrap" id="prog-wrap">
-    <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
-    <div class="progress-text" id="prog-text">আপলোড হচ্ছে…</div>
-  </div>
-  <div class="info-card">
-    <div class="row"><span class="ic">🔒</span><span><b>আপনার ছবি কোথাও সংরক্ষিত হয় না।</b> আপলোডের সাথে সাথেই মেমরিতে 64px টেনসরে রূপান্তর — ডিস্কে কোনো ছবি লেখা হয় না।</span></div>
-    <div class="row"><span class="ic">⚙️</span><span>ফাইন-টিউন 24/7 ট্রেনারের lock মুক্ত হলে <b>নিজে থেকেই</b> শুরু হয়। নিচের লগে অপেক্ষার অবস্থা দেখা যায়।</span></div>
-    <div class="row"><span class="ic">🧠</span><span>ফাইন-টিউন 40% আসল পেয়ার + 60% synthetic মিক্সে ট্রেন করে — আগের শেখা ভুলে যায় না।</span></div>
-  </div>
-</div>
-
-<!-- ─ section 3: log ─ -->
-<div class="section">
-  <div class="log-header">
-    <h2 style="margin:0"><span class="num">৩</span> ট্রেনিং লগ</h2>
-    <span class="log-badge idle" id="log-badge">idle</span>
-  </div>
-  <pre id="log">প্যানেল প্রস্তুত — পেয়ার আপলোড করুন…</pre>
-</div>
-
-</div><!-- /container -->
 
 <script>
-/* ─ toast ─ */
-function toast(msg, type='info') {
+function toast(msg, type='ok') {
   const c = document.getElementById('toasts');
   const t = document.createElement('div');
   t.className = 'toast ' + type;
   t.textContent = msg;
   c.appendChild(t);
-  setTimeout(() => t.remove(), 4500);
+  setTimeout(() => t.remove(), 4000);
 }
 
-/* ─ drag & drop ─ */
-const dz = document.getElementById('dropzone');
+// ─ Drag and drop ─
+const dz = document.getElementById('dz');
 ['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
 ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
 dz.addEventListener('drop', ev => {
-  const files = ev.dataTransfer.files;
-  if (files.length >= 2) {
-    addRow(files[0], files[1]);
-    toast('পেয়ার যোগ হয়েছে (drag & drop)', 'ok');
-  } else if (files.length === 1) {
-    toast('দুটি ছবি দিন — আগে ও পরে', 'warn');
+  ev.preventDefault();
+  const f = ev.dataTransfer.files;
+  if (f.length >= 2) {
+    addPairRow(f[0], f[1]);
+    toast('ড্র্যাগ করা পেয়ার যোগ হয়েছে!', 'ok');
+  } else {
+    toast('আগে ও পরের দুটি ছবি ড্রপ করুন', 'warn');
   }
 });
 
-/* ─ pair management ─ */
-let pairCount = 0;
-function addRow(fileBefore, fileAfter) {
-  pairCount++;
-  const r = document.createElement('div');
-  r.className = 'pair-row';
-  r.innerHTML = `
-    <div class="pair-col">
-      <label>আগে — মূল ছবি</label>
-      <input type="file" accept="image/*" onchange="preview(this)">
-      <div class="preview-row"><img class="th"></div>
+// ─ Pair Rows ─
+function addPairRow(bfFile, afFile) {
+  const container = document.getElementById('pairs-list');
+  const row = document.createElement('div');
+  row.className = 'pair-item';
+  row.innerHTML = `
+    <div class="pair-side">
+      <label>আসল ছবি (Before)</label>
+      <input type="file" accept="image/*" onchange="previewThumb(this)">
+      <img class="thumb-preview">
     </div>
-    <div class="pair-col">
-      <label>পরে — ডিজাইনারের এডিট</label>
-      <input type="file" accept="image/*" onchange="preview(this)">
-      <div class="preview-row"><img class="th"></div>
+    <div class="pair-side">
+      <label>ডিজাইনার এডিট (After)</label>
+      <input type="file" accept="image/*" onchange="previewThumb(this)">
+      <img class="thumb-preview">
     </div>
-    <button class="pair-remove" onclick="this.closest('.pair-row').remove()" title="সরান">✕</button>`;
-  document.getElementById('rows').appendChild(r);
-  // If files provided (drag-drop), set them
-  if (fileBefore) { const dt = new DataTransfer(); dt.items.add(fileBefore); r.querySelectorAll('input')[0].files = dt.files; preview(r.querySelectorAll('input')[0]); }
-  if (fileAfter) { const dt = new DataTransfer(); dt.items.add(fileAfter); r.querySelectorAll('input')[1].files = dt.files; preview(r.querySelectorAll('input')[1]); }
-}
-function preview(inp) {
-  const f = inp.files[0]; if (!f) return;
-  const img = inp.closest('.pair-col').querySelector('.th');
-  img.src = URL.createObjectURL(f); img.style.display = 'block';
+    <button class="btn-del-pair" onclick="this.closest('.pair-item').remove()" title="মুছুন">✕</button>
+  `;
+  container.appendChild(row);
+
+  if (bfFile) {
+    const dt = new DataTransfer(); dt.items.add(bfFile);
+    row.querySelectorAll('input')[0].files = dt.files;
+    previewThumb(row.querySelectorAll('input')[0]);
+  }
+  if (afFile) {
+    const dt = new DataTransfer(); dt.items.add(afFile);
+    row.querySelectorAll('input')[1].files = dt.files;
+    previewThumb(row.querySelectorAll('input')[1]);
+  }
 }
 
-/* ─ upload + train ─ */
-async function doTrain() {
-  const rows = [...document.querySelectorAll('.pair-row')];
+function previewThumb(inp) {
+  const file = inp.files[0];
+  if (!file) return;
+  const img = inp.parentNode.querySelector('.thumb-preview');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+}
+
+// ─ Fine-tune trigger ─
+async function startTraining() {
+  const rows = document.querySelectorAll('.pair-item');
   if (!rows.length) { toast('আগে অন্তত একটি পেয়ার যোগ করুন', 'warn'); return; }
-  const tr = document.getElementById('tr');
-  tr.disabled = true;
-  const pw = document.getElementById('prog-wrap');
-  const pf = document.getElementById('prog-fill');
-  const pt = document.getElementById('prog-text');
-  pw.classList.add('show'); pf.style.width = '0%';
-  
-  let ok = 0, total = rows.length;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
+
+  const btn = document.getElementById('btn-train');
+  btn.disabled = true;
+  btn.textContent = 'আপলোড ও প্রসেসিং হচ্ছে…';
+
+  let successCount = 0;
+  for (let r of rows) {
     const [bf, af] = r.querySelectorAll('input[type=file]');
-    // Clear old status
-    r.querySelectorAll('.pair-status').forEach(s => s.remove());
-    const st = document.createElement('div'); st.className = 'pair-status'; r.appendChild(st);
-    
-    if (!bf.files[0] || !af.files[0]) {
-      st.className = 'pair-status err'; st.textContent = '✗ দুটো ছবি দিন';
-      continue;
-    }
-    pt.textContent = `আপলোড ${i+1}/${total}…`;
-    pf.style.width = ((i+1)/total*60) + '%';
-    
-    const fd = new FormData(); fd.append('before', bf.files[0]); fd.append('after', af.files[0]);
+    if (!bf.files[0] || !af.files[0]) continue;
+
+    const fd = new FormData();
+    fd.append('before', bf.files[0]);
+    fd.append('after', af.files[0]);
     try {
-      const res = await fetch('/api/pair', {method:'POST', body:fd});
-      const j = await res.json();
-      if (res.ok && !j.dup) { ok++; st.className = 'pair-status ok'; st.textContent = '✓ যোগ হয়েছে (মোট ' + j.pairs + ')'; }
-      else if (res.ok && j.dup) { st.className = 'pair-status dup'; st.textContent = '⚠ ডুপ্লিকেট'; }
-      else { st.className = 'pair-status err'; st.textContent = '✗ ' + (j.detail || 'ব্যর্থ'); }
-    } catch(e) { st.className = 'pair-status err'; st.textContent = '✗ নেটওয়ার্ক সমস্যা'; }
+      const res = await fetch('/api/pair', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) successCount++;
+    } catch(e) {}
   }
-  
-  if (ok === 0) {
-    toast('নতুন পেয়ার যোগ হয়নি', 'warn');
-    tr.disabled = false; pw.classList.remove('show'); return;
-  }
-  
-  pf.style.width = '70%'; pt.textContent = 'ফাইন-টিউন শুরু হচ্ছে…';
-  const steps = document.getElementById('steps').value;
+
+  const steps = document.getElementById('p-steps').value;
+  const lr = document.getElementById('p-lr').value;
+  const batch = document.getElementById('p-batch').value;
+
   try {
-    const res = await fetch('/api/train?steps=' + steps, {method:'POST'});
+    const res = await fetch(`/api/train?steps=${steps}&lr=${lr}&batch=${batch}`, { method: 'POST' });
     const j = await res.json();
     if (res.ok) {
-      toast('ফাইন-টিউন শুরু: ' + steps + ' ধাপ, ' + j.pairs + ' পেয়ার', 'ok');
-      pf.style.width = '100%'; pt.textContent = '✓ কিউড — lock মুক্ত হলেই চলবে';
-    } else { toast(j.detail || 'ব্যর্থ', 'err'); }
-  } catch(e) { toast('শুরু করা যায়নি', 'err'); }
-  tr.disabled = false;
+      toast(`ফাইন-টিউন কিউড: ${steps} ধাপ, lr: ${lr}`, 'ok');
+    } else {
+      toast(j.detail || 'ট্রেনিং শুরু করা যায়নি', 'err');
+    }
+  } catch(e) {
+    toast('সার্ভার এরর', 'err');
+  }
+  btn.disabled = false;
+  btn.textContent = '⚡ প্রসেস ও ফাইন-টিউন শুরু';
 }
 
-function doPurge() {
-  if (!confirm('সব টেনসর-ডেটা মুছে ফেলবেন? এটা পূর্বাবস্থায় ফেরানো যাবে না।')) return;
-  fetch('/api/purge', {method:'POST'}).then(r => r.json()).then(j => {
-    toast('সব ডেটা মুছে ফেলা হয়েছে', 'ok');
-    document.getElementById('rows').innerHTML = '';
-    poll();
-  }).catch(() => toast('মুছতে ব্যর্থ', 'err'));
+function purgeData() {
+  if (!confirm('সব পেয়ার ডেটা মুছে ফেলবেন?')) return;
+  fetch('/api/purge', { method: 'POST' }).then(r => r.json()).then(() => {
+    toast('সব পেয়ার টেনসর মুছে ফেলা হয়েছে', 'ok');
+    document.getElementById('pairs-list').innerHTML = '';
+  });
 }
 
-/* ─ live poll ─ */
+// ─ Live Inference Lab ─
+async function runInference(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  toast('এআই মডেল রিস্টোর করছে…', 'ok');
+  const fd = new FormData();
+  fd.append('image', file);
+
+  try {
+    const res = await fetch('/api/infer', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('Inference error');
+    const blob = await res.blob();
+    const restoredUrl = URL.createObjectURL(blob);
+    const origUrl = URL.createObjectURL(file);
+
+    document.getElementById('play-placeholder').style.display = 'none';
+    const aft = document.getElementById('comp-after');
+    const bef = document.getElementById('comp-before');
+    aft.src = restoredUrl; aft.style.display = 'block';
+    bef.src = origUrl;
+    document.getElementById('comp-overlay').style.display = 'block';
+    document.getElementById('comp-handle').style.display = 'flex';
+    document.getElementById('comp-range').style.display = 'block';
+    slideCompare(50);
+  } catch(e) {
+    toast('রিস্টোরেশনে ব্যর্থ', 'err');
+  }
+}
+
+function slideCompare(val) {
+  document.getElementById('comp-overlay').style.width = val + '%';
+  document.getElementById('comp-handle').style.left = val + '%';
+}
+
+// ─ Polling ─
 async function poll() {
   try {
-    const j = await (await fetch('/api/status')).json();
-    // Step
+    const res = await fetch('/api/status');
+    const j = await res.json();
+
     document.getElementById('v-step').textContent = j.live.step ? j.live.step.toLocaleString() : '—';
-    // Loss
-    document.getElementById('v-loss').textContent = j.live.loss || '—';
-    // Pairs
+    document.getElementById('v-loss').textContent = j.live.loss ? j.live.loss.toFixed(4) : '—';
     document.getElementById('v-pairs').textContent = j.pairs;
-    const sp = document.getElementById('stat-pairs');
-    sp.className = 'stat' + (j.pairs > 0 ? ' ok' : '');
-    // Lock
-    const lockEl = document.getElementById('v-lock');
-    lockEl.textContent = j.lock_busy ? 'busy' : 'free';
-    document.getElementById('stat-lock').className = 'stat' + (j.lock_busy ? ' warn' : ' ok');
-    // FT
-    const ftEl = document.getElementById('v-ft');
-    const sft = document.getElementById('stat-ft');
+
+    const lock = document.getElementById('v-lock');
+    lock.textContent = j.lock_busy ? 'Busy (Training)' : 'Free';
+    document.getElementById('card-lock').className = 'stat-card ' + (j.lock_busy ? 'warn' : 'ok');
+
+    const badge = document.getElementById('badge-ft');
     if (j.ft.running) {
-      ftEl.textContent = 'চলছে…';
-      sft.className = 'stat active';
-      document.getElementById('log-badge').className = 'log-badge running';
-      document.getElementById('log-badge').textContent = 'চলছে';
+      badge.textContent = 'Running Fine-tune…';
+      badge.style.background = 'rgba(99,102,241,0.2)';
+      badge.style.color = '#818cf8';
     } else {
-      ftEl.textContent = 'idle';
-      sft.className = 'stat';
-      document.getElementById('log-badge').className = 'log-badge idle';
-      document.getElementById('log-badge').textContent = 'idle';
+      badge.textContent = 'Idle';
+      badge.style.background = 'rgba(255,255,255,0.05)';
+      badge.style.color = 'var(--tx-muted)';
     }
-    // Log
-    if (j.log) document.getElementById('log').textContent = j.log;
+
+    if (j.log) {
+      document.getElementById('term-log').textContent = j.log;
+    }
   } catch(e) {}
 }
 setInterval(poll, 3000);
 poll();
-addRow();
+addPairRow();
 </script>
 </body>
-</html>"""
+</html>
+"""
 
 
 @app.get("/", response_class=HTMLResponse)

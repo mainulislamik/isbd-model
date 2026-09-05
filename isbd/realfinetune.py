@@ -86,6 +86,7 @@ def main():
     ap.add_argument("--wait-lock", type=int, default=900)
     args = ap.parse_args()
 
+    torch.set_num_threads(4)
     if not NPZ.exists():
         print("[ft] data/pairs.npz নেই — প্রথমে প্যানেলে পেয়ার আপলোড করুন")
         sys.exit(1)

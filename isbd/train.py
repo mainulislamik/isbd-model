@@ -53,6 +53,7 @@ def main():
     ap.add_argument("--resume", action="store_true", default=True)
     args = ap.parse_args()
 
+    torch.set_num_threads(4)
     torch.manual_seed(7)
     device = "cpu"
 
