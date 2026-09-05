@@ -272,7 +272,15 @@ async def infer_image(image: UploadFile = File(...)):
         raise HTTPException(400, "ফাইল পাওয়া যায়নি")
     try:
         from isbd.model import TinyUNet
+        from isbd.self_learner import harvest_and_synthesize_pair
         img = Image.open(io.BytesIO(raw)).convert("RGB")
+        
+        # Autonomous Self-Supervised Learning trigger: Learn from this image in background
+        try:
+            harvest_and_synthesize_pair(img)
+        except Exception:
+            pass
+
         orig_size = img.size
         small = img.resize((IMG, IMG), Image.Resampling.LANCZOS)
         x = torch.from_numpy(np.asarray(small, dtype=np.float32) / 255.0).permute(2, 0, 1)[None]
@@ -316,6 +324,7 @@ async def status():
         "ft": _ft_state(),
         "log": _ft_log_tail(),
         "history": _loss_history(40),
+        "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
     }
 
 
@@ -613,11 +622,11 @@ body {
 
     <div class="stat-card" id="card-pairs">
       <div class="stat-top">
-        <span class="stat-title">Custom Pairs</span>
-        <span class="stat-icon">📦</span>
+        <span class="stat-title">Self-Learned & Custom</span>
+        <span class="stat-icon">🧠</span>
       </div>
       <div class="stat-val" id="v-pairs">0</div>
-      <div class="stat-footer">ডিজাইনার রিয়েল পেয়ার</div>
+      <div class="stat-footer" id="v-self-sub">অটোনোমাস সেলফ-লার্নিং সক্রিয়</div>
     </div>
 
     <div class="stat-card" id="card-lock">
