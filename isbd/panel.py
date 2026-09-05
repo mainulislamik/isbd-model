@@ -208,6 +208,42 @@ async def train(
     return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
 
 
+@app.get("/api/services")
+async def get_services_api():
+    """Get the list of all 11 Commercial Graphic Design & Photo Editing Services."""
+    from isbd.studio_sectors import SERVICES_CONFIG
+    return {"ok": True, "services": SERVICES_CONFIG}
+
+
+@app.post("/api/service_process")
+async def process_service_api(image: UploadFile = File(...), service_id: str = Query(...)):
+    """Execute any of the 11 Commercial Studio Services on the uploaded photo."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        from isbd.studio_sectors import execute_studio_service
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        
+        out_img, desc = execute_studio_service(img, service_id)
+
+        buf = io.BytesIO()
+        # If RGBA, save as PNG, else JPEG
+        fmt = "PNG" if out_img.mode == "RGBA" else "JPEG"
+        out_img.save(buf, format=fmt)
+        buf.seek(0)
+        img_b64 = f"data:image/{fmt.lower()};base64," + base64.b64encode(buf.read()).decode("utf-8")
+
+        return {
+            "ok": True,
+            "service_id": service_id,
+            "description": desc,
+            "processed_image": img_b64
+        }
+    except Exception as e:
+        raise HTTPException(500, f"সার্ভিস প্রসেসিং ত্রুটি: {str(e)}")
+
+
 @app.post("/api/detect")
 async def detect_api(image: UploadFile = File(...), conf: float = Query(0.25, ge=0.1, le=0.9)):
     """Detect and classify all objects in the image with Bengali descriptions and Bounding Boxes."""
@@ -666,6 +702,51 @@ body {
     </div>
   </div>
 
+  <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
+    <div class="panel-header">
+      <h2><span class="step-badge" style="background: linear-gradient(135deg, var(--cyan), var(--accent));">💎</span> প্রফেশনাল ফটো এডিটিং ও গ্রাফিক সার্ভিসেস (Commercial Services Suite)</h2>
+      <span style="font-size: 11px; color: var(--cyan); font-weight: 700;">11 Commercial Studio Services</span>
+    </div>
+    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+      ডিজিটাল পোস্ট-প্রোডাকশন ও গ্রাফিক এজেন্সির ১১টি ফুল কমার্শিয়াল সার্ভিস — ক্লিপিং পাথ, নেক জয়েন্ট, শ্যাডো মেকিং, রিফ্লেকশন, মাস্কিং ও রাস্টার টু ভেক্টর এক ক্লিকে এক্সিকিউট করুন।
+    </p>
+
+    <div class="det-grid">
+      <div class="det-controls">
+        <input type="file" id="service-file" accept="image/*" style="display:none" onchange="runStudioService(this)">
+        <button class="btn btn-main" style="width: 100%;" onclick="document.getElementById('service-file').click()">
+          📸 ছবি সিলেক্ট করে সার্ভিস চালান
+        </button>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--tx-muted);">
+          <span>কাঙ্ক্ষিত সার্ভিস নির্বাচন করুন:</span>
+          <select class="param-select" id="service-select" style="padding: 8px 12px; font-size: 13px;" onchange="reRunStudioService()">
+            <option value="clipping_path" selected>✂️ Clipping Path (ব্যাকগ্রাউন্ড কাটআউট)</option>
+            <option value="multi_clipping_path">🎨 Multiple Clipping Path (কালার সেগমেন্টেশন)</option>
+            <option value="image_masking">🎭 Image Masking (চুল/পশম মাস্কিং)</option>
+            <option value="neck_joint">👔 Neck Joint (গোস্ট ম্যানিকুইন কলার)</option>
+            <option value="image_retouching">✨ Image Retouching (স্কিন গ্ল্যামার ও স্মুথ)</option>
+            <option value="shadow_making">👥 Shadow Making (ড্রপ ও কন্টাক্ট শ্যাডো)</option>
+            <option value="reflection">🪞 Reflection (মিরর গ্লসি রিফ্লেকশন)</option>
+            <option value="color_correction">🌈 Color Correction (হোয়াইট ব্যালেন্স ও টোন)</option>
+            <option value="image_enhancement">🔮 Image Enhancement (এইচডিআর ও শার্পনেস)</option>
+            <option value="image_manipulation">🌌 Image Manipulation (ক্রিয়েটিভ লাইটিং)</option>
+            <option value="raster_to_vector">📐 Raster To Vector (ভেক্টর লাইন ট্রেসিং)</option>
+          </select>
+        </div>
+        <div id="service-desc" style="font-size: 12px; color: #38bdf8; font-weight:600; margin-top: 4px;"></div>
+      </div>
+
+      <div>
+        <div id="service-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          ছবি আপলোড করে সার্ভিস সিলেক্ট করলে এখানে প্রসেসড রেজাল্ট দেখতে পাবেন
+        </div>
+        <img id="service-result" class="det-result-img">
+      </div>
+    </div>
+  </div>
+
   <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
   <div class="detector-banner">
     <div class="panel-header">
@@ -910,6 +991,40 @@ function toast(msg, type='ok') {
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+let lastUploadedServiceFile = null;
+
+async function runStudioService(input) {
+  const file = input.files ? input.files[0] : input;
+  if (!file) return;
+  lastUploadedServiceFile = file;
+
+  const serviceId = document.getElementById('service-select').value;
+  toast('সার্ভিস প্রসেস করা হচ্ছে…', 'ok');
+
+  const fd = new FormData();
+  fd.append('image', file);
+
+  try {
+    const res = await fetch(`/api/service_process?service_id=${serviceId}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'সার্ভিস ফেইল্ড');
+
+    const resImg = document.getElementById('service-result');
+    resImg.src = data.processed_image;
+    resImg.style.display = 'block';
+    document.getElementById('service-placeholder').style.display = 'none';
+    document.getElementById('service-desc').textContent = '✓ ' + data.description;
+
+    toast('সার্ভিস সফলভাবে সম্পন্ন হয়েছে!', 'ok');
+  } catch(e) {
+    toast('সার্ভিস ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+function reRunStudioService() {
+  if (lastUploadedServiceFile) runStudioService(lastUploadedServiceFile);
 }
 
 // ─ Object Detection Scanner ─
