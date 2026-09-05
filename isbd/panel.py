@@ -1,13 +1,15 @@
 """
-ISBD v1.00 — Designer Pair Training Panel & Studio (Next-Gen)
+ISBD v1.00 — Designer Pair Training Panel & Studio Pro
 Features:
 - Live Dashboard (24/7 step, loss, pairs, lock, fine-tune progress, metrics)
 - Pair Upload (Drag & drop, multi-pair, live before/after image preview)
+- AI Object Detection & Recognition (YOLOv8 Vision Scanner with Bengali labels)
 - Interactive Live Inference Playground (Upload any photo, instant AI restore, comparison slider)
 - Hyperparameter controls (Steps, Learning Rate, Batch Size, Real-pair Ratio)
 - Model Architecture & Training Insights / Loss graph
 - Memory-safe, non-blocking asynchronous training with lock-safety
 """
+import base64
 import hashlib
 import io
 import json
@@ -35,7 +37,7 @@ HIST = CKPT / "history.json"
 IMG = 64
 MAX_FILE = 25 * 1024 * 1024
 
-app = FastAPI(title="ISBD Studio Pro")
+app = FastAPI(title="ISBD Studio Pro Vision")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -205,6 +207,34 @@ async def train(
     return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
 
 
+@app.post("/api/detect")
+async def detect_api(image: UploadFile = File(...), conf: float = Query(0.25, ge=0.1, le=0.9)):
+    """Detect and classify all objects in the image with Bengali descriptions and Bounding Boxes."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        from isbd.detector import detect_objects_in_image
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        annotated_img, detections, summary = detect_objects_in_image(img, conf_threshold=conf)
+
+        # Convert annotated image to base64
+        buf = io.BytesIO()
+        annotated_img.save(buf, format="JPEG", quality=85)
+        buf.seek(0)
+        img_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.read()).decode("utf-8")
+
+        return {
+            "ok": True,
+            "total_objects": len(detections),
+            "summary": summary,
+            "detections": detections,
+            "annotated_image": img_b64
+        }
+    except Exception as e:
+        raise HTTPException(500, f"অবজেক্ট ডিটেকশন ত্রুটি: {str(e)}")
+
+
 @app.post("/api/infer")
 async def infer_image(image: UploadFile = File(...)):
     """Live AI Image Restoration Playground via current trained model."""
@@ -266,7 +296,7 @@ HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ISBD Studio Pro — AI Image Engine</title>
+<title>ISBD Studio Pro — AI Image Engine & Vision</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -290,18 +320,18 @@ body {
     radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
   background-attachment: fixed; line-height: 1.5;
 }
-.wrapper { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+.wrapper { max-width: 1160px; margin: 0 auto; padding: 24px 20px 80px; }
 
 /* ─ Navigation / Top Brand ─ */
 .navbar {
   display: flex; justify-content: space-between; align-items: center;
   padding: 16px 24px; background: var(--card); border: 1px solid var(--card-border);
-  backdrop-filter: blur(20px); border-radius: var(--radius-lg); margin-bottom: 28px;
+  backdrop-filter: blur(20px); border-radius: var(--radius-lg); margin-bottom: 24px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-icon {
-  width: 42px; height: 42px; border-radius: 12px;
+  width: 44px; height: 44px; border-radius: 12px;
   background: linear-gradient(135deg, var(--accent), var(--cyan));
   display: flex; align-items: center; justify-content: center; font-size: 22px;
   box-shadow: 0 0 20px var(--accent-glow);
@@ -320,27 +350,48 @@ body {
 /* ─ Stat Dashboard Cards ─ */
 .stats-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 16px; margin-bottom: 28px;
+  gap: 16px; margin-bottom: 24px;
 }
 .stat-card {
   background: var(--card); border: 1px solid var(--card-border);
   backdrop-filter: blur(16px); border-radius: var(--radius-md);
-  padding: 18px 20px; position: relative; overflow: hidden;
+  padding: 16px 18px; position: relative; overflow: hidden;
   transition: transform 0.2s, border-color 0.2s;
 }
 .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
 .stat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .stat-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tx-muted); }
 .stat-icon { font-size: 18px; }
-.stat-val { font-size: 24px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
-.stat-footer { font-size: 11px; color: var(--tx-secondary); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.stat-val { font-size: 22px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+.stat-footer { font-size: 11px; color: var(--tx-secondary); margin-top: 4px; }
 .stat-card.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 .stat-card.ok { border-color: var(--success); }
 .stat-card.warn { border-color: var(--warning); }
 
+/* ─ Vision Detector Spotlight Box ─ */
+.detector-banner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--radius-lg);
+  padding: 24px; margin-bottom: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.det-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start; }
+@media (max-width: 860px) { .det-grid { grid-template-columns: 1fr; } }
+.det-controls { display: flex; flex-direction: column; gap: 14px; }
+.det-result-img {
+  width: 100%; max-height: 380px; object-fit: contain; border-radius: var(--radius-md);
+  border: 1px solid var(--card-border); background: #000; display: none;
+}
+.det-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.det-tag {
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--card-border);
+  padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.det-tag .count { background: var(--cyan); color: #000; border-radius: 10px; padding: 2px 6px; font-size: 10px; }
+
 /* ─ Main Layout Grid ─ */
 .grid-main {
-  display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-bottom: 28px;
+  display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; margin-bottom: 24px;
 }
 @media (max-width: 920px) { .grid-main { grid-template-columns: 1fr; } }
 
@@ -348,16 +399,16 @@ body {
 .panel-box {
   background: var(--card); border: 1px solid var(--card-border);
   backdrop-filter: blur(16px); border-radius: var(--radius-lg);
-  padding: 24px; margin-bottom: 24px;
+  padding: 22px; margin-bottom: 24px;
 }
 .panel-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
 }
 .panel-header h2 {
-  font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px;
 }
 .step-badge {
-  width: 26px; height: 26px; border-radius: 8px; font-size: 12px; font-weight: 800;
+  width: 24px; height: 24px; border-radius: 7px; font-size: 11px; font-weight: 800;
   background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
 }
@@ -365,64 +416,63 @@ body {
 /* ─ Drag & Drop Upload ─ */
 .dropzone {
   border: 2px dashed var(--card-border); border-radius: var(--radius-md);
-  padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.3s;
+  padding: 26px 16px; text-align: center; cursor: pointer; transition: all 0.3s;
   background: var(--glass);
 }
 .dropzone:hover, .dropzone.dragover {
   border-color: var(--accent); background: var(--accent-glow);
 }
-.dz-icon { font-size: 38px; margin-bottom: 8px; opacity: 0.8; }
-.dz-text { font-size: 14px; font-weight: 600; color: var(--tx-primary); }
-.dz-sub { font-size: 12px; color: var(--tx-muted); margin-top: 4px; }
+.dz-icon { font-size: 32px; margin-bottom: 6px; opacity: 0.8; }
+.dz-text { font-size: 13px; font-weight: 600; color: var(--tx-primary); }
+.dz-sub { font-size: 11px; color: var(--tx-muted); margin-top: 2px; }
 
 /* ─ Pair Rows List ─ */
-.pairs-container { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.pairs-container { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .pair-item {
   background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border);
-  border-radius: var(--radius-md); padding: 14px; display: grid;
-  grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: center;
+  border-radius: var(--radius-md); padding: 12px; display: grid;
+  grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: center;
 }
 .pair-side label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted);
-  display: block; margin-bottom: 6px;
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted);
+  display: block; margin-bottom: 4px;
 }
-.pair-side input[type=file] { width: 100%; font-size: 12px; color: var(--tx-secondary); }
+.pair-side input[type=file] { width: 100%; font-size: 11px; color: var(--tx-secondary); }
 .pair-side input[type=file]::file-selector-button {
   background: rgba(255, 255, 255, 0.08); border: 1px solid var(--card-border);
-  color: var(--tx-primary); border-radius: 6px; padding: 6px 12px; font-size: 11px;
-  cursor: pointer; margin-right: 8px; transition: background 0.2s;
+  color: var(--tx-primary); border-radius: 6px; padding: 5px 10px; font-size: 11px;
+  cursor: pointer; margin-right: 6px; transition: background 0.2s;
 }
-.pair-side input[type=file]::file-selector-button:hover { background: rgba(255, 255, 255, 0.15); }
-.thumb-preview { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; margin-top: 6px; display: none; border: 1px solid var(--card-border); }
+.thumb-preview { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; margin-top: 4px; display: none; border: 1px solid var(--card-border); }
 .btn-del-pair {
   background: transparent; border: 1px solid var(--card-border); color: var(--danger);
-  border-radius: 8px; width: 34px; height: 34px; cursor: pointer; display: flex;
-  align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;
+  border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s;
 }
 .btn-del-pair:hover { background: var(--danger-bg); border-color: var(--danger); }
 
 /* ─ Hyperparameter Controls ─ */
-.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
-.param-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted); display: block; margin-bottom: 6px; }
+.param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.param-field label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted); display: block; margin-bottom: 4px; }
 .param-input, .param-select {
   width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border);
-  color: var(--tx-primary); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px;
+  color: var(--tx-primary); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12.5px;
   font-family: inherit; outline: none; transition: border-color 0.2s;
 }
 .param-input:focus, .param-select:focus { border-color: var(--accent); }
 
 /* ─ Action Buttons ─ */
-.btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .btn {
-  padding: 12px 24px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700;
-  cursor: pointer; border: 0; display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 700;
+  cursor: pointer; border: 0; display: inline-flex; align-items: center; gap: 6px;
   transition: all 0.2s;
 }
 .btn-main {
   background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff;
-  box-shadow: 0 4px 20px var(--accent-glow); flex: 1; justify-content: center;
+  box-shadow: 0 4px 16px var(--accent-glow); flex: 1; justify-content: center;
 }
-.btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 28px var(--accent-glow); }
+.btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--accent-glow); }
 .btn-main:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-outline { background: var(--glass); border: 1px solid var(--card-border); color: var(--tx-primary); }
 .btn-outline:hover { background: rgba(255,255,255,0.08); }
@@ -432,11 +482,11 @@ body {
 /* ─ Playground (Interactive AI Inference) ─ */
 .playground-box {
   background: linear-gradient(180deg, rgba(99, 102, 241, 0.04) 0%, rgba(6, 182, 212, 0.02) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); padding: 22px;
+  border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); padding: 20px;
 }
 .compare-container {
-  position: relative; width: 100%; height: 260px; border-radius: var(--radius-md);
-  overflow: hidden; background: #000; border: 1px solid var(--card-border); margin: 16px 0;
+  position: relative; width: 100%; height: 230px; border-radius: var(--radius-md);
+  overflow: hidden; background: #000; border: 1px solid var(--card-border); margin: 14px 0;
   display: flex; align-items: center; justify-content: center;
 }
 .compare-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
@@ -447,28 +497,28 @@ body {
 .compare-overlay img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
 .slider-handle {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000;
-  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+  width: 28px; height: 28px; border-radius: 50%; background: #fff; color: #000;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
   pointer-events: none; box-shadow: 0 0 15px rgba(0,0,0,0.8);
 }
 .compare-range {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: ew-resize; z-index: 10;
 }
-.play-placeholder { text-align: center; color: var(--tx-muted); font-size: 13px; }
+.play-placeholder { text-align: center; color: var(--tx-muted); font-size: 12px; }
 
 /* ─ Terminal Log & Chart ─ */
 .terminal-area {
   background: #04060a; border: 1px solid var(--card-border); border-radius: var(--radius-md);
-  padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #38bdf8;
-  max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;
+  padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #38bdf8;
+  max-height: 260px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;
 }
 .terminal-area::-webkit-scrollbar { width: 6px; }
 .terminal-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
 /* ─ Toast Notifications ─ */
-.toasts { position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+.toasts { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
 .toast {
-  padding: 12px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  padding: 10px 18px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600;
   backdrop-filter: blur(16px); border: 1px solid var(--card-border);
   box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: toastIn 0.3s ease;
 }
@@ -488,15 +538,15 @@ body {
   <!-- ─ Navbar ─ -->
   <div class="navbar">
     <div class="brand">
-      <div class="brand-icon">🎨</div>
+      <div class="brand-icon">🚀</div>
       <div class="brand-text">
-        <h1>ISBD Studio Pro</h1>
-        <span>AI Image Restoration Engine • v1.00</span>
+        <h1>ISBD Studio Pro Vision</h1>
+        <span>AI Image Restoration & Object Recognition Engine</span>
       </div>
     </div>
     <div class="top-pill">
       <span class="pulse-dot"></span>
-      <span id="nav-status">24/7 Engine Live</span>
+      <span id="nav-status">Vision & Trainer Live</span>
     </div>
   </div>
 
@@ -539,6 +589,45 @@ body {
     </div>
   </div>
 
+  <!-- ─ NEW FEATURE: Object Recognition & Visual Tracking Spotlight ─ -->
+  <div class="detector-banner">
+    <div class="panel-header">
+      <h2><span class="step-badge">👁️</span> এআই অবজেক্ট ট্র্যাকিং ও আইডেন্টিফায়ার (Object Recognition)</h2>
+      <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">COCO 80+ Classes (বাংলা নাম সহ)</span>
+    </div>
+    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+      যেকোনো ছবি আপলোড করুন — এআই নিজে নিজে ছবিতে থাকা মানুষ, গাড়ি, পশু-পাখি, ফোন, ল্যাপটপ ইত্যাদি সব অবজেক্ট চিনে বাউন্ডিং বক্স সহ বাংলায় চিহ্নিত করবে।
+    </p>
+
+    <div class="det-grid">
+      <div class="det-controls">
+        <input type="file" id="det-file" accept="image/*" style="display:none" onchange="runObjectDetection(this)">
+        <button class="btn btn-main" style="width: 100%;" onclick="document.getElementById('det-file').click()">
+          📷 ছবি আপলোড করে অবজেক্ট স্ক্যান করুন
+        </button>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
+          <span>Confidence থ্রেশহোল্ড:</span>
+          <select class="param-select" id="det-conf" style="width: 120px; padding: 4px 8px;" onchange="reScanDet()">
+            <option value="0.15">15% (বেশি অবজেক্ট)</option>
+            <option value="0.25" selected>25% (স্ট্যান্ডার্ড)</option>
+            <option value="0.45">45% (হাই অ্যাকুরেসি)</option>
+          </select>
+        </div>
+        <div id="det-summary-box" style="display:none;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--tx-primary);">শনাক্তকৃত অবজেক্ট সমূহ:</span>
+          <div class="det-tags" id="det-tags"></div>
+        </div>
+      </div>
+
+      <div>
+        <div id="det-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          ছবি স্ক্যান করার পর এখানে বাউন্ডিং বক্স সহ ভিজ্যুয়ালাইজেশন দেখতে পাবেন
+        </div>
+        <img id="det-result" class="det-result-img">
+      </div>
+    </div>
+  </div>
+
   <!-- ─ Main Section: Upload & Controls ─ -->
   <div class="grid-main">
     
@@ -547,7 +636,7 @@ body {
       <div class="panel-box">
         <div class="panel-header">
           <h2><span class="step-badge">1</span> ডিজাইনার পেয়ার আপলোড</h2>
-          <button class="btn btn-outline" style="padding: 6px 14px; font-size: 12px;" onclick="addPairRow()">+ নতুন পেয়ার</button>
+          <button class="btn btn-outline" style="padding: 6px 14px; font-size: 11.5px;" onclick="addPairRow()">+ নতুন পেয়ার</button>
         </div>
 
         <div class="dropzone" id="dz" onclick="addPairRow()">
@@ -609,7 +698,7 @@ body {
         <div class="panel-header">
           <h2><span class="step-badge">⚡</span> লাইভ এআই রেস্টোরেশন ল্যাব</h2>
         </div>
-        <p style="font-size: 12px; color: var(--tx-secondary); margin-bottom: 12px;">
+        <p style="font-size: 11.5px; color: var(--tx-secondary); margin-bottom: 10px;">
           যেকোনো সাধারণ বা নষ্ট ছবি দিন — বর্তমান ট্রেন হওয়া এআই মডেল রিয়েল-টাইমে রিস্টোর করবে।
         </p>
 
@@ -648,6 +737,8 @@ body {
 </div>
 
 <script>
+let lastUploadedDetFile = null;
+
 function toast(msg, type='ok') {
   const c = document.getElementById('toasts');
   const t = document.createElement('div');
@@ -655,6 +746,50 @@ function toast(msg, type='ok') {
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+// ─ Object Detection Scanner ─
+async function runObjectDetection(input) {
+  const file = input.files ? input.files[0] : input;
+  if (!file) return;
+  lastUploadedDetFile = file;
+
+  toast('এআই অবজেক্ট স্ক্যান করছে…', 'ok');
+  const fd = new FormData();
+  fd.append('image', file);
+  const conf = document.getElementById('det-conf').value;
+
+  try {
+    const res = await fetch(`/api/detect?conf=${conf}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'ডিটেকশন ফেইল্ড');
+
+    // Display Annotated Image
+    const resImg = document.getElementById('det-result');
+    resImg.src = data.annotated_image;
+    resImg.style.display = 'block';
+    document.getElementById('det-placeholder').style.display = 'none';
+
+    // Populate Bengali summary tags
+    const tagContainer = document.getElementById('det-tags');
+    tagContainer.innerHTML = '';
+    for (const [bnName, count] of Object.entries(data.summary)) {
+      const tag = document.createElement('div');
+      tag.className = 'det-tag';
+      tag.innerHTML = `<span>${bnName}</span> <span class="count">${count}</span>`;
+      tagContainer.appendChild(tag);
+    }
+    document.getElementById('det-summary-box').style.display = 'block';
+    toast(`মোট ${data.total_objects}টি অবজেক্ট চিহ্নিত হয়েছে!`, 'ok');
+  } catch(e) {
+    toast('অবজেক্ট স্ক্যানিং ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+function reScanDet() {
+  if (lastUploadedDetFile) {
+    runObjectDetection(lastUploadedDetFile);
+  }
 }
 
 // ─ Drag and drop ─
