@@ -957,19 +957,28 @@ body {
 <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
   <div class="detector-banner">
     <div class="panel-header">
-      <h2><span class="step-badge">👁️</span> এআই অবজেক্ট ট্র্যাকিং ও আইডেন্টিফায়ার (Object Recognition)</h2>
-      <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">YOLOv8 Engine (বাংলা নাম সহ)</span>
+      <h2><span class="step-badge">👁️</span> এআই হিউম্যান বডি, পোশাক ও অবজেক্ট ট্র্যাকিং (Semantic Part Segmentation)</h2>
+      <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">Granular Anatomy & Apparel Tracking</span>
     </div>
     <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      যেকোনো ছবি আপলোড করুন — এআই নিজে নিজে ছবিতে থাকা মানুষ, গাড়ি, পশু-পাখি, ফোন, ল্যাপটপ ইত্যাদি সব অবজেক্ট চিনে বাউন্ডিং বক্স সহ বাংলায় চিহ্নিত করবে।
+      মানুষ বা মডেলের ছবি আপলোড করুন — এআই প্রতিটি অংশ (মুখমণ্ডল, চোখ, ঠোঁট, চুল, শার্ট/উপরের পোশাক, প্যান্ট/নিচের পোশাক, হাত, পা ও জুতা) আলাদা আলাদা রঙ ও বাউন্ডিং বক্সে নির্ভুলভাবে ট্র্যাক করবে।
     </p>
 
     <div class="det-grid">
       <div class="det-controls">
         <input type="file" id="det-file" accept="image/*" style="display:none" onchange="runObjectDetection(this)">
         <button class="btn btn-main" style="width: 100%;" onclick="document.getElementById('det-file').click()">
-          📷 ছবি আপলোড করে অবজেক্ট স্ক্যান করুন
+          📷 ছবি আপলোড করে বডি ও পোশাক স্ক্যান করুন
         </button>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--tx-muted);">
+          <span>ট্র্যাকিং মোড:</span>
+          <select class="param-select" id="det-mode" style="width: 170px; padding: 4px 8px;" onchange="reScanDet()">
+            <option value="full_body" selected>👤 মানুষ ও পোশাক (Anatomy/Cloth)</option>
+            <option value="general">🌐 জেনারেল অবজেক্ট (৮০+ COCO)</option>
+          </select>
+        </div>
+
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
           <span>Confidence থ্রেশহোল্ড:</span>
           <select class="param-select" id="det-conf" style="width: 120px; padding: 4px 8px;" onchange="reScanDet()">
@@ -1249,13 +1258,14 @@ async function runObjectDetection(input) {
   if (!file) return;
   lastUploadedDetFile = file;
 
-  toast('এআই অবজেক্ট স্ক্যান করছে…', 'ok');
+  toast('এআই বডি পার্টস ও পোশাক স্ক্যান করছে…', 'ok');
   const fd = new FormData();
   fd.append('image', file);
   const conf = document.getElementById('det-conf').value;
+  const mode = document.getElementById('det-mode') ? document.getElementById('det-mode').value : 'full_body';
 
   try {
-    const res = await fetch(`/api/detect?conf=${conf}`, { method: 'POST', body: fd });
+    const res = await fetch(`/api/detect?conf=${conf}&mode=${mode}`, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ডিটেকশন ফেইল্ড');
 
@@ -1273,7 +1283,7 @@ async function runObjectDetection(input) {
       tagContainer.appendChild(tag);
     }
     document.getElementById('det-summary-box').style.display = 'block';
-    toast(`মোট ${data.total_objects}টি অবজেক্ট চিহ্নিত হয়েছে!`, 'ok');
+    toast(`মোট ${data.total_objects}টি অংশ ও পোশাক নির্ভুলভাবে শনাক্ত হয়েছে!`, 'ok');
   } catch(e) {
     toast('অবজেক্ট স্ক্যানিং ত্রুটি: ' + e.message, 'err');
   }

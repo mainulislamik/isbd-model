@@ -436,15 +436,29 @@ async def process_service_api(image: UploadFile = File(...), service_id: str = Q
 
 
 @app.post("/api/detect")
-async def detect_api(image: UploadFile = File(...), conf: float = Query(0.25, ge=0.1, le=0.9)):
-    """Detect and classify all objects in the image with Bengali descriptions and Bounding Boxes."""
+async def detect_api(
+    image: UploadFile = File(...),
+    conf: float = Query(0.25, ge=0.05, le=0.9),
+    mode: str = Query("full_body", description="Mode: 'full_body' (Anatomy & Apparel) or 'general' (Standard YOLO)")
+):
+    """Detect and classify human body parts, apparel or general objects with Bengali descriptions."""
     raw = await image.read()
     if not raw:
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
     try:
-        from isbd.detector import detect_objects_in_image
         img = Image.open(io.BytesIO(raw)).convert("RGB")
-        annotated_img, detections, summary = detect_objects_in_image(img, conf_threshold=conf)
+        
+        if mode == "full_body":
+            from isbd.part_tracker import parse_human_body_and_apparel
+            res = parse_human_body_and_apparel(img, confidence=conf)
+            annotated_img = res["annotated_image"]
+            summary = res["summary"]
+            total_objs = res["total_parts"]
+            detections = res["parts"]
+        else:
+            from isbd.detector import detect_objects_in_image
+            annotated_img, detections, summary = detect_objects_in_image(img, conf_threshold=conf)
+            total_objs = len(detections)
 
         buf = io.BytesIO()
         annotated_img.save(buf, format="JPEG", quality=85)
@@ -453,7 +467,8 @@ async def detect_api(image: UploadFile = File(...), conf: float = Query(0.25, ge
 
         return {
             "ok": True,
-            "total_objects": len(detections),
+            "mode": mode,
+            "total_objects": total_objs,
             "summary": summary,
             "detections": detections,
             "annotated_image": img_b64
