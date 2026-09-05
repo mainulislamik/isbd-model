@@ -825,7 +825,27 @@ body {
     <!-- Tab 5: Heatmap (TESTING 2) -->
     <div id="tab-heatmap" class="tab-pane">
 <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
+  
+        <!-- 🚀 Modern Model Switcher Bar for Heatmap -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">এই টেস্টিং টুলে প্রক্রিয়াকরণের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select class="param-select global-model-selector" id="model-select-heatmap" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision (Antigravity)</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision (Antigravity)</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
+    <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🔥</span> এআই বিফোর/আফটার হিটম্যাপ ভিজ্যুয়ালাইজার (Pixel Difference Heatmap)</h2>
       <span style="font-size: 11px; color: #fbbf24; font-weight: 700;">Thermal Error & Modification Mapping</span>
@@ -886,7 +906,27 @@ body {
     <!-- Tab 6: Commercial Services (TESTING 3) -->
     <div id="tab-services" class="tab-pane">
 <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
+  
+        <!-- 🚀 Modern Model Switcher Bar for 11 Commercial Services -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">এই টেস্টিং টুলে প্রক্রিয়াকরণের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select class="param-select global-model-selector" id="model-select-services" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision (Antigravity)</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision (Antigravity)</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
+    <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, var(--cyan), var(--accent));">💎</span> প্রফেশনাল ফটো এডিটিং ও গ্রাফিক সার্ভিসেস (Commercial Services Suite)</h2>
       <span style="font-size: 11px; color: var(--cyan); font-weight: 700;">11 Commercial Studio Services</span>
@@ -936,7 +976,27 @@ body {
     <!-- Tab 7: Magic Eraser (TESTING 4) -->
     <div id="tab-magic" class="tab-pane">
 <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
+  
+        <!-- 🚀 Modern Model Switcher Bar for Magic Eraser -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">এই টেস্টিং টুলে প্রক্রিয়াকরণের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select class="param-select global-model-selector" id="model-select-magic" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision (Antigravity)</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision (Antigravity)</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
+    <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
       <span style="font-size: 11px; color: #f472b6; font-weight: 600;">Interactive Mask Drawing Studio</span>
@@ -980,7 +1040,27 @@ body {
     <!-- Tab 8: YOLO (TESTING 5) -->
     <div id="tab-yolo" class="tab-pane">
 <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
-  <div class="detector-banner">
+  
+        <!-- 🚀 Modern Model Switcher Bar for Object Tracking -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">এই টেস্টিং টুলে প্রক্রিয়াকরণের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select class="param-select global-model-selector" id="model-select-yolo" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision (Antigravity)</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision (Antigravity)</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
+    <div class="detector-banner">
     <div class="panel-header">
       <h2><span class="step-badge">👁️</span> এআই হিউম্যান বডি, পোশাক ও অবজেক্ট ট্র্যাকিং (Semantic Part Segmentation)</h2>
       <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">Granular Anatomy & Apparel Tracking</span>
@@ -1053,7 +1133,27 @@ body {
     <!-- Tab 9: Computer Vision Lab (TESTING 6) -->
     <div id="tab-cv" class="tab-pane">
 <!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
-  <div class="cv-lab-banner">
+  
+        <!-- 🚀 Modern Model Switcher Bar for Computer Vision Lab -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">এই টেস্টিং টুলে প্রক্রিয়াকরণের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select class="param-select global-model-selector" id="model-select-cv" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision (Antigravity)</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision (Antigravity)</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
+    <div class="cv-lab-banner">
     <div class="panel-header">
       <h2><span class="step-badge">🧪</span> কম্পিউটার ভিশন ও কালার প্যালেট ল্যাব (OpenCV & Scikit-Image)</h2>
       <span style="font-size: 11px; color: var(--accent); font-weight: 600;">Edge Detection, CLAHE, Denoising, Palette</span>
