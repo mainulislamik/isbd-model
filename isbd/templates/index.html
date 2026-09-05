@@ -430,9 +430,14 @@ body {
     </nav>
 
     <div class="ws-footer">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span>মডেল: <strong>ISBD v1.00</strong></span>
-        <span style="color: var(--cyan); font-weight:700;">24/7 Active</span>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>২৪/৭ সেলফ-লার্নিং:</span>
+          <span id="side-train-status" style="color: var(--success); font-weight:700;">Active</span>
+        </div>
+        <button id="btn-toggle-train" onclick="toggleContinuousTraining()" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 11px; padding: 6px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
+          ⏸️ সেলফ-লার্নিং বন্ধ করুন
+        </button>
       </div>
     </div>
   </aside>
@@ -445,7 +450,12 @@ body {
       
 <div class="panel-header" style="margin-bottom: 18px;">
   <h2><span class="step-badge">📊</span> এআই ট্রেনিং স্ট্যাটাস ও লাইভ পারফরম্যান্স ওভারভিউ</h2>
-  <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Autonomous Learning Dashboard</span>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <button id="dash-btn-toggle" onclick="toggleContinuousTraining()" class="btn btn-outline" style="font-size: 11.5px; padding: 6px 14px; border-color: rgba(239, 68, 68, 0.4); color: #f87171;">
+      ⏸️ সেলফ-লার্নিং পজ করুন
+    </button>
+    <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Autonomous Learning</span>
+  </div>
 </div>
 
 <!-- ─ Stats Row ─ -->
@@ -1019,6 +1029,68 @@ function switchTab(tabId) {
 </script>
 
 <script>
+// ─ Continuous Self-Learning Toggle Logic ─
+let isContinuousTrainActive = true;
+
+async function checkTrainingStatus() {
+  try {
+    const res = await fetch('/api/training/toggle?action=status');
+    const data = await res.json();
+    updateTrainingUI(data.active);
+  } catch(e) {}
+}
+
+function updateTrainingUI(active) {
+  isContinuousTrainActive = active;
+  const sideStatus = document.getElementById('side-train-status');
+  const sideBtn = document.getElementById('btn-toggle-train');
+  const dashBtn = document.getElementById('dash-btn-toggle');
+  
+  if (active) {
+    if (sideStatus) { sideStatus.textContent = 'Active (চলমান)'; sideStatus.style.color = 'var(--success)'; }
+    if (sideBtn) {
+      sideBtn.innerHTML = '⏸️ সেলফ-লার্নিং বন্ধ করুন';
+      sideBtn.style.color = '#f87171';
+      sideBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+    }
+    if (dashBtn) {
+      dashBtn.innerHTML = '⏸️ সেলফ-লার্নিং পজ করুন';
+      dashBtn.style.color = '#f87171';
+      dashBtn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+    }
+  } else {
+    if (sideStatus) { sideStatus.textContent = 'Paused (বন্ধ)'; sideStatus.style.color = 'var(--warning)'; }
+    if (sideBtn) {
+      sideBtn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
+      sideBtn.style.color = '#34d399';
+      sideBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    }
+    if (dashBtn) {
+      dashBtn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
+      dashBtn.style.color = '#34d399';
+      dashBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    }
+  }
+}
+
+async function toggleContinuousTraining() {
+  const nextAction = isContinuousTrainActive ? 'stop' : 'start';
+  toast(nextAction === 'start' ? 'সেলফ-লার্নিং শুরু করা হচ্ছে…' : 'সেলফ-লার্নিং বন্ধ করা হচ্ছে…', 'ok');
+  
+  try {
+    const res = await fetch(`/api/training/toggle?action=${nextAction}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'কমান্ড ব্যর্থ');
+    
+    updateTrainingUI(data.active);
+    toast(data.message, 'ok');
+  } catch(e) {
+    toast('ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => { checkTrainingStatus(); });
+
 let lastUploadedDetFile = null;
 let lastUploadedCVFile = null;
 

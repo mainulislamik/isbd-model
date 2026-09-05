@@ -259,6 +259,27 @@ async def real_pair_log_api(limit: int = Query(20)):
     }
 
 
+@app.get("/api/training/toggle")
+async def toggle_training_api(action: str = Query(..., regex="^(start|stop|status)$")):
+    """Start, stop or check status of the 24/7 autonomous continuous training service."""
+    try:
+        if action == "status":
+            res = subprocess.run(["systemctl", "--user", "is-active", "isbd-train"], capture_output=True, text=True)
+            active = res.stdout.strip() == "active"
+            return {"ok": True, "active": active}
+        
+        elif action == "start":
+            subprocess.run(["systemctl", "--user", "start", "isbd-train"], check=True)
+            return {"ok": True, "active": True, "message": "২৪/৭ সেলফ-লার্নিং ট্রেনিং সফলভাবে চালু করা হয়েছে!"}
+            
+        elif action == "stop":
+            subprocess.run(["systemctl", "--user", "stop", "isbd-train"], check=True)
+            return {"ok": True, "active": False, "message": "২৪/৭ সেলফ-লার্নিং ট্রেনিং সাময়িকভাবে বন্ধ (পজ) করা হয়েছে!"}
+            
+    except Exception as e:
+        raise HTTPException(500, f"সার্ভিস কমান্ড ব্যর্থ: {str(e)}")
+
+
 @app.get("/api/services")
 async def get_services_api():
     """Get the list of all 11 Commercial Graphic Design & Photo Editing Services."""
