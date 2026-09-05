@@ -12,6 +12,7 @@ Provides granular multi-part parsing for human images:
 9. Background & Ambient (ব্যাকগ্রাউন্ড)
 """
 import io
+import base64
 import cv2
 import numpy as np
 import torch
@@ -183,10 +184,31 @@ def parse_human_body_and_apparel(pil_img: Image.Image, confidence: float = 0.25)
         draw.rectangle([x1, max(0, y1 - 18), x1 + len(label)*10 + 16, y1], fill=color_rgb)
         draw.text((x1 + 4, max(0, y1 - 16)), label, fill=(0, 0, 0))
 
+    # Crop isolated parts for Modern Inspector Gallery & Micro-Zoom
+    extracted_crops = []
+    for item in parts_detected:
+        x1, y1, x2, y2 = item["box"]
+        crop = pil_img.crop((max(0, x1), max(0, y1), min(orig_w, x2), min(orig_h, y2)))
+        # Resize small crop nicely for card thumbnail
+        crop.thumbnail((180, 180), Image.Resampling.LANCZOS)
+        buf_c = io.BytesIO()
+        crop.save(buf_c, format="JPEG", quality=85)
+        buf_c.seek(0)
+        crop_b64 = "data:image/jpeg;base64," + base64.b64encode(buf_c.read()).decode("utf-8")
+        
+        extracted_crops.append({
+            "part": item["part"],
+            "label": item["label"],
+            "color": PART_PALETTE.get(item["part"], (99, 102, 241)),
+            "box": item["box"],
+            "crop_image": crop_b64
+        })
+
     return {
         "ok": True,
         "total_parts": len(parts_detected),
         "parts": parts_detected,
         "summary": summary_parts,
-        "annotated_image": annotated_pil
+        "annotated_image": annotated_pil,
+        "crops": extracted_crops
     }

@@ -995,9 +995,29 @@ body {
 
       <div>
         <div id="det-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          ছবি স্ক্যান করার পর এখানে বাউন্ডিং বক্স সহ ভিজ্যুয়ালাইজেশন দেখতে পাবেন
+          ছবি স্ক্যান করার পর এখানে বডি পার্টস ও পোশাকের কালার কোডেড ভিজ্যুয়ালাইজেশন দেখতে পাবেন
         </div>
-        <img id="det-result" class="det-result-img">
+
+        <div id="det-result-container" style="display:none; flex-direction:column; gap:16px;">
+          <!-- Main Interactive Zoomable Canvas/Image -->
+          <div style="position:relative; background:#0f172a; border-radius:var(--radius-lg); overflow:hidden; border:1px solid var(--card-border); text-align:center;">
+            <img id="det-result" style="width:100%; max-height:420px; object-fit:contain; display:block; margin:0 auto; cursor:zoom-in;" onclick="toggleDetZoom(this)">
+            <div style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.6); color:#fff; font-size:10.5px; padding:3px 8px; border-radius:4px; backdrop-filter:blur(4px);">
+              🔍 ক্লিক করে ফুল জুম / রিসাইজ করুন
+            </div>
+          </div>
+
+          <!-- Isolated Parts Gallery (Modern Card Grid) -->
+          <div id="det-gallery-box" style="display:none;">
+            <div style="font-size:12.5px; font-weight:700; color:var(--tx-primary); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+              <span>🔍 প্রতিটি আলাদা অংশের মাইক্রো-ইনস্পেকশন (Isolated Part Inspector):</span>
+              <span style="font-size:11px; color:var(--cyan); font-weight:600;" id="det-crops-count"></span>
+            </div>
+            <div id="det-crops-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px;">
+              <!-- Dynamic Crop Cards inserted here -->
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1252,7 +1272,14 @@ function reRunStudioService() {
   if (lastUploadedServiceFile) runStudioService(lastUploadedServiceFile);
 }
 
-// ─ Object Detection Scanner ─
+// ─ Object Detection & Anatomy Inspector Scanner ─
+let isZoomed = false;
+function toggleDetZoom(img) {
+  isZoomed = !isZoomed;
+  img.style.maxHeight = isZoomed ? 'none' : '420px';
+  img.style.cursor = isZoomed ? 'zoom-out' : 'zoom-in';
+}
+
 async function runObjectDetection(input) {
   const file = input.files ? input.files[0] : input;
   if (!file) return;
@@ -1271,9 +1298,10 @@ async function runObjectDetection(input) {
 
     const resImg = document.getElementById('det-result');
     resImg.src = data.annotated_image;
-    resImg.style.display = 'block';
+    document.getElementById('det-result-container').style.display = 'flex';
     document.getElementById('det-placeholder').style.display = 'none';
 
+    // Populate Summary Badges
     const tagContainer = document.getElementById('det-tags');
     tagContainer.innerHTML = '';
     for (const [bnName, count] of Object.entries(data.summary)) {
@@ -1283,6 +1311,42 @@ async function runObjectDetection(input) {
       tagContainer.appendChild(tag);
     }
     document.getElementById('det-summary-box').style.display = 'block';
+
+    // Populate Isolated Micro-Crop Gallery
+    const cropsGrid = document.getElementById('det-crops-grid');
+    cropsGrid.innerHTML = '';
+    
+    if (data.crops && data.crops.length > 0) {
+      document.getElementById('det-crops-count').textContent = `${data.crops.length}টি আলাদা অংশ ক্রপ করা হয়েছে`;
+      document.getElementById('det-gallery-box').style.display = 'block';
+
+      for (const item of data.crops) {
+        const card = document.createElement('div');
+        card.style.background = '#ffffff';
+        card.style.border = '1px solid var(--card-border)';
+        card.style.borderRadius = 'var(--radius-md)';
+        card.style.padding = '8px';
+        card.style.textAlign = 'center';
+        card.style.boxShadow = 'var(--shadow-sm)';
+        card.style.transition = 'transform 0.15s ease';
+        card.onmouseenter = () => card.style.transform = 'translateY(-2px)';
+        card.onmouseleave = () => card.style.transform = 'none';
+
+        const rgb = item.color || [99,102,241];
+        card.innerHTML = `
+          <div style="background:#0f172a; border-radius:6px; overflow:hidden; margin-bottom:6px; height:100px; display:flex; align-items:center; justify-content:center;">
+            <img src="${item.crop_image}" style="max-height:100%; max-width:100%; object-fit:contain;">
+          </div>
+          <div style="font-size:11px; font-weight:700; color:#0f172a; border-top:2px solid rgb(${rgb[0]},${rgb[1]},${rgb[2]}); padding-top:4px;">
+            ${item.label.split(' (')[0]}
+          </div>
+        `;
+        cropsGrid.appendChild(card);
+      }
+    } else {
+      document.getElementById('det-gallery-box').style.display = 'none';
+    }
+
     toast(`মোট ${data.total_objects}টি অংশ ও পোশাক নির্ভুলভাবে শনাক্ত হয়েছে!`, 'ok');
   } catch(e) {
     toast('অবজেক্ট স্ক্যানিং ত্রুটি: ' + e.message, 'err');

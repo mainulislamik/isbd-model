@@ -455,10 +455,12 @@ async def detect_api(
             summary = res["summary"]
             total_objs = res["total_parts"]
             detections = res["parts"]
+            crops = res.get("crops", [])
         else:
             from isbd.detector import detect_objects_in_image
             annotated_img, detections, summary = detect_objects_in_image(img, conf_threshold=conf)
             total_objs = len(detections)
+            crops = []
 
         buf = io.BytesIO()
         annotated_img.save(buf, format="JPEG", quality=85)
@@ -471,7 +473,8 @@ async def detect_api(
             "total_objects": total_objs,
             "summary": summary,
             "detections": detections,
-            "annotated_image": img_b64
+            "annotated_image": img_b64,
+            "crops": crops
         }
     except Exception as e:
         raise HTTPException(500, f"অবজেক্ট ডিটেকশন ত্রুটি: {str(e)}")
