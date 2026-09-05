@@ -1,9 +1,10 @@
 """
-ISBD v1.00 — Designer Pair Training Panel & Studio Pro
+ISBD v1.00 — Designer Pair Training Panel & Studio Pro Vision Suite
 Features:
 - Live Dashboard (24/7 step, loss, pairs, lock, fine-tune progress, metrics)
 - Pair Upload (Drag & drop, multi-pair, live before/after image preview)
 - AI Object Detection & Recognition (YOLOv8 Vision Scanner with Bengali labels)
+- OpenCV & Scikit-Image Vision Tool (Canny Edges, CLAHE Contrast, Pencil Sketch, Fast NLM Denoise, Dominant Color Palette)
 - Interactive Live Inference Playground (Upload any photo, instant AI restore, comparison slider)
 - Hyperparameter controls (Steps, Learning Rate, Batch Size, Real-pair Ratio)
 - Model Architecture & Training Insights / Loss graph
@@ -37,7 +38,7 @@ HIST = CKPT / "history.json"
 IMG = 64
 MAX_FILE = 25 * 1024 * 1024
 
-app = FastAPI(title="ISBD Studio Pro Vision")
+app = FastAPI(title="ISBD Studio Pro Vision Suite")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -218,7 +219,6 @@ async def detect_api(image: UploadFile = File(...), conf: float = Query(0.25, ge
         img = Image.open(io.BytesIO(raw)).convert("RGB")
         annotated_img, detections, summary = detect_objects_in_image(img, conf_threshold=conf)
 
-        # Convert annotated image to base64
         buf = io.BytesIO()
         annotated_img.save(buf, format="JPEG", quality=85)
         buf.seek(0)
@@ -233,6 +233,35 @@ async def detect_api(image: UploadFile = File(...), conf: float = Query(0.25, ge
         }
     except Exception as e:
         raise HTTPException(500, f"অবজেক্ট ডিটেকশন ত্রুটি: {str(e)}")
+
+
+@app.post("/api/cv_filter")
+async def cv_filter_api(image: UploadFile = File(...), filter_type: str = Query("canny")):
+    """Apply OpenCV & Scikit-Image Computer Vision algorithms & Color Palette."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        from isbd.detector import apply_cv_filter, analyze_image_colors
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        
+        filtered_img, desc = apply_cv_filter(img, filter_type)
+        palette = analyze_image_colors(img, num_colors=5)
+
+        buf = io.BytesIO()
+        filtered_img.save(buf, format="JPEG", quality=85)
+        buf.seek(0)
+        img_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.read()).decode("utf-8")
+
+        return {
+            "ok": True,
+            "filter_applied": filter_type,
+            "description": desc,
+            "palette": palette,
+            "filtered_image": img_b64
+        }
+    except Exception as e:
+        raise HTTPException(500, f"ফিল্টার প্রয়োগে ত্রুটি: {str(e)}")
 
 
 @app.post("/api/infer")
@@ -296,7 +325,7 @@ HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ISBD Studio Pro — AI Image Engine & Vision</title>
+<title>ISBD Studio Pro Vision Suite</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -372,7 +401,7 @@ body {
 .detector-banner {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
   border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--radius-lg);
-  padding: 24px; margin-bottom: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 .det-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start; }
 @media (max-width: 860px) { .det-grid { grid-template-columns: 1fr; } }
@@ -388,6 +417,18 @@ body {
   display: inline-flex; align-items: center; gap: 6px;
 }
 .det-tag .count { background: var(--cyan); color: #000; border-radius: 10px; padding: 2px 6px; font-size: 10px; }
+
+/* ─ Computer Vision Lab Banner ─ */
+.cv-lab-banner {
+  background: var(--card); border: 1px solid var(--card-border);
+  backdrop-filter: blur(16px); border-radius: var(--radius-lg);
+  padding: 22px; margin-bottom: 24px;
+}
+.cv-palette { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.palette-chip {
+  padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,0.1);
+}
 
 /* ─ Main Layout Grid ─ */
 .grid-main {
@@ -540,8 +581,8 @@ body {
     <div class="brand">
       <div class="brand-icon">🚀</div>
       <div class="brand-text">
-        <h1>ISBD Studio Pro Vision</h1>
-        <span>AI Image Restoration & Object Recognition Engine</span>
+        <h1>ISBD Studio Pro Vision Suite</h1>
+        <span>AI Image Restoration, Object Recognition & Computer Vision Toolkit</span>
       </div>
     </div>
     <div class="top-pill">
@@ -589,11 +630,11 @@ body {
     </div>
   </div>
 
-  <!-- ─ NEW FEATURE: Object Recognition & Visual Tracking Spotlight ─ -->
+  <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
   <div class="detector-banner">
     <div class="panel-header">
       <h2><span class="step-badge">👁️</span> এআই অবজেক্ট ট্র্যাকিং ও আইডেন্টিফায়ার (Object Recognition)</h2>
-      <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">COCO 80+ Classes (বাংলা নাম সহ)</span>
+      <span style="font-size: 11px; color: var(--cyan); font-weight: 600;">YOLOv8 Engine (বাংলা নাম সহ)</span>
     </div>
     <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
       যেকোনো ছবি আপলোড করুন — এআই নিজে নিজে ছবিতে থাকা মানুষ, গাড়ি, পশু-পাখি, ফোন, ল্যাপটপ ইত্যাদি সব অবজেক্ট চিনে বাউন্ডিং বক্স সহ বাংলায় চিহ্নিত করবে।
@@ -624,6 +665,47 @@ body {
           ছবি স্ক্যান করার পর এখানে বাউন্ডিং বক্স সহ ভিজ্যুয়ালাইজেশন দেখতে পাবেন
         </div>
         <img id="det-result" class="det-result-img">
+      </div>
+    </div>
+  </div>
+
+  <!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
+  <div class="cv-lab-banner">
+    <div class="panel-header">
+      <h2><span class="step-badge">🧪</span> কম্পিউটার ভিশন ও কালার প্যালেট ল্যাব (OpenCV & Scikit-Image)</h2>
+      <span style="font-size: 11px; color: var(--accent); font-weight: 600;">Edge Detection, CLAHE, Denoising, Palette</span>
+    </div>
+    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+      ওপেনসিভি ও সাইকিট-ইমেজ লাইব্রেরির মাধ্যমে ফিল্টারিং, এজ ডিটেকশন, ডিনয়েজ এবং ডমিন্যান্ট কালার প্যালেট এক্সট্রাকশন।
+    </p>
+
+    <div class="det-grid">
+      <div class="det-controls">
+        <input type="file" id="cv-file" accept="image/*" style="display:none" onchange="runCVFilter(this)">
+        <button class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('cv-file').click()">
+          🎨 ছবি সিলেক্ট করে প্রসেস করুন
+        </button>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
+          <span>সিলেক্টেড ফিল্টার:</span>
+          <select class="param-select" id="cv-type" style="width: 170px; padding: 4px 8px;" onchange="reApplyCV()">
+            <option value="canny" selected>Canny Edge Detection</option>
+            <option value="clahe">CLAHE Contrast Boost</option>
+            <option value="sketch">AI Pencil Sketch</option>
+            <option value="denoise">Fast NLM Denoising</option>
+          </select>
+        </div>
+        <div id="cv-desc" style="font-size: 11.5px; color: var(--cyan); margin-top: 4px;"></div>
+        <div id="cv-palette-box" style="display:none;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--tx-primary);">ছবির প্রধান কালার প্যালেট (Dominant Colors):</span>
+          <div class="cv-palette" id="cv-palette"></div>
+        </div>
+      </div>
+
+      <div>
+        <div id="cv-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          কম্পিউটার ভিশন ফিল্টার প্রসেসের পর এখানে আউটপুট দেখতে পাবেন
+        </div>
+        <img id="cv-result" class="det-result-img">
       </div>
     </div>
   </div>
@@ -738,6 +820,7 @@ body {
 
 <script>
 let lastUploadedDetFile = null;
+let lastUploadedCVFile = null;
 
 function toast(msg, type='ok') {
   const c = document.getElementById('toasts');
@@ -764,13 +847,11 @@ async function runObjectDetection(input) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ডিটেকশন ফেইল্ড');
 
-    // Display Annotated Image
     const resImg = document.getElementById('det-result');
     resImg.src = data.annotated_image;
     resImg.style.display = 'block';
     document.getElementById('det-placeholder').style.display = 'none';
 
-    // Populate Bengali summary tags
     const tagContainer = document.getElementById('det-tags');
     tagContainer.innerHTML = '';
     for (const [bnName, count] of Object.entries(data.summary)) {
@@ -787,9 +868,50 @@ async function runObjectDetection(input) {
 }
 
 function reScanDet() {
-  if (lastUploadedDetFile) {
-    runObjectDetection(lastUploadedDetFile);
+  if (lastUploadedDetFile) runObjectDetection(lastUploadedDetFile);
+}
+
+// ─ Computer Vision & Color Palette Lab ─
+async function runCVFilter(input) {
+  const file = input.files ? input.files[0] : input;
+  if (!file) return;
+  lastUploadedCVFile = file;
+
+  toast('কম্পিউটার ভিশন ফিল্টার প্রসেস হচ্ছে…', 'ok');
+  const fd = new FormData();
+  fd.append('image', file);
+  const filterType = document.getElementById('cv-type').value;
+
+  try {
+    const res = await fetch(`/api/cv_filter?filter_type=${filterType}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'প্রসেসিং ফেইল্ড');
+
+    const resImg = document.getElementById('cv-result');
+    resImg.src = data.filtered_image;
+    resImg.style.display = 'block';
+    document.getElementById('cv-placeholder').style.display = 'none';
+    document.getElementById('cv-desc').textContent = data.description;
+
+    const palContainer = document.getElementById('cv-palette');
+    palContainer.innerHTML = '';
+    for (const c of data.palette) {
+      const chip = document.createElement('div');
+      chip.className = 'palette-chip';
+      chip.style.backgroundColor = c.hex;
+      chip.style.color = (c.rgb[0]*0.299 + c.rgb[1]*0.587 + c.rgb[2]*0.114) > 150 ? '#000' : '#fff';
+      chip.innerHTML = `${c.hex} (${c.percent}%)`;
+      palContainer.appendChild(chip);
+    }
+    document.getElementById('cv-palette-box').style.display = 'block';
+    toast('ফিল্টার এবং কালার প্যালেট সফলভাবে জেনারেট হয়েছে!', 'ok');
+  } catch(e) {
+    toast('ভিশন ফিল্টার ত্রুটি: ' + e.message, 'err');
   }
+}
+
+function reApplyCV() {
+  if (lastUploadedCVFile) runCVFilter(lastUploadedCVFile);
 }
 
 // ─ Drag and drop ─

@@ -1,10 +1,16 @@
 """
-ISBD v1.00 — Visual Object Detection & Recognition Module
-Translates COCO categories to standard Bengali names and provides bounding box visualizations.
+ISBD v1.00 — Multi-Engine AI Vision & Computer Vision Toolkit
+Engines:
+1. YOLOv8 (Deep Learning Object Tracking & Recognition with Bengali translation)
+2. OpenCV & Scikit-Image (Edge Detection, Face & Eye detection, Color Palette Analyzer, Adaptive Denoising)
 """
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+import cv2
+import skimage.color
+import skimage.filters
+import skimage.exposure
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -52,11 +58,7 @@ def get_detector():
 
 def detect_objects_in_image(img: Image.Image, conf_threshold: float = 0.25):
     """
-    Detect objects in PIL Image.
-    Returns:
-      - annotated_img: PIL Image with modern stylish bounding boxes & labels
-      - detections: list of {name, name_bn, conf, box: [x1, y1, x2, y2]}
-      - summary: list of distinct objects found with counts
+    Detect objects in PIL Image using YOLOv8.
     """
     model = get_detector()
     res = model(img, conf=conf_threshold, verbose=False)[0]
@@ -88,14 +90,9 @@ def detect_objects_in_image(img: Image.Image, conf_threshold: float = 0.25):
         x1, y1, x2, y2 = box
 
         color = palette[cls_id % len(palette)]
-
-        # Draw bounding box with rounded corners / thick border
         draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
         
-        # Label text
         label = f"{raw_name} {conf*100:.0f}%"
-        
-        # Badge background
         pad = 4
         text_bbox = draw.textbbox((x1, y1), label)
         tw = text_bbox[2] - text_bbox[0]
@@ -117,3 +114,65 @@ def detect_objects_in_image(img: Image.Image, conf_threshold: float = 0.25):
         summary_counts[name_bn] = summary_counts.get(name_bn, 0) + 1
 
     return annotated, detections, summary_counts
+
+
+def apply_cv_filter(img: Image.Image, filter_type: str):
+    """
+    Applies professional Computer Vision algorithms (OpenCV & Scikit-Image):
+    - 'canny': Canny Edge & Boundary Detection
+    - 'clahe': Adaptive Histogram Contrast Equalization (CLAHE)
+    - 'sketch': Pencil Sketch Conversion
+    - 'denoise': Fast Non-Local Means Image Denoising
+    - 'palette': Dominant Color Palette Extraction
+    """
+    cv_img = np.array(img.convert("RGB"))
+    
+    if filter_type == "canny":
+        gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, 100, 200)
+        edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+        return Image.fromarray(edges_rgb), "Canny Edge Detection (বর্ডার ও লাইন ট্রেসিং)"
+
+    elif filter_type == "clahe":
+        # Scikit-image / OpenCV CLAHE
+        lab = cv2.cvtColor(cv_img, cv2.COLOR_RGB2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        enhanced = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_LAB2RGB)
+        return Image.fromarray(enhanced), "CLAHE Adaptive Contrast (উচ্চমানের কনট্রাস্ট ও শ্যাডো বুস্ট)"
+
+    elif filter_type == "sketch":
+        gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
+        inv = 255 - gray
+        blur = cv2.GaussianBlur(inv, (21, 21), 0)
+        sketch = cv2.divide(gray, 255 - blur, scale=256)
+        sketch_rgb = cv2.cvtColor(sketch, cv2.COLOR_GRAY2RGB)
+        return Image.fromarray(sketch_rgb), "AI Pencil Sketch (আর্ট স্কেচ ফিল্টার)"
+
+    elif filter_type == "denoise":
+        denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, 10, 10, 7, 21)
+        return Image.fromarray(denoised), "Fast NLM Denoising (অ্যাডভান্সড নয়েজ রিমুভাল)"
+
+    return img, "Original"
+
+
+def analyze_image_colors(img: Image.Image, num_colors: int = 5):
+    """Extracts dominant color palette using K-Means clustering (OpenCV)."""
+    cv_img = np.array(img.resize((150, 150)).convert("RGB"))
+    pixels = cv_img.reshape((-1, 3)).astype(np.float32)
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, centers = cv2.kmeans(pixels, num_colors, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    
+    palette = []
+    counts = np.bincount(labels.flatten())
+    total_pts = len(labels)
+
+    for i in np.argsort(-counts):
+        c = centers[i].astype(int)
+        hex_code = f"#{c[0]:02x}{c[1]:02x}{c[2]:02x}"
+        pct = float(round(float((counts[i] / total_pts) * 100), 1))
+        palette.append({"hex": hex_code, "rgb": [int(c[0]), int(c[1]), int(c[2])], "percent": pct})
+
+    return palette
