@@ -966,7 +966,21 @@ body {
           ছবি আপলোড করে সার্ভিস সিলেক্ট করলে এখানে প্রসেসড রেজাল্ট দেখতে পাবেন
         </div>
         <img id="service-result" class="det-result-img">
-      </div>
+      
+        <!-- 🖥️ Live Terminal Log Console for services -->
+        <div style="margin-top:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 14px; font-family:'JetBrains Mono',monospace; box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1e293b; padding-bottom:4px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#38bdf8; font-weight:700;">
+              <span>🖥️ LIVE ENGINE TERMINAL</span>
+              <span style="font-size:9px; background:#1e293b; color:#94a3b8; padding:1px 6px; border-radius:4px;">Execution Stream</span>
+            </div>
+            <span style="font-size:10px; color:#10b981; font-weight:700;">● Online</span>
+          </div>
+          <div id="term-log-services" style="color:#e2e8f0; font-size:11.5px; line-height:1.6; white-space:pre-wrap; max-height:140px; overflow-y:auto;">
+[SYSTEM] Ready for inference. Select image & AI model to stream execution logs...
+          </div>
+        </div>
+    </div>
     </div>
   </div>
 
@@ -1121,7 +1135,21 @@ body {
             <div id="det-crops-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px;">
               <!-- Dynamic Crop Cards inserted here -->
             </div>
+          
+        <!-- 🖥️ Live Terminal Log Console for yolo -->
+        <div style="margin-top:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 14px; font-family:'JetBrains Mono',monospace; box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1e293b; padding-bottom:4px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#38bdf8; font-weight:700;">
+              <span>🖥️ LIVE ENGINE TERMINAL</span>
+              <span style="font-size:9px; background:#1e293b; color:#94a3b8; padding:1px 6px; border-radius:4px;">Execution Stream</span>
+            </div>
+            <span style="font-size:10px; color:#10b981; font-weight:700;">● Online</span>
           </div>
+          <div id="term-log-yolo" style="color:#e2e8f0; font-size:11.5px; line-height:1.6; white-space:pre-wrap; max-height:140px; overflow-y:auto;">
+[SYSTEM] Ready for inference. Select image & AI model to stream execution logs...
+          </div>
+        </div>
+    </div>
         </div>
       </div>
     </div>
@@ -1195,7 +1223,21 @@ body {
           কম্পিউটার ভিশন ফিল্টার প্রসেসের পর এখানে আউটপুট দেখতে পাবেন
         </div>
         <img id="cv-result" class="det-result-img">
-      </div>
+      
+        <!-- 🖥️ Live Terminal Log Console for cv -->
+        <div style="margin-top:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 14px; font-family:'JetBrains Mono',monospace; box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1e293b; padding-bottom:4px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#38bdf8; font-weight:700;">
+              <span>🖥️ LIVE ENGINE TERMINAL</span>
+              <span style="font-size:9px; background:#1e293b; color:#94a3b8; padding:1px 6px; border-radius:4px;">Execution Stream</span>
+            </div>
+            <span style="font-size:10px; color:#10b981; font-weight:700;">● Online</span>
+          </div>
+          <div id="term-log-cv" style="color:#e2e8f0; font-size:11.5px; line-height:1.6; white-space:pre-wrap; max-height:140px; overflow-y:auto;">
+[SYSTEM] Ready for inference. Select image & AI model to stream execution logs...
+          </div>
+        </div>
+    </div>
     </div>
   </div>
 
@@ -1251,6 +1293,13 @@ body {
 </div>
 
 <script>
+function appendTabTerminalLog(tabId, logText) {
+  const term = document.getElementById(`term-log-${tabId}`);
+  if (term && logText) {
+    term.textContent = logText;
+  }
+}
+
 // ─ Global Model State & Sync ─
 let CURRENT_GLOBAL_MODEL = 'isbd_v1';
 
@@ -1461,6 +1510,7 @@ async function runStudioService(input) {
     resImg.style.display = 'block';
     document.getElementById('service-placeholder').style.display = 'none';
     document.getElementById('service-desc').textContent = '✓ ' + data.description;
+    if (data.terminal_log) appendTabTerminalLog('services', data.terminal_log);
 
     toast(`সার্ভিস সফলভাবে সম্পন্ন হয়েছে (${data.model_used || activeModel})!`, 'ok');
   } catch(e) {
@@ -1501,6 +1551,7 @@ async function runObjectDetection(input) {
     resImg.src = data.annotated_image;
     document.getElementById('det-result-container').style.display = 'flex';
     document.getElementById('det-placeholder').style.display = 'none';
+    if (data.terminal_log) appendTabTerminalLog('yolo', data.terminal_log);
 
     // Populate Summary Badges
     const tagContainer = document.getElementById('det-tags');
@@ -1580,6 +1631,7 @@ async function runCVFilter(input) {
     resImg.style.display = 'block';
     document.getElementById('cv-placeholder').style.display = 'none';
     document.getElementById('cv-desc').textContent = data.description;
+    if (data.terminal_log) appendTabTerminalLog('cv', data.terminal_log);
 
     const palContainer = document.getElementById('cv-palette');
     palContainer.innerHTML = '';
