@@ -464,6 +464,9 @@ body {
       </button>
 
       <div class="ws-category">🧪 AI টেস্টিং (Testing Lab)</div>
+      <button class="ws-btn" data-tab="tab-smart" onclick="switchTab('tab-smart')">
+        <span class="icon">🪄</span> স্মার্ট ওয়ান-ক্লিক স্টুডিও প্রো
+      </button>
       <button class="ws-btn" data-tab="tab-restore" onclick="switchTab('tab-restore')">
         <span class="icon">✨</span> এআই রিস্টোরেশন ল্যাব
       </button>
@@ -746,6 +749,67 @@ body {
       </div>
     </div>
   </div>
+
+    <!-- ═════════ Tab 3.5: Smart One-Click Studio Pro ═════════ -->
+    <div id="tab-smart" class="tab-pane">
+      <div class="panel-box" style="background:linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); border-color:#86efac; margin-bottom: 20px;">
+        <div class="panel-header">
+          <h2><span class="step-badge" style="background:#dcfce7; color:#15803d; border-color:#bbf7d0;">🪄</span> স্মার্ট ওয়ান-ক্লিক স্টুডিও প্রো (Smart Auto Master Pipeline)</h2>
+          <span style="font-size: 11px; color: #16a34a; font-weight:700;">4-Stage Sequential Engine</span>
+        </div>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+          আলাদা আলাদা টুল ব্যবহারের ঝামেলা ছাড়াই এক ক্লিকে ছবির ওপর ৪টি স্টুডিও প্রসেস চালান: <strong>১. সিলেক্টিভ স্কিন রিটাচিং ➔ ২. স্টুডিও লাইটিং ও শ্যাডো লিফট ➔ ৩. রিচ কালার গ্রেডিং ➔ ৪. সাব-পিক্সেল শার্পেনিং</strong>।
+        </p>
+
+        <!-- Model Switcher Bar for Smart Studio -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">স্মার্ট ৪-স্টেজ পাইপলাইনের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select class="param-select global-model-selector" id="model-select-smart" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="det-grid">
+          <div class="det-controls">
+            <input type="file" id="smart-file" accept="image/*" style="display:none" onchange="runSmartStudio(this)">
+            <button class="btn btn-main" style="width: 100%; background:linear-gradient(135deg, #10b981, #4f46e5); font-size:14px; padding:12px;" onclick="document.getElementById('smart-file').click()">
+              🪄 ছবি আপলোড করে ১-ক্লিকে ৪-স্টেজ স্টুডিও চালান
+            </button>
+            <div id="smart-desc" style="font-size: 12px; color: #059669; font-weight:600; margin-top: 6px;"></div>
+          </div>
+
+          <div>
+            <div id="smart-placeholder" style="border: 2px dashed #86efac; border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px; background:#f0fdf4;">
+              ছবি আপলোড করলে এখানে সম্পূর্ণ ৪-স্টেজ অটো এনহ্যান্সড স্টুডিও আউটপুট দেখতে পাবেন
+            </div>
+            <img id="smart-result" class="det-result-img">
+            
+            <!-- Terminal Console for Smart Studio -->
+            <div style="margin-top:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 14px; font-family:'JetBrains Mono',monospace;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1e293b; padding-bottom:4px;">
+                <span style="font-size:11px; color:#38bdf8; font-weight:700;">🖥️ SMART STUDIO PIPELINE CONSOLE</span>
+                <span style="font-size:10px; color:#10b981; font-weight:700;">● Online</span>
+              </div>
+              <div id="term-log-smart" style="color:#e2e8f0; font-size:11.5px; line-height:1.6; white-space:pre-wrap; max-height:140px; overflow-y:auto;">
+[SYSTEM] Ready for Smart 4-Stage Auto Master Pipeline...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Tab 4: Restoration Playground (TESTING 1) -->
     <div id="tab-restore" class="tab-pane">
@@ -1472,6 +1536,38 @@ function reGenHeatmap() {
   const fileB = document.getElementById('hm-before').files[0];
   const fileA = document.getElementById('hm-after').files[0];
   if (fileB && fileA) generateHeatmap();
+}
+
+// ─ Smart One-Click Studio Pipeline ─
+let lastUploadedSmartFile = null;
+
+async function runSmartStudio(input) {
+  const file = input.files ? input.files[0] : input;
+  if (!file) return;
+  lastUploadedSmartFile = file;
+
+  const activeModel = getActiveSelectedModel();
+  toast(`স্মার্ট ৪-স্টেজ স্টুডিও প্রসেসিং শুরু হচ্ছে (${activeModel})…`, 'ok');
+
+  const fd = new FormData();
+  fd.append('image', file);
+
+  try {
+    const res = await fetch(`/api/smart_studio?model_id=${encodeURIComponent(activeModel)}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'স্মার্ট স্টুডিও ফেইল্ড');
+
+    const resImg = document.getElementById('smart-result');
+    resImg.src = data.processed_image;
+    resImg.style.display = 'block';
+    document.getElementById('smart-placeholder').style.display = 'none';
+    document.getElementById('smart-desc').textContent = '✓ ' + data.description;
+    if (data.terminal_log) appendTabTerminalLog('smart', data.terminal_log);
+
+    toast(`স্মার্ট ৪-স্টেজ এনহ্যান্সমেন্ট সম্পন্ন হয়েছে (${data.model_used || activeModel})!`, 'ok');
+  } catch(e) {
+    toast('স্মার্ট স্টুডিও ত্রুটি: ' + e.message, 'err');
+  }
 }
 
 let lastUploadedServiceFile = null;

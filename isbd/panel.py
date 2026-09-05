@@ -406,6 +406,52 @@ async def get_services_api():
     return {"ok": True, "services": SERVICES_CONFIG}
 
 
+@app.post("/api/smart_studio")
+async def smart_studio_api(
+    image: UploadFile = File(...),
+    model_id: str = Query("isbd_v1", description="Selected AI Model Engine")
+):
+    """Execute Full 4-Stage Smart Studio Auto-Enhancement Pipeline."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        from isbd.smart_studio import execute_smart_one_click_studio
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+
+        # Execute 4-Stage All-in-One Studio Enhancement
+        res_img, desc = execute_smart_one_click_studio(img, model_id=model_id)
+
+        # Log
+        vlm_log = "Smart Studio 4-Stage Pipeline executed."
+        if model_id and model_id != "isbd_v1":
+            try:
+                from isbd.vlm_engine import execute_vision_model
+                vlm_res = execute_vision_model(
+                    img,
+                    task_prompt="Apply full studio auto-retouching, lighting and detail enhancement.",
+                    model_id=model_id
+                )
+                vlm_log = vlm_res.get("log", "")
+            except Exception as e:
+                vlm_log = f"VLM Bridge info: {str(e)}"
+
+        buf = io.BytesIO()
+        res_img.save(buf, format="JPEG", quality=90)
+        buf.seek(0)
+        img_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.read()).decode("utf-8")
+
+        return {
+            "ok": True,
+            "model_used": model_id,
+            "description": f"[{model_id}] " + desc,
+            "terminal_log": f"[{time.strftime('%H:%M:%S')}] Module: Smart One-Click Studio\n[PIPELINE] Stage 1 (Dermis Retouch) ➔ Stage 2 (LAB Lighting) ➔ Stage 3 (Color S-Curve) ➔ Stage 4 (Sub-pixel Sharpen)\n[ENGINE] Active Architecture: {model_id}\n[INFERENCE] {vlm_log}\n[STATUS] Rendered 4-Stage Pro Master Image.",
+            "processed_image": img_b64
+        }
+    except Exception as e:
+        raise HTTPException(500, f"স্মার্ট স্টুডিও ত্রুটি: {str(e)}")
+
+
 @app.post("/api/service_process")
 async def process_service_api(
     image: UploadFile = File(...),
