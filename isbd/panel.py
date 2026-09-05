@@ -306,6 +306,33 @@ async def infer_image(image: UploadFile = File(...)):
         raise HTTPException(500, f"ইনফারেন্স ত্রুটি: {str(e)}")
 
 
+@app.post("/api/inpaint")
+async def inpaint_api(
+    image: UploadFile = File(...),
+    mask: UploadFile = File(...),
+    radius: int = Query(5, ge=1, le=25),
+    method: str = Query("telea")
+):
+    """Erase unwanted objects, blemishes or watermarks using AI Brush Mask."""
+    raw_img = await image.read()
+    raw_mask = await mask.read()
+    if not raw_img or not raw_mask:
+        raise HTTPException(400, "ছবি এবং ব্রাশ মাস্ক প্রদান করুন")
+    try:
+        from isbd.inpaint import inpaint_image
+        img = Image.open(io.BytesIO(raw_img)).convert("RGB")
+        mask_img = Image.open(io.BytesIO(raw_mask)).convert("L")
+
+        res_img = inpaint_image(img, mask_img, radius=radius, method=method)
+
+        buf = io.BytesIO()
+        res_img.save(buf, format="PNG")
+        buf.seek(0)
+        return StreamingResponse(buf, media_type="image/png")
+    except Exception as e:
+        raise HTTPException(500, f"ইনপেইন্টিং ত্রুটি: {str(e)}")
+
+
 @app.post("/api/purge")
 async def purge():
     if _ft_state().get("running"):
@@ -725,6 +752,45 @@ body {
     </div>
   </div>
 
+  <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
+    <div class="panel-header">
+      <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
+      <span style="font-size: 11px; color: #f472b6; font-weight: 600;">Interactive Mask Drawing Studio</span>
+    </div>
+    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+      ছবি আপলোড করে ব্রাশ দিয়ে যে অংশ মুছতে চান (ওয়াটারমার্ক, দাগ বা অনাকাঙ্ক্ষিত অবজেক্ট) তার ওপর আঁকুন — এআই ব্যাকগ্রাউন্ডের সাথে ম্যাচ করে তা অদৃশ্য করে দেবে!
+    </p>
+
+    <div class="det-grid">
+      <div class="det-controls">
+        <input type="file" id="inpaint-file" accept="image/*" style="display:none" onchange="loadInpaintImage(this)">
+        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="document.getElementById('inpaint-file').click()">
+          🖼️ ছবি আপলোড করে ব্রাশ শুরু করুন
+        </button>
+        <div style="display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--tx-muted);">
+          <span>ব্রাশ সাইজ:</span>
+          <input type="range" id="brush-size" min="5" max="50" value="20" style="flex:1;">
+          <span id="brush-val">20px</span>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-main" style="flex:1;" onclick="applyInpaint()">✨ মুছে ফেলুন (Erase)</button>
+          <button class="btn btn-outline" onclick="clearInpaintMask()">রি-সেট ব্রাশ</button>
+        </div>
+      </div>
+
+      <div>
+        <div id="inpaint-canvas-wrap" style="position:relative; display:none; max-width:100%; border:1px solid var(--card-border); border-radius:var(--radius-md); overflow:hidden; background:#000;">
+          <canvas id="inpaint-canvas" style="max-width:100%; height:auto; cursor:crosshair; display:block;"></canvas>
+        </div>
+        <div id="inpaint-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          ছবি লোড হলে এখানে ব্রাশ দিয়ে মার্ক করার ক্যানভাস দেখতে পাবেন
+        </div>
+        <img id="inpaint-result" class="det-result-img" style="margin-top:12px;">
+      </div>
+    </div>
+  </div>
+
   <!-- ─ Main Section: Upload & Controls ─ -->
   <div class="grid-main">
     
@@ -927,6 +993,121 @@ async function runCVFilter(input) {
 
 function reApplyCV() {
   if (lastUploadedCVFile) runCVFilter(lastUploadedCVFile);
+}
+
+// ─ Magic Eraser & Inpainting Canvas Logic ─
+let inpaintImgObj = null;
+let inpaintCanvas = null;
+let inpaintCtx = null;
+let maskCanvas = null;
+let maskCtx = null;
+let isDrawing = false;
+
+document.getElementById('brush-size').addEventListener('input', e => {
+  document.getElementById('brush-val').textContent = e.target.value + 'px';
+});
+
+function loadInpaintImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    inpaintImgObj = new Image();
+    inpaintImgObj.onload = () => {
+      inpaintCanvas = document.getElementById('inpaint-canvas');
+      inpaintCtx = inpaintCanvas.getContext('2d');
+      
+      inpaintCanvas.width = inpaintImgObj.width;
+      inpaintCanvas.height = inpaintImgObj.height;
+      inpaintCtx.drawImage(inpaintImgObj, 0, 0);
+
+      // Create separate hidden mask canvas (black background, white strokes)
+      maskCanvas = document.createElement('canvas');
+      maskCanvas.width = inpaintImgObj.width;
+      maskCanvas.height = inpaintImgObj.height;
+      maskCtx = maskCanvas.getContext('2d');
+      maskCtx.fillStyle = '#000000';
+      maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+      document.getElementById('inpaint-canvas-wrap').style.display = 'block';
+      document.getElementById('inpaint-placeholder').style.display = 'none';
+      document.getElementById('inpaint-result').style.display = 'none';
+
+      setupCanvasEvents();
+      toast('ছবি লোড হয়েছে — অনাকাঙ্ক্ষিত অংশের ওপর ব্রাশ করুন', 'ok');
+    };
+    inpaintImgObj.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setupCanvasEvents() {
+  inpaintCanvas.onmousedown = e => { isDrawing = true; drawBrush(e); };
+  window.onmouseup = () => { isDrawing = false; };
+  inpaintCanvas.onmousemove = drawBrush;
+  
+  // Touch support for mobile
+  inpaintCanvas.ontouchstart = e => { isDrawing = true; drawBrush(e.touches[0]); };
+  window.ontouchend = () => { isDrawing = false; };
+  inpaintCanvas.ontouchmove = e => { drawBrush(e.touches[0]); };
+}
+
+function drawBrush(e) {
+  if (!isDrawing || !inpaintCtx) return;
+  const rect = inpaintCanvas.getBoundingClientRect();
+  const scaleX = inpaintCanvas.width / rect.width;
+  const scaleY = inpaintCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  const radius = document.getElementById('brush-size').value;
+
+  // Draw semi-transparent pink on visible canvas
+  inpaintCtx.beginPath();
+  inpaintCtx.arc(x, y, radius, 0, Math.PI * 2);
+  inpaintCtx.fillStyle = 'rgba(236, 72, 153, 0.6)';
+  inpaintCtx.fill();
+
+  // Draw white on mask canvas
+  maskCtx.beginPath();
+  maskCtx.arc(x, y, radius, 0, Math.PI * 2);
+  maskCtx.fillStyle = '#ffffff';
+  maskCtx.fill();
+}
+
+function clearInpaintMask() {
+  if (!inpaintImgObj) return;
+  inpaintCtx.drawImage(inpaintImgObj, 0, 0);
+  maskCtx.fillStyle = '#000000';
+  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  document.getElementById('inpaint-result').style.display = 'none';
+  toast('ব্রাশ রিসেট করা হয়েছে', 'ok');
+}
+
+async function applyInpaint() {
+  if (!inpaintImgObj) { toast('আগে ছবি আপলোড করুন', 'warn'); return; }
+  toast('এআই ব্যাকগ্রাউন্ড ব্লেন্ড করে মুছে ফেলছে…', 'ok');
+
+  const fileInput = document.getElementById('inpaint-file');
+  const imgFile = fileInput.files[0];
+
+  maskCanvas.toBlob(async maskBlob => {
+    const fd = new FormData();
+    fd.append('image', imgFile);
+    fd.append('mask', maskBlob, 'mask.png');
+
+    try {
+      const res = await fetch('/api/inpaint', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('ইনপেইন্টিং ব্যর্থ');
+      const blob = await res.blob();
+      const resImg = document.getElementById('inpaint-result');
+      resImg.src = URL.createObjectURL(blob);
+      resImg.style.display = 'block';
+      toast('সফলভাবে মুছে ফেলা হয়েছে!', 'ok');
+    } catch(e) {
+      toast('ইরেজার ত্রুটি: ' + e.message, 'err');
+    }
+  }, 'image/png');
 }
 
 // ─ Drag and drop ─
