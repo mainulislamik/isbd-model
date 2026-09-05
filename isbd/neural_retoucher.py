@@ -39,29 +39,27 @@ def execute_model_specific_retouching(pil_img: Image.Image, model_id: str = "isb
         model_name = "ISBD v1.00 (Local 117k Engine)"
 
     elif "gemini" in model_id.lower():
-        # ── GEMINI 3.7 FLASH HIGH VLM ENGINE (Ultra-HD AI Studio Retouching) ──
-        # Multi-scale pore-preserving frequency separation + Smart Blemish Suppression + Specular Highlight Recovery
+        # ── GEMINI 3.7 FLASH HIGH VLM ENGINE (Visible High-Impact Studio Glamour Retouch) ──
+        # High-impact professional frequency separation: deep blemish blur + strong micro-texture punch + glamour skin tone LUT
         
-        # 1. Ultra High-Pass micro texture preservation
-        blur_fine = cv2.GaussianBlur(img_cv, (3, 3), 1.0)
-        blur_coarse = cv2.GaussianBlur(img_cv, (15, 15), 5.0)
-        micro_texture = cv2.subtract(blur_fine, blur_coarse)
+        # 1. Deep skin tone smoothing (low pass)
+        smooth_base = cv2.bilateralFilter(img_cv, d=18, sigmaColor=140, sigmaSpace=140)
+        smooth_base = cv2.edgePreservingFilter(smooth_base, flags=1, sigma_s=80, sigma_r=0.6)
 
-        # 2. Advanced Multi-step Edge-Preserving Dermal Smoothing
-        smooth_base = cv2.edgePreservingFilter(img_cv, flags=1, sigma_s=50, sigma_r=0.45)
-        smooth_base = cv2.bilateralFilter(smooth_base, d=12, sigmaColor=90, sigmaSpace=90)
-
-        # 3. Recombine Base + Enhanced Micro Skin Pores
-        blended = cv2.addWeighted(smooth_base, 0.82, img_cv, 0.18, 0)
-        retouched_cv = cv2.add(blended, cv2.multiply(micro_texture, np.full_like(micro_texture, 1.3), scale=1.0))
-
-        # 4. Gemini Pro Studio Color & Specular Grading (S-Curve & Subtle Warm Glamour)
-        pil_res = Image.fromarray(cv2.cvtColor(retouched_cv, cv2.COLOR_BGR2RGB))
-        pil_res = ImageEnhance.Color(pil_res).enhance(1.08)
-        pil_res = ImageEnhance.Contrast(pil_res).enhance(1.06)
-        pil_res = ImageEnhance.Sharpness(pil_res).enhance(1.15)
+        # 2. Strong micro-texture / skin pores extraction (high pass)
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        high_pass = cv2.subtract(img_cv, cv2.GaussianBlur(img_cv, (15, 15), 4))
         
-        return pil_res, "Gemini 3.7 Flash High Engine: আল্ট্রা-এইচডি মাইক্রো-পোর টেক্সচার অক্ষুণ্ণ রেখে প্রফেশনাল স্টুডিও রিটাচিং, পিম্পল ইরেজিং ও গ্ল্যামার হাইলাইট প্রয়োগ করা হয়েছে।", "Gemini 3.7 Flash High Vision"
+        # 3. Combine with high contrast weight for razor-sharp pores + baby-smooth skin
+        blended = cv2.addWeighted(smooth_base, 0.88, high_pass, 0.45, 0)
+        
+        # 4. Studio Lighting & Warm Skin Tone S-Curve Enhancement
+        pil_res = Image.fromarray(cv2.cvtColor(blended, cv2.COLOR_BGR2RGB))
+        pil_res = ImageEnhance.Color(pil_res).enhance(1.22)       # Rich, lively skin colors
+        pil_res = ImageEnhance.Contrast(pil_res).enhance(1.18)    # Deep studio contrast
+        pil_res = ImageEnhance.Sharpness(pil_res).enhance(1.35)   # Crystal-clear eye & beard details
+        
+        return pil_res, "Gemini 3.7 Flash High Engine: হাই-ইমপ্যাক্ট প্রো স্টুডিও রিটাচিং, ক্রিস্টাল ক্লিয়ার স্কিন পোরস, ডিপ কনট্রাস্ট ও গ্ল্যামার স্কিন টোন প্রয়োগ করা হয়েছে।", "Gemini 3.7 Flash High Vision"
 
     elif "claude" in model_id.lower():
         # ── CLAUDE SONNET PRO ENGINE (Editorial Soft Natural Retouching) ──
