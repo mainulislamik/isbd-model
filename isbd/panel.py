@@ -208,6 +208,57 @@ async def train(
     return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
 
 
+@app.post("/api/learn-pair")
+async def learn_from_real_pair_api(
+    before: UploadFile = File(...),
+    after:  UploadFile = File(...),
+    label:  str = Query("", description="ট্যাগ — যেমন retouching, color_correction"),
+    augment: int = Query(8, ge=1, le=16),
+):
+    """
+    AI Real Pair Learning API.
+    Uploads a genuine Before→After human-edited image pair.
+    The AI immediately learns the transformation + kicks off a micro fine-tune.
+    """
+    raw_b = await before.read()
+    raw_a = await after.read()
+    if not raw_b or not raw_a:
+        raise HTTPException(400, "Before ও After দুটি ছবিই দিন")
+    if len(raw_b) > MAX_FILE or len(raw_a) > MAX_FILE:
+        raise HTTPException(413, "ছবি 25MB-এর বেশি")
+    try:
+        img_b = Image.open(io.BytesIO(raw_b)).convert("RGB")
+        img_a = Image.open(io.BytesIO(raw_a)).convert("RGB")
+    except Exception:
+        raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+
+    from isbd.self_learner import learn_from_real_pair
+    result = learn_from_real_pair(
+        before_pil=img_b,
+        after_pil=img_a,
+        label=label,
+        augment=augment,
+        trigger_finetune=True,
+    )
+    return {
+        "ok"           : True,
+        "message"      : f"✅ AI শিখছে! '{label or 'untagged'}' পেয়ার থেকে {result['augmented']}টি অগমেন্টেড স্যাম্পল তৈরি হয়েছে এবং মাইক্রো ফাইন-টিউন শুরু হয়েছে।",
+        "augmented"    : result["augmented"],
+        "total_real"   : result["total_real"],
+        "total_pool"   : result["total_pool"],
+        "finetune_pid" : result["finetune_pid"],
+    }
+
+
+@app.get("/api/real-pair-log")
+async def real_pair_log_api(limit: int = Query(20)):
+    from isbd.self_learner import get_real_pair_log, get_real_pair_count
+    return {
+        "log"        : get_real_pair_log(limit),
+        "total_real" : get_real_pair_count(),
+    }
+
+
 @app.get("/api/services")
 async def get_services_api():
     """Get the list of all 11 Commercial Graphic Design & Photo Editing Services."""
@@ -740,6 +791,95 @@ body {
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════
+       🎓 AI REAL EDITING SCHOOL — Before→After Direct Learning
+       ══════════════════════════════════════════════════════════ -->
+  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(99,102,241,0.08) 100%); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
+    <div class="panel-header">
+      <h2><span class="step-badge" style="background: linear-gradient(135deg, #10b981, #6366f1);">🎓</span> AI রিয়েল এডিটিং স্কুল — Before/After পেয়ার থেকে সরাসরি শেখো (Real Pair Learning)</h2>
+      <span style="font-size:11px; color:#6ee7b7; font-weight:700;">Human-Edited Pair → AI Direct Learning + Instant Micro Fine-Tune</span>
+    </div>
+    <p style="font-size:12.5px; color:var(--tx-secondary); margin-bottom:16px; line-height:1.7;">
+      এখানে একটি <strong>আসল এডিটিং উদাহরণ</strong> দিন — আপনি বা আপনার টিম যে ছবি Photoshop/Lightroom-এ এডিট করেছেন তার আগের ও পরের ভার্সন আপলোড করুন।
+      AI সরাসরি মানুষের এডিটিং দেখে শিখবে, ৮টি অগমেন্টেড কপি তৈরি করে মেমরিতে রাখবে এবং <em>তৎক্ষণাৎ</em> ২০০ স্টেপের মাইক্রো ফাইন-টিউন শুরু করবে।
+    </p>
+
+    <div class="det-grid" style="gap:16px;">
+      <!-- Left: Controls -->
+      <div class="det-controls" style="gap:12px;">
+
+        <!-- Before / After upload -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#6ee7b7; display:block; margin-bottom:5px;">📷 আসল ছবি (Before / Input):</label>
+            <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
+                 style="border:2px dashed rgba(16,185,129,0.4); border-radius:var(--radius-sm); padding:18px 8px; text-align:center; cursor:pointer; transition:.2s; font-size:11px; color:var(--tx-muted);"
+                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
+              <div style="font-size:22px; margin-bottom:4px;">🖼️</div>
+              ক্লিক বা ড্রপ করুন
+            </div>
+            <input type="file" id="school-before" accept="image/*" style="display:none" onchange="schoolPreview(this,'b')">
+            <img id="school-prev-b" style="display:none; width:100%; margin-top:8px; border-radius:6px; border:1px solid var(--card-border);">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#818cf8; display:block; margin-bottom:5px;">✨ এডিটেড ছবি (After / Target):</label>
+            <div id="school-a-drop" onclick="document.getElementById('school-after').click()"
+                 style="border:2px dashed rgba(99,102,241,0.4); border-radius:var(--radius-sm); padding:18px 8px; text-align:center; cursor:pointer; transition:.2s; font-size:11px; color:var(--tx-muted);"
+                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'after')">
+              <div style="font-size:22px; margin-bottom:4px;">🌟</div>
+              ক্লিক বা ড্রপ করুন
+            </div>
+            <input type="file" id="school-after" accept="image/*" style="display:none" onchange="schoolPreview(this,'a')">
+            <img id="school-prev-a" style="display:none; width:100%; margin-top:8px; border-radius:6px; border:1px solid var(--card-border);">
+          </div>
+        </div>
+
+        <!-- Label tag -->
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">এডিটিং টাইপ:</label>
+          <select id="school-label" class="param-select" style="flex:1; padding:5px 8px;">
+            <option value="retouching">✨ Retouching (রিটাচিং)</option>
+            <option value="color_correction">🌈 Color Correction (কালার কারেকশন)</option>
+            <option value="clipping_path">✂️ Clipping Path (ক্লিপিং পাথ)</option>
+            <option value="image_masking">🎭 Image Masking (মাস্কিং)</option>
+            <option value="shadow_making">👥 Shadow Making (শ্যাডো)</option>
+            <option value="neck_joint">👔 Neck Joint (ম্যানিকুইন)</option>
+            <option value="enhancement">🔮 Enhancement (এনহ্যান্সমেন্ট)</option>
+            <option value="manipulation">🌌 Manipulation (ম্যানিপুলেশন)</option>
+            <option value="other">📁 অন্যান্য</option>
+          </select>
+        </div>
+
+        <!-- Augmentation slider -->
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">অগমেন্টেশন:</label>
+          <input type="range" id="school-aug" min="1" max="16" value="8" style="flex:1;"
+                 oninput="document.getElementById('school-aug-val').textContent=this.value">
+          <span id="school-aug-val" style="font-size:11px; font-weight:700; color:#6ee7b7; width:20px;">8</span>
+          <span style="font-size:10px; color:var(--tx-muted);">কপি/পেয়ার</span>
+        </div>
+
+        <!-- Submit button -->
+        <button class="btn btn-main" style="width:100%; background:linear-gradient(135deg,#10b981,#6366f1); font-size:13px; padding:10px;"
+                onclick="submitSchoolPair()">
+          🎓 AI-কে এই এডিটিং শেখাও (Learn Now!)
+        </button>
+
+        <!-- Status box -->
+        <div id="school-status" style="display:none; background:rgba(16,185,129,0.07); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-sm); padding:12px; font-size:12px;"></div>
+      </div>
+
+      <!-- Right: History log -->
+      <div>
+        <div style="font-size:11px; font-weight:700; color:var(--tx-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.06em;">📋 সাম্প্রতিক শিক্ষা লগ (Learning History):</div>
+        <div id="school-log-wrap" style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; max-height:260px; overflow-y:auto; font-size:11px; font-family:monospace;">
+          <div style="color:var(--tx-muted); text-align:center; padding:20px;">লগ লোড হচ্ছে…</div>
+        </div>
+        <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#6ee7b7; font-weight:700;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
   <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
     <div class="panel-header">
@@ -1086,6 +1226,94 @@ function toast(msg, type='ok') {
   c.appendChild(t);
   setTimeout(() => t.remove(), 4000);
 }
+
+// ─ AI Real Editing School Logic ─
+function schoolPreview(input, slot) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const imgEl = document.getElementById(slot === 'b' ? 'school-prev-b' : 'school-prev-a');
+    imgEl.src = e.target.result;
+    imgEl.style.display = 'block';
+    const dropEl = document.getElementById(slot === 'b' ? 'school-b-drop' : 'school-a-drop');
+    dropEl.innerHTML = `<div style="font-size:18px;">✅</div><div style="font-size:10px;">${file.name}</div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function schoolDrop(event, slot) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+  const inputId = slot === 'before' ? 'school-before' : 'school-after';
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  document.getElementById(inputId).files = dt.files;
+  schoolPreview({files: [file]}, slot === 'before' ? 'b' : 'a');
+}
+
+async function submitSchoolPair() {
+  const fileB = document.getElementById('school-before').files[0];
+  const fileA = document.getElementById('school-after').files[0];
+  if (!fileB || !fileA) { toast('Before ও After দুটি ছবিই দিন!', 'warn'); return; }
+
+  const label  = document.getElementById('school-label').value;
+  const augment= document.getElementById('school-aug').value;
+
+  const statusEl = document.getElementById('school-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<span style="color:#6ee7b7;">⏳ AI শিখছে — পেয়ার আপলোড ও মাইক্রো ফাইন-টিউন শুরু হচ্ছে…</span>';
+
+  const fd = new FormData();
+  fd.append('before', fileB);
+  fd.append('after',  fileA);
+
+  try {
+    const res  = await fetch(`/api/learn-pair?label=${encodeURIComponent(label)}&augment=${augment}`, { method:'POST', body:fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'ত্রুটি');
+
+    statusEl.innerHTML = `
+      <div style="color:#6ee7b7; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
+      <div style="color:var(--tx-muted);">
+        📦 মোট Real Pairs: <strong style="color:#a5f3fc;">${data.total_real}</strong> &nbsp;|&nbsp;
+        🔁 Pool Size: <strong style="color:#a5f3fc;">${data.total_pool}</strong> &nbsp;|&nbsp;
+        ⚡ Micro Fine-tune PID: <strong style="color:#fbbf24;">${data.finetune_pid || 'background'}</strong>
+      </div>`;
+
+    toast('🎓 AI নতুন এডিটিং শিখছে!', 'ok');
+    loadSchoolLog();
+  } catch(e) {
+    statusEl.innerHTML = `<span style="color:#f87171;">❌ ত্রুটি: ${e.message}</span>`;
+    toast('Real Pair Learning ফেইল্ড: ' + e.message, 'err');
+  }
+}
+
+async function loadSchoolLog() {
+  try {
+    const res  = await fetch('/api/real-pair-log?limit=15');
+    const data = await res.json();
+    const wrap = document.getElementById('school-log-wrap');
+    if (!data.log || data.log.length === 0) {
+      wrap.innerHTML = '<div style="color:var(--tx-muted); text-align:center; padding:20px;">এখনো কোনো রিয়েল পেয়ার শেখানো হয়নি।<br>উপরে প্রথম পেয়ার আপলোড করুন!</div>';
+    } else {
+      wrap.innerHTML = [...data.log].reverse().map(r => `
+        <div style="border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; color:var(--tx-secondary);">
+          <span style="color:#6ee7b7;">✔</span>
+          <strong style="color:#a5f3fc;">${r.label}</strong>
+          &nbsp;·&nbsp;${r.before_px}→${r.after_px}
+          &nbsp;·&nbsp;<span style="color:var(--tx-muted);">${r.ts}</span>
+          &nbsp;·&nbsp;Pool: ${r.total_pairs}
+        </div>`).join('');
+    }
+    document.getElementById('school-total-badge').textContent =
+      `🎓 মোট Real Pair Learning: ${data.total_real} পেয়ার সম্পন্ন`;
+  } catch(e) {}
+}
+
+// Load log on page start
+document.addEventListener('DOMContentLoaded', () => { loadSchoolLog(); });
 
 // ─ Heatmap Difference Logic ─
 async function generateHeatmap() {
