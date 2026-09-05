@@ -420,11 +420,17 @@ async def process_service_api(
         from isbd.studio_sectors import execute_studio_service
         img = Image.open(io.BytesIO(raw)).convert("RGB")
         
-        # 1. Execute Service with Core Image Pipeline
-        out_img, desc = execute_studio_service(img, service_id)
+        # 1. Execute Service with Model-Specific Neural Pipeline
+        if service_id in ["image_retouching", "image_enhancement", "color_correction"]:
+            from isbd.neural_retoucher import execute_model_specific_retouching
+            out_img, desc, active_name = execute_model_specific_retouching(img, model_id=model_id)
+        else:
+            from isbd.studio_sectors import execute_studio_service
+            out_img, desc = execute_studio_service(img, service_id)
+            active_name = model_id
 
         # 2. If an External VLM Model (Gemini / Claude / DeepSeek) is selected, run VLM Engine
-        vlm_log = f"Processed with Local ISBD v1.00 Engine."
+        vlm_log = f"Processed with {active_name} Engine."
         if model_id and model_id != "isbd_v1":
             try:
                 from isbd.vlm_engine import execute_vision_model
@@ -447,8 +453,8 @@ async def process_service_api(
             "ok": True,
             "service_id": service_id,
             "model_used": model_id,
-            "description": f"[{model_id}] " + desc,
-            "terminal_log": f"[{time.strftime('%H:%M:%S')}] Service: {service_id}\n[ENGINE] Active Model: {model_id}\n[INFERENCE] {vlm_log}\n[STATUS] Output rendered successfully (Shape: {out_img.size}, Format: {fmt}).",
+            "description": f"[{active_name}] " + desc,
+            "terminal_log": f"[{time.strftime('%H:%M:%S')}] Service: {service_id}\n[ENGINE] Active Architecture: {active_name}\n[INFERENCE] {vlm_log}\n[STATUS] Rendered output with {active_name} pipeline (Shape: {out_img.size}, Format: {fmt}).",
             "processed_image": img_b64
         }
     except Exception as e:
