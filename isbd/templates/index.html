@@ -740,10 +740,7 @@ body {
         </div>
       </div>
     </div>
-
-    
-      </div>
-    </div>
+  </div>
 
     <!-- Tab 4: Restoration Playground (TESTING 1) -->
     <div id="tab-restore" class="tab-pane">
@@ -756,52 +753,47 @@ body {
           যেকোনো নষ্ট বা সাধারণ ছবি আপলোড করুন — এআই মডেল রিয়েল-টাইমে রিস্টোর করে বিফোর/আফটার স্লাইডারে তুলনা দেখাবে।
         </p>
       </div>
+
       <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px;">
-<!-- Right Column: Interactive Inference Playground & Specs -->
-    <div>
-      <div class="panel-box playground-box">
-        <div class="panel-header">
-          <h2><span class="step-badge">⚡</span> লাইভ এআই রেস্টোরেশন ল্যাব</h2>
-        </div>
-        <p style="font-size: 11.5px; color: var(--tx-secondary); margin-bottom: 10px;">
-          যেকোনো সাধারণ বা নষ্ট ছবি দিন — বর্তমান ট্রেন হওয়া এআই মডেল রিয়েল-টাইমে রিস্টোর করবে।
-        </p>
+        <div>
+          <div class="panel-box playground-box">
+            <div class="panel-header">
+              <h2><span class="step-badge">⚡</span> লাইভ এআই রেস্টোরেশন ল্যাব</h2>
+            </div>
+            <p style="font-size: 12px; color: var(--tx-secondary); margin-bottom: 12px;">
+              যেকোনো সাধারণ বা নষ্ট ছবি দিন — বর্তমান ট্রেন হওয়া এআই মডেল রিয়েল-টাইমে রিস্টোর করবে।
+            </p>
 
-        <input type="file" id="play-input" accept="image/*" style="display:none" onchange="runInference(this)">
-        <button class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('play-input').click()">
-          📸 ছবি সিলেক্ট করে টেস্ট করুন
-        </button>
+            <input type="file" id="play-input" accept="image/*" style="display:none" onchange="runInference(this)">
+            <button class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('play-input').click()">
+              📸 ছবি সিলেক্ট করে টেস্ট করুন
+            </button>
 
-        <div class="compare-container" id="comp-box">
-          <div class="play-placeholder" id="play-placeholder">ছবি আপলোড করলে এখানে Before/After স্লাইডার দেখতে পাবেন</div>
-          <img id="comp-after" class="compare-img" style="display:none">
-          <div class="compare-overlay" id="comp-overlay" style="display:none">
-            <img id="comp-before">
+            <div class="compare-container" id="comp-box">
+              <div class="play-placeholder" id="play-placeholder">ছবি আপলোড করলে এখানে Before/After স্লাইডার দেখতে পাবেন</div>
+              <img id="comp-after" class="compare-img" style="display:none">
+              <div class="compare-overlay" id="comp-overlay" style="display:none">
+                <img id="comp-before">
+              </div>
+              <div class="slider-handle" id="comp-handle" style="display:none">⬍</div>
+              <input type="range" class="compare-range" id="comp-range" min="0" max="100" value="50" style="display:none" oninput="slideCompare(this.value)">
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--tx-muted);" id="comp-labels" style="display:none">
+              <span>◀ Original (Before)</span>
+              <span>AI Restored (After) ▶</span>
+            </div>
           </div>
-          <div class="slider-handle" id="comp-handle" style="display:none">⬍</div>
-          <input type="range" class="compare-range" id="comp-range" min="0" max="100" value="50" style="display:none" oninput="slideCompare(this.value)">
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--tx-muted);" id="comp-labels" style="display:none">
-          <span>◀ Original (Before)</span>
-          <span>AI Restored (After) ▶</span>
+
+        <div>
+          <div class="panel-box">
+            <div class="panel-header">
+              <h2><span class="step-badge">📊</span> লাইভ ইঞ্জিন লগ</h2>
+              <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(0,0,0,0.05);">Idle</span>
+            </div>
+            <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
+          </div>
         </div>
-      </div>
-
-      <!-- Engine Logs -->
-      <div class="panel-box">
-        <div class="panel-header">
-          <h2><span class="step-badge">📊</span> লাইভ ইঞ্জিন লগ</h2>
-          <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
-        </div>
-        <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
-      </div>
-    </div>
-
-  </div>
-
-</div>
-
-
       </div>
     </div>
 
@@ -1053,7 +1045,6 @@ body {
     </div>
   </div>
 
-  
     </div>
 
   </main>
