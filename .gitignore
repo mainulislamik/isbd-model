@@ -1,9 +1,12 @@
 .venv/
 __pycache__/
 *.pyc
-checkpoints/*.pt
 samples/
 data/cache/
 
-# Designer pair tensors (privacy)
-data/
+# Keep checkpoint weights & real training pairs safely tracked in git
+!checkpoints/best.pt
+!checkpoints/history.json
+!data/real_pairs.npz
+!data/real_pairs_log.json
+

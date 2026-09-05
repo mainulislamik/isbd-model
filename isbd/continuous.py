@@ -53,6 +53,17 @@ def main():
         except Exception as e:
             print(f"[eval] skipped: {e}", flush=True)
 
+        # Auto-commit & push every round (or every ~5,000 steps) so checkpoints are always safe in Git
+        try:
+            subprocess.run(["git", "add", "checkpoints/best.pt", "checkpoints/history.json", "data/real_pairs.npz", "data/real_pairs_log.json"], cwd=str(ROOT), capture_output=True)
+            commit_res = subprocess.run(["git", "commit", "-m", f"Auto-checkpoint update: step {after} (Continuous self-learning)"], cwd=str(ROOT), capture_output=True, text=True)
+            if commit_res.returncode == 0:
+                push_res = subprocess.run(["git", "push", "origin", "main"], cwd=str(ROOT), capture_output=True, text=True, timeout=45)
+                if push_res.returncode == 0:
+                    print(f"[git] Synced checkpoint & training data to GitHub main at step {after} ✓", flush=True)
+        except Exception as e:
+            print(f"[git] auto-push skipped: {e}", flush=True)
+
         if after == before:  # no progress -> crash or lock held; backoff
             restarts += 1
             wait = min(30 * restarts, 300)
