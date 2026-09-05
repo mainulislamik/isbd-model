@@ -247,97 +247,189 @@ body {
 @keyframes toastIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>
-</head>
+
 
 <style>
-/* ─ Sidebar Navigation & Tab Pane System ─ */
-.app-container { display: flex; min-height: 100vh; background: var(--bg); }
-.app-sidebar {
-  width: 270px; background: rgba(13, 17, 26, 0.95); border-right: 1px solid var(--card-border);
-  backdrop-filter: blur(20px); display: flex; flex-direction: column; flex-shrink: 0;
-  position: sticky; top: 0; height: 100vh; z-index: 100;
+/* ─ Professional Sidebar & Tabbed Workspace Layout ─ */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
-.side-head { padding: 22px 18px 18px; border-bottom: 1px solid var(--card-border); }
-.side-nav { padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; }
-.side-cat { font-size: 10px; font-weight: 800; color: var(--tx-muted); text-transform: uppercase; letter-spacing: 1px; padding: 12px 10px 4px; }
-.side-btn {
-  display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm);
-  color: var(--tx-secondary); font-size: 12.5px; font-weight: 600; cursor: pointer; background: transparent;
-  border: 1px solid transparent; transition: all 0.2s; width: 100%; text-align: left; font-family: inherit;
+
+.workspace-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
 }
-.side-btn:hover { background: rgba(255,255,255,0.04); color: var(--tx-primary); border-color: rgba(255,255,255,0.08); }
-.side-btn.active {
-  background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.15));
-  border-color: rgba(99,102,241,0.4); color: #fff; font-weight: 700;
-  box-shadow: 0 4px 14px rgba(99,102,241,0.15);
+
+.workspace-sidebar {
+  width: 280px;
+  background: rgba(10, 14, 23, 0.98);
+  border-right: 1px solid var(--card-border);
+  backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
 }
-.side-btn .icon { font-size: 16px; width: 22px; text-align: center; }
-.side-foot { padding: 14px 18px; border-top: 1px solid var(--card-border); font-size: 11px; color: var(--tx-muted); background: rgba(0,0,0,0.2); }
-.app-content { flex: 1; padding: 24px 30px 80px; max-width: 1240px; overflow-y: auto; }
-.tab-pane { display: none; animation: fadeInPane 0.2s ease forwards; }
-.tab-pane.active { display: block; }
-@keyframes fadeInPane { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.ws-brand {
+  padding: 22px 18px 16px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.ws-nav {
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ws-category {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--tx-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  padding: 14px 10px 4px;
+}
+
+.ws-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--tx-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.ws-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--tx-primary);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ws-btn.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(6, 182, 212, 0.18));
+  border-color: rgba(99, 102, 241, 0.45);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.18);
+}
+
+.ws-btn .icon {
+  font-size: 17px;
+  width: 22px;
+  text-align: center;
+}
+
+.ws-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--card-border);
+  font-size: 11px;
+  color: var(--tx-muted);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.workspace-content {
+  flex: 1;
+  padding: 24px 32px 80px;
+  max-width: 1260px;
+  overflow-y: auto;
+}
+
+.tab-pane {
+  display: none;
+  animation: paneFadeIn 0.22s ease-out forwards;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes paneFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 960px) {
-  .app-container { flex-direction: column; }
-  .app-sidebar { width: 100%; height: auto; position: static; }
-  .app-content { padding: 16px 16px 60px; }
+  .workspace-layout { flex-direction: column; }
+  .workspace-sidebar { width: 100%; height: auto; position: static; }
+  .workspace-content { padding: 16px 16px 60px; }
 }
 </style>
 
+</head>
 <body>
+
 <div class="toasts" id="toasts"></div>
 
-<div class="app-container">
-  <!-- ═════════ SIDEBAR MENU ═════════ -->
-  <aside class="app-sidebar">
-    <div class="side-head">
+<div class="workspace-layout">
+  <!-- ═════════ SIDEBAR NAVIGATION ═════════ -->
+  <aside class="workspace-sidebar">
+    <div class="ws-brand">
       <div class="brand">
         <div class="brand-icon">🚀</div>
         <div class="brand-text">
           <h1>ISBD Studio</h1>
-          <span>AI Train & Test Engine</span>
+          <span>AI Train & Test Suite</span>
         </div>
       </div>
-      <div class="top-pill" style="margin-top: 12px; width: 100%; justify-content: center;">
+      <div class="top-pill" style="margin-top: 14px; width: 100%; justify-content: center;">
         <span class="pulse-dot"></span>
         <span id="nav-status">Vision & Trainer Live</span>
       </div>
     </div>
 
-    <nav class="side-nav">
-      <div class="side-cat">🧠 AI ট্রেনিং (Training)</div>
-      <button class="side-btn active" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard')">
-        <span class="icon">📊</span> লাইভ ড্যাশবোর্ড ও মেট্রিক্স
+    <nav class="ws-nav">
+      <div class="ws-category">🧠 AI ট্রেনিং (Training)</div>
+      <button class="ws-btn active" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard')">
+        <span class="icon">📊</span> লাইভ ড্যাশবোর্ড
       </button>
-      <button class="side-btn" data-tab="tab-school" onclick="switchTab('tab-school')">
+      <button class="ws-btn" data-tab="tab-school" onclick="switchTab('tab-school')">
         <span class="icon">🎓</span> Before/After এডিটিং স্কুল
       </button>
-      <button class="side-btn" data-tab="tab-finetune" onclick="switchTab('tab-finetune')">
+      <button class="ws-btn" data-tab="tab-finetune" onclick="switchTab('tab-finetune')">
         <span class="icon">⚡</span> পেয়ার ফাইন-টিউন ল্যাব
       </button>
 
-      <div class="side-cat">🧪 AI টেস্টিং (Testing Lab)</div>
-      <button class="side-btn" data-tab="tab-restore" onclick="switchTab('tab-restore')">
+      <div class="ws-category" style="margin-top: 6px;">🧪 AI টেস্টিং (Testing Lab)</div>
+      <button class="ws-btn" data-tab="tab-restore" onclick="switchTab('tab-restore')">
         <span class="icon">✨</span> এআই রিস্টোরেশন ল্যাব
       </button>
-      <button class="side-btn" data-tab="tab-heatmap" onclick="switchTab('tab-heatmap')">
+      <button class="ws-btn" data-tab="tab-heatmap" onclick="switchTab('tab-heatmap')">
         <span class="icon">🔥</span> ডিফারেন্স হিটম্যাপ
       </button>
-      <button class="side-btn" data-tab="tab-services" onclick="switchTab('tab-services')">
+      <button class="ws-btn" data-tab="tab-services" onclick="switchTab('tab-services')">
         <span class="icon">💎</span> ১১টি কমার্শিয়াল সার্ভিস
       </button>
-      <button class="side-btn" data-tab="tab-magic" onclick="switchTab('tab-magic')">
+      <button class="ws-btn" data-tab="tab-magic" onclick="switchTab('tab-magic')">
         <span class="icon">🪄</span> ম্যাজিক ইরেজার (Inpaint)
       </button>
-      <button class="side-btn" data-tab="tab-yolo" onclick="switchTab('tab-yolo')">
+      <button class="ws-btn" data-tab="tab-yolo" onclick="switchTab('tab-yolo')">
         <span class="icon">👁️</span> অবজেক্ট ট্র্যাকিং (YOLO)
       </button>
-      <button class="side-btn" data-tab="tab-cv" onclick="switchTab('tab-cv')">
+      <button class="ws-btn" data-tab="tab-cv" onclick="switchTab('tab-cv')">
         <span class="icon">🎨</span> কালার প্যালেট ও ফিল্টার
       </button>
     </nav>
 
-    <div class="side-foot">
+    <div class="ws-footer">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span>মডেল: <strong>ISBD v1.00</strong></span>
         <span style="color: var(--cyan); font-weight:700;">24/7 Active</span>
@@ -346,14 +438,17 @@ body {
   </aside>
 
   <!-- ═════════ CONTENT AREA ═════════ -->
-  <main class="app-content">
-
-    <!-- 1. DASHBOARD & OVERVIEW TAB -->
+  <main class="workspace-content">
+    
+    <!-- Tab 1: Dashboard -->
     <div id="tab-dashboard" class="tab-pane active">
-      <div class="panel-header" style="margin-bottom: 20px;">
-        <h2><span class="step-badge">📊</span> এআই ট্রেনিং স্ট্যাটাস ও পারফরম্যান্স মেট্রিক্স</h2>
-      </div>
-        <!-- ─ Stats Row ─ -->
+      
+<div class="panel-header" style="margin-bottom: 18px;">
+  <h2><span class="step-badge">📊</span> এআই ট্রেনিং স্ট্যাটাস ও লাইভ পারফরম্যান্স ওভারভিউ</h2>
+  <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Autonomous Learning Dashboard</span>
+</div>
+
+<!-- ─ Stats Row ─ -->
   <div class="stats-grid">
     <div class="stat-card" id="card-step">
       <div class="stat-top">
@@ -363,31 +458,65 @@ body {
       <div class="stat-val" id="v-step">—</div>
       <div class="stat-footer">মোট ট্রেইন্ড আইটারেশন</div>
     </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-        <div class="panel-box">
-          <div class="panel-header">
-            <h2><span class="step-badge">📜</span> লাইভ ইঞ্জিন ট্রেইনার লগ</h2>
-            <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
-          </div>
-          <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — ২৪/৭ সেলফ-লার্নিং সক্রিয়…</div>
-        </div>
-        <div class="panel-box">
-          <div class="panel-header">
-            <h2><span class="step-badge">💡</span> কুইক শর্টকাট গাইড</h2>
-          </div>
-          <p style="font-size: 13px; color: var(--tx-secondary); line-height: 1.8;">
-            • <strong>এডিটিং স্কুল:</strong> মানুষের করা আসল Before/After ফটোশপ এডিট আপলোড করে এআই-কে নতুন স্টাইল শেখান।<br>
-            • <strong>হিটম্যাপ:</strong> এডিট করা ছবির সূক্ষ্ম পরিবর্তন থার্মাল কালারে পরীক্ষা করুন।<br>
-            • <strong>১১টি সার্ভিস:</strong> ক্লিপিং পাথ, রিটাচিং, শ্যাডো ও নেক জয়েন্ট এক ক্লিকে টেস্ট করুন।<br>
-            • <strong>ম্যাজিক ইরেজার:</strong> ব্রাশ দিয়ে ড্র করে যেকোনো দাগ বা অবজেক্ট নিখুঁতভাবে মুছুন।
-          </p>
-        </div>
+
+    <div class="stat-card" id="card-loss">
+      <div class="stat-top">
+        <span class="stat-title">Training Loss</span>
+        <span class="stat-icon">📉</span>
       </div>
+      <div class="stat-val" id="v-loss">—</div>
+      <div class="stat-footer">L1 + MSE কম্পোজিট লস</div>
     </div>
 
-    <!-- 2. AI EDITING SCHOOL TAB -->
+    <div class="stat-card" id="card-pairs">
+      <div class="stat-top">
+        <span class="stat-title">Self-Learned & Custom</span>
+        <span class="stat-icon">🧠</span>
+      </div>
+      <div class="stat-val" id="v-pairs">0</div>
+      <div class="stat-footer" id="v-self-sub">অটোনোমাস সেলফ-লার্নিং সক্রিয়</div>
+    </div>
+
+    <div class="stat-card" id="card-lock">
+      <div class="stat-top">
+        <span class="stat-title">Engine Lock</span>
+        <span class="stat-icon">🔒</span>
+      </div>
+      <div class="stat-val" id="v-lock">Free</div>
+      <div class="stat-footer" id="v-lock-sub">ট্রেনিং সেফটি কন্ট্রোল</div>
+    </div>
+  </div>
+
+  
+
+<div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 24px;">
+  <div class="panel-box">
+    <div class="panel-header">
+      <h2><span class="step-badge">📜</span> লাইভ ট্রেইনিং ইঞ্জিন লগ (Console Tail)</h2>
+      <span id="badge-ft" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05);">Idle</span>
+    </div>
+    <div class="terminal-area" id="term-log">ইঞ্জিন প্রস্তুত — পেয়ার আপলোড বা ফাইন-টিউন ট্র্যাকিং…</div>
+  </div>
+
+  <div class="panel-box">
+    <div class="panel-header">
+      <h2><span class="step-badge">💡</span> ISBD স্টুডিও গাইড ও ফিচার শর্টকাট</h2>
+    </div>
+    <div style="font-size: 12.5px; color: var(--tx-secondary); line-height: 1.9;">
+      <div style="margin-bottom: 8px;">🎓 <strong>এডিটিং স্কুল:</strong> ফটোশপের Before/After পেয়ার দিয়ে এআই-কে নতুন স্কিল শেখান।</div>
+      <div style="margin-bottom: 8px;">🔥 <strong>ডিফারেন্স হিটম্যাপ:</strong> ছবির পরিবর্তিত এরিয়া থার্মাল কালারে পরীক্ষা করুন।</div>
+      <div style="margin-bottom: 8px;">💎 <strong>১১টি কমার্শিয়াল সার্ভিস:</strong> এক ক্লিকে ক্লিপিং পাথ, রিটাচিং, শ্যাডো তৈরি।</div>
+      <div style="margin-bottom: 8px;">🪄 <strong>ম্যাজিক ইরেজার:</strong> ব্রাশ দিয়ে দাগ, অনাকাঙ্ক্ষিত অবজেক্ট বা ওয়াটারমার্ক মুছুন।</div>
+      <div>👁️ <strong>অবজেক্ট ট্র্যাকিং:</strong> YOLOv8 এআই দিয়ে ছবিতে থাকা সব উপাদান চিহ্নিত করুন।</div>
+    </div>
+  </div>
+</div>
+
+    </div>
+
+    <!-- Tab 2: AI School -->
     <div id="tab-school" class="tab-pane">
-        <!-- ══════════════════════════════════════════════════════════
+      <!-- ══════════════════════════════════════════════════════════
        🎓 AI REAL EDITING SCHOOL — Before→After Direct Learning
        ══════════════════════════════════════════════════════════ -->
   <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(99,102,241,0.08) 100%); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
@@ -474,14 +603,24 @@ body {
         <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#6ee7b7; font-weight:700;"></div>
       </div>
     </div>
+  </div>
+
+  
     </div>
 
-    <!-- 3. PAIR FINE-TUNE TAB -->
+    <!-- Tab 3: Finetune -->
     <div id="tab-finetune" class="tab-pane">
-        <!-- ─ Main Section: Upload & Controls ─ -->
-  <div class="grid-main">
-    
-    <!-- Left Column: Fine-tune & Pairs -->
+      
+<div class="panel-box" style="margin-bottom: 20px;">
+  <div class="panel-header">
+    <h2><span class="step-badge">⚡</span> পেয়ার ফাইন-টিউন ও ট্রেনিং প্যারামিটার কন্ট্রোল</h2>
+    <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Manual Batch & Fine-tune Config</span>
+  </div>
+  <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+    এখানে ম্যানুয়াল পেয়ার আপলোড করে হাইপারপ্যারামিটার (Steps, Learning Rate, Batch Size) কনফিগার করে ডিপ ফাইন-টিউনিং শুরু করতে পারেন।
+  </p>
+</div>
+<!-- Left Column: Fine-tune & Pairs -->
     <div>
       <div class="panel-box">
         <div class="panel-header">
@@ -543,13 +682,24 @@ body {
     </div>
 
     
-        </div>
-      </div>
+</div>
+
     </div>
 
-    <!-- 4. LIVE RESTORATION PLAYGROUND TAB -->
+    <!-- Tab 4: Restoration Playground -->
     <div id="tab-restore" class="tab-pane">
-      <!-- Right Column: Interactive Inference Playground & Specs -->
+      
+<div class="panel-box" style="margin-bottom: 20px;">
+  <div class="panel-header">
+    <h2><span class="step-badge">✨</span> এআই রিস্টোরেশন ল্যাব ও ইন্টারঅ্যাক্টিভ স্লাইডার</h2>
+    <span style="font-size: 11px; color: var(--accent); font-weight:700;">Real-time Model Inference</span>
+  </div>
+  <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+    যেকোনো নষ্ট বা সাধারণ ছবি আপলোড করুন — এআই মডেল রিয়েল-টাইমে রিস্টোর করে বিফোর/আফটার স্লাইডারে তুলনা দেখাবে।
+  </p>
+</div>
+<div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px;">
+<!-- Right Column: Interactive Inference Playground & Specs -->
     <div>
       <div class="panel-box playground-box">
         <div class="panel-header">
@@ -592,11 +742,15 @@ body {
   </div>
 
 </div>
+
+
+</div>
+
     </div>
 
-    <!-- 5. HEATMAP TAB -->
+    <!-- Tab 5: Heatmap -->
     <div id="tab-heatmap" class="tab-pane">
-        <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
+      <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
   <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🔥</span> এআই বিফোর/আফটার হিটম্যাপ ভিজ্যুয়ালাইজার (Pixel Difference Heatmap)</h2>
@@ -639,11 +793,25 @@ body {
           <div style="color:var(--tx-secondary); font-size:11px;" id="hm-stat-sub"></div>
         </div>
       </div>
+
+      <div>
+        <div id="hm-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          Before ও After আপলোড করে হিটম্যাপ রান করলে এখানে থার্মাল এনালাইসিস দেখতে পাবেন
+        </div>
+        <div id="hm-result-wrap" style="display:none; flex-direction:column; gap:8px;">
+          <img id="hm-overlay-img" class="det-result-img" style="display:block;">
+          <span style="font-size:11px; color:var(--tx-muted); text-align:center;">🔴 লাল/হলুদ = সর্বোচ্চ পরিবর্তন | 🔵 নীল/কালো = অপরিবর্তিত অংশ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
     </div>
 
-    <!-- 6. 11 COMMERCIAL SERVICES TAB -->
+    <!-- Tab 6: Commercial Services -->
     <div id="tab-services" class="tab-pane">
-        <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
+      <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
   <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, var(--cyan), var(--accent));">💎</span> প্রফেশনাল ফটো এডিটিং ও গ্রাফিক সার্ভিসেস (Commercial Services Suite)</h2>
@@ -687,11 +855,13 @@ body {
       </div>
     </div>
   </div>
+
+  
     </div>
 
-    <!-- 7. MAGIC ERASER TAB -->
+    <!-- Tab 7: Magic Eraser -->
     <div id="tab-magic" class="tab-pane">
-        <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
+      <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
   <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
@@ -729,11 +899,13 @@ body {
       </div>
     </div>
   </div>
+
+  
     </div>
 
-    <!-- 8. YOLO OBJECT TRACKING TAB -->
+    <!-- Tab 8: YOLO -->
     <div id="tab-yolo" class="tab-pane">
-        <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
+      <!-- ─ NEW FEATURE 1: Object Recognition & Visual Tracking Spotlight ─ -->
   <div class="detector-banner">
     <div class="panel-header">
       <h2><span class="step-badge">👁️</span> এআই অবজেক্ট ট্র্যাকিং ও আইডেন্টিফায়ার (Object Recognition)</h2>
@@ -762,11 +934,22 @@ body {
           <div class="det-tags" id="det-tags"></div>
         </div>
       </div>
+
+      <div>
+        <div id="det-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          ছবি স্ক্যান করার পর এখানে বাউন্ডিং বক্স সহ ভিজ্যুয়ালাইজেশন দেখতে পাবেন
+        </div>
+        <img id="det-result" class="det-result-img">
+      </div>
+    </div>
+  </div>
+
+  
     </div>
 
-    <!-- 9. COMPUTER VISION LAB TAB -->
+    <!-- Tab 9: Computer Vision Lab -->
     <div id="tab-cv" class="tab-pane">
-        <!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
+      <!-- ─ NEW FEATURE 2: OpenCV & Scikit-Image Multi-Vision Toolkit ─ -->
   <div class="cv-lab-banner">
     <div class="panel-header">
       <h2><span class="step-badge">🧪</span> কম্পিউটার ভিশন ও কালার প্যালেট ল্যাব (OpenCV & Scikit-Image)</h2>
@@ -803,6 +986,17 @@ body {
           <div class="cv-palette" id="cv-palette"></div>
         </div>
       </div>
+
+      <div>
+        <div id="cv-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+          কম্পিউটার ভিশন ফিল্টার প্রসেসের পর এখানে আউটপুট দেখতে পাবেন
+        </div>
+        <img id="cv-result" class="det-result-img">
+      </div>
+    </div>
+  </div>
+
+  
     </div>
 
   </main>
@@ -812,7 +1006,7 @@ body {
 <script>
 function switchTab(tabId) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ws-btn').forEach(b => b.classList.remove('active'));
   
   const target = document.getElementById(tabId);
   if (target) target.classList.add('active');
@@ -1377,3 +1571,4 @@ addPairRow();
 </script>
 </body>
 </html>
+
