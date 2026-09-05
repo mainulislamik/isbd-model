@@ -6,26 +6,26 @@
 <title>ISBD Studio Pro Vision Suite</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 :root {
-  --bg: #07090e; --bg-secondary: #0d111a; --card: rgba(18, 23, 37, 0.75);
-  --card-border: rgba(255, 255, 255, 0.08); --glass: rgba(255, 255, 255, 0.03);
-  --tx-primary: #f1f5f9; --tx-secondary: #94a3b8; --tx-muted: #64748b;
-  --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.25);
-  --cyan: #06b6d4; --cyan-glow: rgba(6, 182, 212, 0.2);
-  --success: #10b981; --success-bg: rgba(16, 185, 129, 0.12);
-  --warning: #f59e0b; --warning-bg: rgba(245, 158, 11, 0.12);
-  --danger: #ef4444; --danger-bg: rgba(239, 68, 68, 0.12);
-  --radius-lg: 18px; --radius-md: 12px; --radius-sm: 8px;
+  --bg: #f8fafc; --bg-secondary: #ffffff; --card: #ffffff;
+  --card-border: #e2e8f0; --glass: #f1f5f9;
+  --tx-primary: #0f172a; --tx-secondary: #334155; --tx-muted: #64748b;
+  --accent: #4f46e5; --accent-glow: rgba(79, 70, 229, 0.15);
+  --cyan: #0284c7; --cyan-glow: rgba(2, 132, 199, 0.15);
+  --success: #059669; --success-bg: #ecfdf5;
+  --warning: #d97706; --warning-bg: #fffbeb;
+  --danger: #dc2626; --danger-bg: #fef2f2;
+  --radius-lg: 14px; --radius-md: 10px; --radius-sm: 6px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: 'Plus Jakarta Sans', 'Noto Sans Bengali', system-ui, sans-serif;
-  background-color: var(--bg); color: var(--tx-primary); min-height: 100vh;
-  background-image:
-    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
-  background-attachment: fixed; line-height: 1.5;
+  background-color: #f8fafc; color: var(--tx-primary); min-height: 100vh;
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
 }
 .wrapper { max-width: 1160px; margin: 0 auto; padding: 24px 20px 80px; }
 
@@ -44,12 +44,11 @@ body {
   box-shadow: 0 0 20px var(--accent-glow);
 }
 .brand-text h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #fff, #94a3b8);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  color: #0f172a; font-weight: 800; }
 .brand-text span { font-size: 11px; color: var(--cyan); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 .top-pill {
   display: inline-flex; align-items: center; gap: 8px; font-size: 12px;
-  padding: 6px 14px; border-radius: 20px; background: var(--glass);
+  padding: 6px 14px; border-radius: 20px; background: #f8fafc; border-color: #cbd5e1;
   border: 1px solid var(--card-border); color: var(--tx-secondary);
 }
 .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); animation: pulse 2s infinite; }
@@ -60,11 +59,12 @@ body {
   gap: 16px; margin-bottom: 24px;
 }
 .stat-card {
-  background: var(--card); border: 1px solid var(--card-border);
-  backdrop-filter: blur(16px); border-radius: var(--radius-md);
+  background: #ffffff; border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
   padding: 16px 18px; position: relative; overflow: hidden;
-  transition: transform 0.2s, border-color 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
 .stat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .stat-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--tx-muted); }
@@ -77,7 +77,7 @@ body {
 
 /* ─ Vision Detector Spotlight Box ─ */
 .detector-banner {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+  background: #ffffff; box-shadow: var(--shadow-sm);
   border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--radius-lg);
   padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
@@ -98,7 +98,7 @@ body {
 
 /* ─ Computer Vision Lab Banner ─ */
 .cv-lab-banner {
-  background: var(--card); border: 1px solid var(--card-border);
+  background: #ffffff; border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm);
   backdrop-filter: blur(16px); border-radius: var(--radius-lg);
   padding: 22px; margin-bottom: 24px;
 }
@@ -116,8 +116,8 @@ body {
 
 /* ─ Section Styling ─ */
 .panel-box {
-  background: var(--card); border: 1px solid var(--card-border);
-  backdrop-filter: blur(16px); border-radius: var(--radius-lg);
+  background: #ffffff; border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
   padding: 22px; margin-bottom: 24px;
 }
 .panel-header {
@@ -128,7 +128,7 @@ body {
 }
 .step-badge {
   width: 24px; height: 24px; border-radius: 7px; font-size: 11px; font-weight: 800;
-  background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #0f172a;
   display: inline-flex; align-items: center; justify-content: center;
 }
 
@@ -136,7 +136,7 @@ body {
 .dropzone {
   border: 2px dashed var(--card-border); border-radius: var(--radius-md);
   padding: 26px 16px; text-align: center; cursor: pointer; transition: all 0.3s;
-  background: var(--glass);
+  background: #f8fafc; border-color: #cbd5e1;
 }
 .dropzone:hover, .dropzone.dragover {
   border-color: var(--accent); background: var(--accent-glow);
@@ -148,7 +148,7 @@ body {
 /* ─ Pair Rows List ─ */
 .pairs-container { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .pair-item {
-  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border);
+  background: #f8fafc; border-color: #e2e8f0; border: 1px solid var(--card-border);
   border-radius: var(--radius-md); padding: 12px; display: grid;
   grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: center;
 }
@@ -174,9 +174,12 @@ body {
 .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .param-field label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; color: var(--tx-muted); display: block; margin-bottom: 4px; }
 .param-input, .param-select {
-  width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border);
-  color: var(--tx-primary); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12.5px;
-  font-family: inherit; outline: none; transition: border-color 0.2s;
+  width: 100%; background: #ffffff; border: 1px solid #cbd5e1;
+  color: #0f172a; font-weight: 500; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px;
+  font-family: inherit; outline: none; transition: all 0.2s; box-shadow: var(--shadow-sm);
+}
+.param-input:focus, .param-select:focus {
+  border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
 }
 .param-input:focus, .param-select:focus { border-color: var(--accent); }
 
@@ -188,12 +191,12 @@ body {
   transition: all 0.2s;
 }
 .btn-main {
-  background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--cyan)); color: #0f172a;
   box-shadow: 0 4px 16px var(--accent-glow); flex: 1; justify-content: center;
 }
 .btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--accent-glow); }
 .btn-main:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-.btn-outline { background: var(--glass); border: 1px solid var(--card-border); color: var(--tx-primary); }
+.btn-outline { background: #f8fafc; border-color: #cbd5e1; border: 1px solid var(--card-border); color: var(--tx-primary); }
 .btn-outline:hover { background: rgba(255,255,255,0.08); }
 .btn-danger-light { background: var(--danger-bg); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); }
 .btn-danger-light:hover { background: rgba(239,68,68,0.25); }
@@ -227,9 +230,10 @@ body {
 
 /* ─ Terminal Log & Chart ─ */
 .terminal-area {
-  background: #04060a; border: 1px solid var(--card-border); border-radius: var(--radius-md);
-  padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #38bdf8;
-  max-height: 260px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;
+  background: #0f172a; border: 1px solid #334155; border-radius: var(--radius-md);
+  padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #38bdf8;
+  max-height: 260px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 .terminal-area::-webkit-scrollbar { width: 6px; }
 .terminal-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
@@ -265,9 +269,9 @@ body {
 
 .workspace-sidebar {
   width: 280px;
-  background: rgba(10, 14, 23, 0.98);
-  border-right: 1px solid var(--card-border);
-  backdrop-filter: blur(24px);
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -306,8 +310,8 @@ body {
   gap: 12px;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  color: var(--tx-secondary);
-  font-size: 12.5px;
+  color: #334155;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   background: transparent;
@@ -319,17 +323,15 @@ body {
 }
 
 .ws-btn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--tx-primary);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .ws-btn.active {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(6, 182, 212, 0.18));
-  border-color: rgba(99, 102, 241, 0.45);
-  color: #fff;
+  background: #ede9fe;
+  border-color: #c4b5fd;
+  color: #4338ca;
   font-weight: 700;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.18);
 }
 
 .ws-btn .icon {
@@ -529,10 +531,10 @@ body {
       <!-- ══════════════════════════════════════════════════════════
        🎓 AI REAL EDITING SCHOOL — Before→After Direct Learning
        ══════════════════════════════════════════════════════════ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(99,102,241,0.08) 100%); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
+  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(16,185,129,0.35); margin-bottom:18px;">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #10b981, #6366f1);">🎓</span> AI রিয়েল এডিটিং স্কুল — Before/After পেয়ার থেকে সরাসরি শেখো (Real Pair Learning)</h2>
-      <span style="font-size:11px; color:#6ee7b7; font-weight:700;">Human-Edited Pair → AI Direct Learning + Instant Micro Fine-Tune</span>
+      <span style="font-size:11px; color:#047857; font-weight:700;">Human-Edited Pair → AI Direct Learning + Instant Micro Fine-Tune</span>
     </div>
     <p style="font-size:12.5px; color:var(--tx-secondary); margin-bottom:16px; line-height:1.7;">
       এখানে একটি <strong>আসল এডিটিং উদাহরণ</strong> দিন — আপনি বা আপনার টিম যে ছবি Photoshop/Lightroom-এ এডিট করেছেন তার আগের ও পরের ভার্সন আপলোড করুন।
@@ -546,7 +548,7 @@ body {
         <!-- Before / After upload -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="font-size:11px; font-weight:700; color:#6ee7b7; display:block; margin-bottom:5px;">📷 আসল ছবি (Before / Input):</label>
+            <label style="font-size:11px; font-weight:700; color:#047857; display:block; margin-bottom:5px;">📷 আসল ছবি (Before / Input):</label>
             <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
                  style="border:2px dashed rgba(16,185,129,0.4); border-radius:var(--radius-sm); padding:18px 8px; text-align:center; cursor:pointer; transition:.2s; font-size:11px; color:var(--tx-muted);"
                  ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
@@ -587,7 +589,7 @@ body {
         </div>
 
         <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
-        <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: var(--radius-sm); padding: 10px 12px;">
+        <div style="background: #f8fafc; border-color: #e2e8f0; border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: var(--radius-sm); padding: 10px 12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <label style="font-size:11px; font-weight:700; color:var(--cyan); display:flex; align-items:center; gap:6px;">
               <span>📝 ক্লায়েন্টের এডিটিং নির্দেশনা (Optional Instruction):</span>
@@ -607,7 +609,7 @@ body {
           <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">অগমেন্টেশন:</label>
           <input type="range" id="school-aug" min="1" max="16" value="8" style="flex:1;"
                  oninput="document.getElementById('school-aug-val').textContent=this.value">
-          <span id="school-aug-val" style="font-size:11px; font-weight:700; color:#6ee7b7; width:20px;">8</span>
+          <span id="school-aug-val" style="font-size:11px; font-weight:700; color:#047857; width:20px;">8</span>
           <span style="font-size:10px; color:var(--tx-muted);">কপি/পেয়ার</span>
         </div>
 
@@ -624,10 +626,10 @@ body {
       <!-- Right: History log -->
       <div>
         <div style="font-size:11px; font-weight:700; color:var(--tx-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.06em;">📋 সাম্প্রতিক শিক্ষা লগ (Learning History):</div>
-        <div id="school-log-wrap" style="background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; max-height:260px; overflow-y:auto; font-size:11px; font-family:monospace;">
+        <div id="school-log-wrap" style="background:#f8fafc; border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; max-height:260px; overflow-y:auto; font-size:11px; font-family:monospace;">
           <div style="color:var(--tx-muted); text-align:center; padding:20px;">লগ লোড হচ্ছে…</div>
         </div>
-        <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#6ee7b7; font-weight:700;"></div>
+        <div id="school-total-badge" style="margin-top:8px; font-size:11.5px; text-align:center; color:#047857; font-weight:700;"></div>
       </div>
     </div>
   </div>
@@ -778,7 +780,7 @@ body {
     <!-- Tab 5: Heatmap -->
     <div id="tab-heatmap" class="tab-pane">
       <!-- ─ MASTER SECTOR 2: AI Difference Heatmap Visualizer ─ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%); border-color: rgba(245, 158, 11, 0.3);">
+  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(245, 158, 11, 0.3);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🔥</span> এআই বিফোর/আফটার হিটম্যাপ ভিজ্যুয়ালাইজার (Pixel Difference Heatmap)</h2>
       <span style="font-size: 11px; color: #fbbf24; font-weight: 700;">Thermal Error & Modification Mapping</span>
@@ -816,7 +818,7 @@ body {
         </div>
 
         <div id="hm-stats-box" style="display:none; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); padding:10px 14px; border-radius:var(--radius-sm); font-size:11.5px;">
-          <div style="color:#fbbf24; font-weight:700; margin-bottom:2px;" id="hm-stat-text"></div>
+          <div style="color:#b45309; font-weight:700; margin-bottom:2px;" id="hm-stat-text"></div>
           <div style="color:var(--tx-secondary); font-size:11px;" id="hm-stat-sub"></div>
         </div>
       </div>
@@ -839,7 +841,7 @@ body {
     <!-- Tab 6: Commercial Services -->
     <div id="tab-services" class="tab-pane">
       <!-- ─ MASTER SECTOR: 11 Professional Studio Editing Services ─ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%); border-color: rgba(6, 182, 212, 0.35);">
+  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(6, 182, 212, 0.35);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, var(--cyan), var(--accent));">💎</span> প্রফেশনাল ফটো এডিটিং ও গ্রাফিক সার্ভিসেস (Commercial Services Suite)</h2>
       <span style="font-size: 11px; color: var(--cyan); font-weight: 700;">11 Commercial Studio Services</span>
@@ -889,7 +891,7 @@ body {
     <!-- Tab 7: Magic Eraser -->
     <div id="tab-magic" class="tab-pane">
       <!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
-  <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
+  <div class="cv-lab-banner" style="background: #ffffff; box-shadow: var(--shadow-sm); border-color: rgba(236, 72, 153, 0.25);">
     <div class="panel-header">
       <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
       <span style="font-size: 11px; color: #f472b6; font-weight: 600;">Interactive Mask Drawing Studio</span>
@@ -1158,7 +1160,7 @@ async function submitSchoolPair() {
 
   const statusEl = document.getElementById('school-status');
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span style="color:#6ee7b7;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
+  statusEl.innerHTML = '<span style="color:#047857;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
 
   const fd = new FormData();
   fd.append('before', fileB);
@@ -1182,16 +1184,16 @@ async function submitSchoolPair() {
     let insightsHtml = '';
     if (insights && (insights.bangla || insights.english)) {
       insightsHtml = `
-        <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); padding:10px 12px; border-radius:6px; margin-top:8px;">
-          <div style="color:#a5f3fc; font-weight:700; font-size:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border:1px solid rgba(99,102,241,0.3); padding:10px 12px; border-radius:6px; margin-top:8px;">
+          <div style="color:#0369a1; font-weight:700; font-size:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
             <span>🧠 এআই এই ছবি থেকে যা শিখেছে (What AI Learned):</span>
             <span style="font-size:10px; color:var(--tx-muted);">Bilingual Live Insight</span>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px; font-size:11.5px;">
             ${(insights.bangla || []).map((bn, idx) => `
               <div style="border-left:2px solid #6366f1; padding-left:8px;">
-                <div style="color:#f1f5f9;">🇧🇩 <strong>বাংলা:</strong> ${bn}</div>
-                <div style="color:#94a3b8; font-size:10.5px; font-style:italic;">🇬🇧 <strong>EN:</strong> ${insights.english[idx] || ''}</div>
+                <div style="color:#0f172a; font-weight:600;">🇧🇩 <strong>বাংলা:</strong> ${bn}</div>
+                <div style="color:#475569; font-size:10.5px; font-style:italic;">🇬🇧 <strong>EN:</strong> ${insights.english[idx] || ''}</div>
               </div>
             `).join('')}
           </div>
@@ -1200,22 +1202,22 @@ async function submitSchoolPair() {
     }
 
     statusEl.innerHTML = `
-      <div style="color:#6ee7b7; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
+      <div style="color:#047857; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
       <div style="color:var(--tx-muted); margin-bottom:8px;">
-        📦 মোট Real Pairs: <strong style="color:#a5f3fc;">${data.total_real}</strong> &nbsp;|&nbsp;
-        🔁 Pool Size: <strong style="color:#a5f3fc;">${data.total_pool}</strong> &nbsp;|&nbsp;
-        ⚡ Micro Fine-tune PID: <strong style="color:#fbbf24;">${data.finetune_pid || 'background'}</strong>
+        📦 মোট Real Pairs: <strong style="color:#0369a1;">${data.total_real}</strong> &nbsp;|&nbsp;
+        🔁 Pool Size: <strong style="color:#0369a1;">${data.total_pool}</strong> &nbsp;|&nbsp;
+        ⚡ Micro Fine-tune PID: <strong style="color:#b45309;">${data.finetune_pid || 'background'}</strong>
       </div>
       ${data.client_instruction ? `
-        <div style="background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.3); padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:11.5px;">
+        <div style="background:#f0fdfa; border:1px solid #99f6e4; border:1px solid rgba(6,182,212,0.3); padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:11.5px;">
           <div style="color:var(--cyan); font-weight:700; margin-bottom:2px;">📑 ক্লায়েন্ট নির্দেশনা (${data.instruction_source || 'Attached'}):</div>
-          <div style="color:#e2e8f0; font-family:inherit; white-space:pre-wrap;">${data.client_instruction}</div>
+          <div style="color:#1e293b; font-family:inherit; white-space:pre-wrap;">${data.client_instruction}</div>
         </div>
       ` : ''}
       ${insightsHtml}
       ${data.diff_stats && data.diff_stats.interpretation ? `
-        <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); padding:8px 10px; border-radius:6px; margin-top:8px;">
-          <div style="color:#fbbf24; font-size:11.5px; font-weight:700;">🔍 হিটম্যাপ এনালাইসিস: ${data.diff_stats.interpretation}</div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border:1px solid rgba(16,185,129,0.3); padding:8px 10px; border-radius:6px; margin-top:8px;">
+          <div style="color:#b45309; font-size:11.5px; font-weight:700;">🔍 হিটম্যাপ এনালাইসিস: ${data.diff_stats.interpretation}</div>
           <div style="color:var(--tx-muted); font-size:10.5px;">গড় পার্থক্য: ${data.diff_stats.mean_diff} | পরিবর্তিত অংশ: ${data.diff_stats.altered_pct}%</div>
           ${data.heatmap_preview ? `<img src="${data.heatmap_preview}" style="width:100%; max-height:160px; object-fit:contain; border-radius:4px; margin-top:6px; border:1px solid var(--card-border);">` : ''}
         </div>
@@ -1240,8 +1242,8 @@ async function loadSchoolLog() {
     } else {
       wrap.innerHTML = [...data.log].reverse().map(r => `
         <div style="border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; color:var(--tx-secondary);">
-          <span style="color:#6ee7b7;">✔</span>
-          <strong style="color:#a5f3fc;">${r.label}</strong>
+          <span style="color:#047857;">✔</span>
+          <strong style="color:#0369a1;">${r.label}</strong>
           &nbsp;·&nbsp;${r.before_px}→${r.after_px}
           &nbsp;·&nbsp;<span style="color:var(--tx-muted);">${r.ts}</span>
           &nbsp;·&nbsp;Pool: ${r.total_pairs}
