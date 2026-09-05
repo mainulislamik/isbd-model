@@ -686,12 +686,18 @@ body {
           🎨 ছবি সিলেক্ট করে প্রসেস করুন
         </button>
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--tx-muted);">
-          <span>সিলেক্টেড ফিল্টার:</span>
-          <select class="param-select" id="cv-type" style="width: 170px; padding: 4px 8px;" onchange="reApplyCV()">
-            <option value="canny" selected>Canny Edge Detection</option>
-            <option value="clahe">CLAHE Contrast Boost</option>
-            <option value="sketch">AI Pencil Sketch</option>
-            <option value="denoise">Fast NLM Denoising</option>
+          <span>প্রি-ট্রেইন্ড এডিটিং ইঞ্জিন:</span>
+          <select class="param-select" id="cv-type" style="width: 220px; padding: 5px 8px;" onchange="reApplyCV()">
+            <option value="hdr" selected>✨ HDR Detail Enhancement</option>
+            <option value="wb">🎨 Auto White Balance (Fix Colors)</option>
+            <option value="sharpen">🔪 Unsharp Masking (Sharpen)</option>
+            <option value="smooth">🫧 Edge-Preserving Smooth</option>
+            <option value="stylize">🖌️ Artistic Water-Color</option>
+            <option value="sketch">✏️ AI Pencil Sketch</option>
+            <option value="clahe">⚡ CLAHE Contrast Boost</option>
+            <option value="denoise">🧼 Fast NLM Denoising</option>
+            <option value="tv_denoise">🌊 Total Variation Denoise</option>
+            <option value="canny">📐 Canny Edge & Contour</option>
           </select>
         </div>
         <div id="cv-desc" style="font-size: 11.5px; color: var(--cyan); margin-top: 4px;"></div>

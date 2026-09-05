@@ -2,7 +2,15 @@
 ISBD v1.00 — Multi-Engine AI Vision & Computer Vision Toolkit
 Engines:
 1. YOLOv8 (Deep Learning Object Tracking & Recognition with Bengali translation)
-2. OpenCV & Scikit-Image (Edge Detection, Face & Eye detection, Color Palette Analyzer, Adaptive Denoising)
+2. OpenCV contrib & Scikit-Image Suite:
+   - Detail Enhancement (HDR-like Tone Mapping)
+   - Auto White Balance (Grayworld Color Correction)
+   - Unsharp Masking (High-pass Frequency Sharpening)
+   - Artistic Water-Color Stylization & Cartoon Smoothing
+   - Total Variation Chambolle & Non-Local Means Denoising
+   - CLAHE Adaptive Contrast
+   - Canny Edge Detection & Boundary Tracing
+   - Dominant K-Means Color Palette Extractor
 """
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -10,7 +18,7 @@ import numpy as np
 import cv2
 import skimage.color
 import skimage.filters
-import skimage.exposure
+import skimage.restoration
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -118,23 +126,56 @@ def detect_objects_in_image(img: Image.Image, conf_threshold: float = 0.25):
 
 def apply_cv_filter(img: Image.Image, filter_type: str):
     """
-    Applies professional Computer Vision algorithms (OpenCV & Scikit-Image):
-    - 'canny': Canny Edge & Boundary Detection
+    Applies professional Pre-trained & Classical Image Editing Engines:
+    - 'hdr': HDR Detail & Texture Tone Mapping (OpenCV Computational Photography)
+    - 'wb': Auto White Balance & Color Cast Removal (OpenCV Grayworld)
+    - 'sharpen': Unsharp Mask High-Pass Sharpener (Scikit-Image)
+    - 'smooth': Edge-Preserving Cartoon Smoothing (OpenCV)
+    - 'stylize': Artistic Water-Color Stylization (OpenCV Stylization)
+    - 'tv_denoise': Total Variation Chambolle Denoising (Scikit-Image)
     - 'clahe': Adaptive Histogram Contrast Equalization (CLAHE)
-    - 'sketch': Pencil Sketch Conversion
-    - 'denoise': Fast Non-Local Means Image Denoising
-    - 'palette': Dominant Color Palette Extraction
+    - 'canny': Canny Edge & Structural Contour Detection
+    - 'sketch': AI Pencil Sketch Converter
+    - 'denoise': Fast Non-Local Means (NLM) Colored Denoising
     """
     cv_img = np.array(img.convert("RGB"))
     
-    if filter_type == "canny":
+    if filter_type == "hdr":
+        hdr = cv2.detailEnhance(cv_img, sigma_s=12, sigma_r=0.18)
+        return Image.fromarray(hdr), "HDR Detail Enhancement (হাই-ডায়নামিক ডিটেইল ও টেক্সচার বুস্ট)"
+
+    elif filter_type == "wb":
+        wb = cv2.xphoto.createGrayworldWB()
+        balanced = wb.balanceWhite(cv_img)
+        return Image.fromarray(balanced), "Auto White Balance (ন্যাচারাল কালার ও হোয়াইট ব্যালেন্স ফিক্স)"
+
+    elif filter_type == "sharpen":
+        arr_f = cv_img.astype(np.float32) / 255.0
+        sharpened = skimage.filters.unsharp_mask(arr_f, radius=1.8, amount=2.0)
+        res = np.ascontiguousarray(np.clip(sharpened * 255, 0, 255).astype(np.uint8))
+        return Image.fromarray(res), "Unsharp Masking (প্রফেশনাল হাই-পাস শার্পেনিং)"
+
+    elif filter_type == "smooth":
+        smoothed = cv2.edgePreservingFilter(cv_img, flags=1, sigma_s=50, sigma_r=0.4)
+        return Image.fromarray(smoothed), "Edge-Preserving Smooth (স্মুথ স্কিন ও কার্টুনিশ ফিল্টার)"
+
+    elif filter_type == "stylize":
+        stylized = cv2.stylization(cv_img, sigma_s=50, sigma_r=0.08)
+        return Image.fromarray(stylized), "Artistic Stylization (ওয়াটার-কালার আর্ট ইফেক্ট)"
+
+    elif filter_type == "tv_denoise":
+        arr_f = cv_img.astype(np.float32) / 255.0
+        denoised = skimage.restoration.denoise_tv_chambolle(arr_f, weight=0.08)
+        res = np.ascontiguousarray(np.clip(denoised * 255, 0, 255).astype(np.uint8))
+        return Image.fromarray(res), "Total Variation Denoise (চ্যাম্বোলে স্মুথিং ডিনয়েজ)"
+
+    elif filter_type == "canny":
         gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
         edges = cv2.Canny(gray, 100, 200)
         edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
         return Image.fromarray(edges_rgb), "Canny Edge Detection (বর্ডার ও লাইন ট্রেসিং)"
 
     elif filter_type == "clahe":
-        # Scikit-image / OpenCV CLAHE
         lab = cv2.cvtColor(cv_img, cv2.COLOR_RGB2LAB)
         l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
