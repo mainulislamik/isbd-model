@@ -509,9 +509,50 @@ async def cv_filter_api(image: UploadFile = File(...), filter_type: str = Query(
         raise HTTPException(500, f"ফিল্টার প্রয়োগে ত্রুটি: {str(e)}")
 
 
+@app.get("/api/models")
+async def get_models_api():
+    """Get all available AI models (Local ISBD + Connected Hermes Models)."""
+    try:
+        from isbd.hermes_bridge import get_available_test_models
+        return {"ok": True, "models": get_available_test_models()}
+    except Exception as e:
+        raise HTTPException(500, f"মডেল তালিকা লোড ব্যর্থ: {str(e)}")
+
+
+@app.get("/api/settings/providers")
+async def get_providers_api():
+    """Get connected Hermes model providers & config status."""
+    try:
+        from isbd.hermes_bridge import load_hermes_providers
+        return {"ok": True, "data": load_hermes_providers()}
+    except Exception as e:
+        raise HTTPException(500, f"প্রোভাইডার কনফিগ ব্যর্থ: {str(e)}")
+
+
+@app.post("/api/settings/providers/save")
+async def save_provider_api(
+    name: str = Query(...),
+    base_url: str = Query(None),
+    api_key: str = Query(None),
+    model: str = Query(None)
+):
+    """Save or update Hermes provider details & API keys."""
+    try:
+        from isbd.hermes_bridge import save_hermes_provider_config
+        res = save_hermes_provider_config(provider_name=name, base_url=base_url, api_key=api_key, default_model=model)
+        if not res.get("ok"):
+            raise HTTPException(400, res.get("error", "সংরক্ষণ ব্যর্থ"))
+        return res
+    except Exception as e:
+        raise HTTPException(500, f"সেটিংস আপডেট ত্রুটি: {str(e)}")
+
+
 @app.post("/api/infer")
-async def infer_image(image: UploadFile = File(...)):
-    """Live AI Image Restoration Playground via current trained model."""
+async def infer_image(
+    image: UploadFile = File(...),
+    model_id: str = Query("isbd_v1", description="Model selector: 'isbd_v1' or connected Hermes VLM vision models")
+):
+    """Live AI Image Restoration Playground via selected model."""
     raw = await image.read()
     if not raw:
         raise HTTPException(400, "ফাইল পাওয়া যায়নি")
@@ -530,6 +571,7 @@ async def infer_image(image: UploadFile = File(...)):
         small = img.resize((IMG, IMG), Image.Resampling.LANCZOS)
         x = torch.from_numpy(np.asarray(small, dtype=np.float32) / 255.0).permute(2, 0, 1)[None]
 
+        # Model Loading & Dynamic Routing
         model = TinyUNet()
         best_ckpt = CKPT / "best.pt"
         last_ckpt = CKPT / "last.pt"

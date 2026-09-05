@@ -482,6 +482,11 @@ body {
       <button class="ws-btn" data-tab="tab-cv" onclick="switchTab('tab-cv')">
         <span class="icon">🎨</span> কালার প্যালেট ও ফিল্টার
       </button>
+
+      <div class="ws-category" style="margin-top:6px;">⚙️ কনফিগারেশন (Settings)</div>
+      <button class="ws-btn" data-tab="tab-settings" onclick="switchTab('tab-settings')">
+        <span class="icon">⚙️</span> কানেক্টেড মডেল ও API কি
+      </button>
     </nav>
 
     <div class="ws-footer">
@@ -752,6 +757,26 @@ body {
         <p style="font-size: 13px; color: #475569; margin-bottom: 16px;">
           যেকোনো নষ্ট বা সাধারণ ছবি আপলোড করুন — এআই মডেল রিয়েল-টাইমে রিস্টোর করে বিফোর/আফটার স্লাইডারে তুলনা দেখাবে।
         </p>
+
+        <!-- 🚀 Modern Model Switcher Selector -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px 16px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:18px;">🧠</span>
+            <div>
+              <div style="font-size:12.5px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
+              <div style="font-size:11px; color:#64748b;">ডিফল্ট ISBD v1.00 অথবা Hermes কানেক্টেড মডেল বেছে নিন</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select id="active-model-selector" class="param-select" style="min-width:240px; padding:6px 12px; font-size:12.5px; font-weight:600;">
+              <option value="isbd_v1" selected>🚀 ISBD v1.00 (24/7 Self-Trained)</option>
+              <option value="antigravity/gemini-3.7-flash-high">✨ Gemini 3.7 Flash High Vision</option>
+              <option value="antigravity/claude-sonnet-4-6-low">⚡ Claude 3.7 / 3.5 Sonnet Vision</option>
+              <option value="deepseek-v4-flash-vision-exp">🔮 DeepSeek v4 Flash Vision (b.ai)</option>
+              <option value="omniroute/auto">🌐 OmniRoute Keyless Vision Agent</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px;">
@@ -1074,6 +1099,52 @@ body {
     </div>
   </div>
 
+    </div>
+
+    <!-- ═════════ Tab 10: Settings & Connected Models Page ═════════ -->
+    <div id="tab-settings" class="tab-pane">
+      <div class="panel-box" style="margin-bottom: 20px;">
+        <div class="panel-header">
+          <h2><span class="step-badge">⚙️</span> কানেক্টেড এআই প্রোভাইডার ও API সেটিংস (Hermes AI Bridge)</h2>
+          <span style="font-size: 11px; color: var(--cyan); font-weight:700;">Provider & API Key Hub</span>
+        </div>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+          এখানে আপনার হারমেসে যুক্ত সমস্ত AI প্রোভাইডার (Antigravity, Gemini, Claude, b.ai, OmniRoute, Ollama) এবং তাদের API কি দেখতে ও কনফিগার করতে পারবেন।
+        </p>
+
+        <!-- Dynamic Provider Cards Grid -->
+        <div id="settings-providers-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-top:16px;">
+          <div style="color:var(--tx-muted); padding:20px; text-align:center;">প্রোভাইডার তালিকা লোড হচ্ছে…</div>
+        </div>
+      </div>
+
+      <!-- Add New Custom Provider Form Box -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2><span class="step-badge">➕</span> নতুন কাস্টম AI প্রোভাইডার বা মডেল যুক্ত করুন</h2>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">প্রোভাইডারের নাম (Provider Name):</label>
+            <input type="text" id="new-prov-name" class="param-input" placeholder="e.g. OpenRouter Custom, Local VLM">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Base URL / Endpoint:</label>
+            <input type="text" id="new-prov-url" class="param-input" placeholder="e.g. https://openrouter.ai/api/v1">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">API Key (প্রযোজ্য হলে):</label>
+            <input type="password" id="new-prov-key" class="param-input" placeholder="sk-or-v1-...">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">ডিফল্ট মডেল আইডি (Model ID):</label>
+            <input type="text" id="new-prov-model" class="param-input" placeholder="e.g. google/gemini-2.0-flash-001">
+          </div>
+        </div>
+        <button class="btn btn-main" style="margin-top:16px;" onclick="addNewAIProvider()">
+          💾 নতুন প্রোভাইডার সেভ করুন
+        </button>
+      </div>
     </div>
 
   </main>
@@ -1621,17 +1692,112 @@ function purgeData() {
   });
 }
 
-// ─ Live Inference Lab ─
+// ─ Settings & Hermes Providers Manager Logic ─
+async function loadProvidersSettings() {
+  const grid = document.getElementById('settings-providers-grid');
+  if (!grid) return;
+
+  try {
+    const res = await fetch('/api/settings/providers');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'প্রোভাইডার ডাটা লোড ব্যর্থ');
+
+    const provs = data.data.providers || [];
+    grid.innerHTML = provs.map(p => `
+      <div style="background:#f8fafc; border:1px solid var(--card-border); border-radius:var(--radius-lg); padding:16px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; justify-content:space-between;">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <div>
+              <h3 style="font-size:14px; font-weight:800; color:#0f172a;">${p.name}</h3>
+              <span style="font-size:11px; color:var(--cyan); font-family:monospace;">${p.base_url || 'Built-in Endpoint'}</span>
+            </div>
+            <span style="font-size:10.5px; font-weight:700; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:2px 8px; border-radius:12px;">Active</span>
+          </div>
+
+          <div style="font-size:11.5px; color:#475569; margin:8px 0; display:flex; flex-direction:column; gap:4px;">
+            <div>🔑 <strong>API Key:</strong> <code style="background:#e2e8f0; padding:1px 4px; border-radius:4px; font-size:10.5px;">${p.masked_key}</code></div>
+            <div>⚡ <strong>সক্রিয় মডেল:</strong> <span style="color:#0284c7; font-weight:600;">${p.active_model || 'auto'}</span></div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <span style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase;">উপলব্ধ মডেলসমূহ:</span>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
+              ${(p.models || []).map(m => `<span style="background:#ffffff; border:1px solid #e2e8f0; border-radius:4px; padding:2px 6px; font-size:10.5px; font-weight:600; color:#334155;">${m}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px; pt-3; border-top:1px solid #e2e8f0; display:flex; gap:8px;">
+          <input type="password" placeholder="নতুন Key আপডেট করুন" id="key-input-${p.name}" class="param-input" style="padding:4px 8px; font-size:11px;">
+          <button class="btn btn-outline" style="padding:4px 10px; font-size:11px; white-space:nowrap;" onclick="updateProviderKey('${p.name}')">আপডেট</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    grid.innerHTML = `<div style="color:#ef4444; padding:20px; text-align:center;">ত্রুটি: ${e.message}</div>`;
+  }
+}
+
+async function updateProviderKey(provName) {
+  const keyInput = document.getElementById(`key-input-${provName}`);
+  const newKey = keyInput ? keyInput.value.trim() : '';
+  if (!newKey) { toast('নতুন API Key প্রদান করুন', 'warn'); return; }
+
+  toast('API Key আপডেট করা হচ্ছে…', 'ok');
+  try {
+    const res = await fetch(`/api/settings/providers/save?name=${encodeURIComponent(provName)}&api_key=${encodeURIComponent(newKey)}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'আপডেট ব্যর্থ');
+    toast(data.message, 'ok');
+    loadProvidersSettings();
+  } catch(e) {
+    toast('ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+async function addNewAIProvider() {
+  const name = document.getElementById('new-prov-name').value.trim();
+  const url = document.getElementById('new-prov-url').value.trim();
+  const key = document.getElementById('new-prov-key').value.trim();
+  const model = document.getElementById('new-prov-model').value.trim();
+
+  if (!name || !url) {
+    toast('প্রোভাইডারের নাম এবং Base URL দিন', 'warn');
+    return;
+  }
+
+  toast('নতুন এআই প্রোভাইডার সেভ করা হচ্ছে…', 'ok');
+  try {
+    const query = new URLSearchParams({ name, base_url: url, api_key: key, model: model });
+    const res = await fetch(`/api/settings/providers/save?${query.toString()}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'সংরক্ষণ ব্যর্থ');
+
+    toast(data.message, 'ok');
+    document.getElementById('new-prov-name').value = '';
+    document.getElementById('new-prov-url').value = '';
+    document.getElementById('new-prov-key').value = '';
+    document.getElementById('new-prov-model').value = '';
+    loadProvidersSettings();
+  } catch(e) {
+    toast('ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+// ─ Live Inference Lab Model Switcher Sync ─
 async function runInference(input) {
   const file = input.files[0];
   if (!file) return;
 
-  toast('এআই মডেল রিস্টোর করছে…', 'ok');
+  const modelSelector = document.getElementById('active-model-selector');
+  const selectedModel = modelSelector ? modelSelector.value : 'isbd_v1';
+
+  toast(`এআই মডেল (${selectedModel}) দিয়ে রিস্টোর করা হচ্ছে…`, 'ok');
   const fd = new FormData();
   fd.append('image', file);
 
   try {
-    const res = await fetch('/api/infer', { method: 'POST', body: fd });
+    const res = await fetch(`/api/infer?model_id=${encodeURIComponent(selectedModel)}`, { method: 'POST', body: fd });
     if (!res.ok) throw new Error('Inference error');
     const blob = await res.blob();
     const restoredUrl = URL.createObjectURL(blob);
@@ -1650,6 +1816,10 @@ async function runInference(input) {
     toast('রিস্টোরেশনে ব্যর্থ', 'err');
   }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadProvidersSettings();
+});
 
 function slideCompare(val) {
   document.getElementById('comp-overlay').style.width = val + '%';
