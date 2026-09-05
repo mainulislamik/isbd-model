@@ -254,6 +254,39 @@ body {
 
 
 <style>
+/* ─ Chip Label Checkboxes for Multi-Select ─ */
+.chip-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.chip-label:hover {
+  background: #e2e8f0;
+}
+
+.chip-label:has(input:checked) {
+  background: #ede9fe;
+  border-color: #8b5cf6;
+  color: #4338ca;
+  font-weight: 700;
+}
+
+.chip-label input[type="checkbox"] {
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
 /* ─ Professional Sidebar & Tabbed Workspace Layout ─ */
 body {
   margin: 0;
@@ -571,21 +604,26 @@ body {
           </div>
         </div>
 
-        <!-- Label tag -->
-        <div style="display:flex; gap:8px; align-items:center;">
-          <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">এডিটিং টাইপ:</label>
-          <select id="school-label" class="param-select" style="flex:1; padding:5px 8px;">
-            <option value="retouching">✨ Retouching (রিটাচিং)</option>
-            <option value="color_correction">🌈 Color Correction (কালার কারেকশন)</option>
-            <option value="clipping_path">✂️ Clipping Path (ক্লিপিং পাথ)</option>
-            <option value="image_masking">🎭 Image Masking (মাস্কিং)</option>
-            <option value="shadow_making">👥 Shadow Making (শ্যাডো)</option>
-            <option value="neck_joint">👔 Neck Joint (ম্যানিকুইন)</option>
-            <option value="enhancement">🔮 Enhancement (এনহ্যান্সমেন্ট)</option>
-            <option value="manipulation">🌌 Manipulation (ম্যানিপুলেশন)</option>
-            <option value="client_custom">📝 ক্লায়েন্ট কাস্টম জব</option>
-            <option value="other">📁 অন্যান্য</option>
-          </select>
+        <!-- Multi-Select Editing Type Chips / Checkboxes -->
+        <div>
+          <label style="font-size:11px; font-weight:700; color:var(--tx-primary); display:block; margin-bottom:6px;">
+            🎨 এডিটিং টাইপ (Editing Services) — <span style="font-weight:500; color:var(--tx-muted);">একসাথে একাধিক অপশন সিলেক্ট করতে পারেন:</span>
+          </label>
+          <div id="school-labels-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; margin-bottom:4px;">
+            <label class="chip-label"><input type="checkbox" name="school-service" value="clipping_path" onchange="updateSelectedLabels()"> ✂️ Clipping Path</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="multi_clipping" onchange="updateSelectedLabels()"> 🎨 Multi Clipping</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="retouching" checked onchange="updateSelectedLabels()"> ✨ Retouching</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="color_correction" onchange="updateSelectedLabels()"> 🌈 Color Fix</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="shadow_making" onchange="updateSelectedLabels()"> 👥 Shadow Making</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="neck_joint" onchange="updateSelectedLabels()"> 👔 Neck Joint</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="image_masking" onchange="updateSelectedLabels()"> 🎭 Hair Masking</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="reflection" onchange="updateSelectedLabels()"> 🪞 Reflection</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="enhancement" onchange="updateSelectedLabels()"> 🔮 Enhancement</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="manipulation" onchange="updateSelectedLabels()"> 🌌 Manipulation</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="vector_tracing" onchange="updateSelectedLabels()"> 📐 Raster-Vector</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="client_custom" onchange="updateSelectedLabels()"> 📝 Client Custom</label>
+          </div>
+          <input type="hidden" id="school-label" value="retouching">
         </div>
 
         <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
@@ -1123,6 +1161,14 @@ function toast(msg, type='ok') {
 }
 
 // ─ AI Real Editing School Logic ─
+// ─ Multi-select Labels Helper ─
+function updateSelectedLabels() {
+  const checkboxes = document.querySelectorAll('input[name="school-service"]:checked');
+  const values = Array.from(checkboxes).map(cb => cb.value);
+  const hiddenInput = document.getElementById('school-label');
+  hiddenInput.value = values.length > 0 ? values.join(', ') : 'general_editing';
+}
+
 function schoolPreview(input, slot) {
   const file = input.files[0];
   if (!file) return;
