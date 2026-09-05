@@ -240,6 +240,20 @@ async def learn_from_real_pair_api(
         augment=augment,
         trigger_finetune=True,
     )
+
+    # Compute immediate difference metrics & heatmap preview so user instantly sees what AI extracts
+    diff_stats = {}
+    heatmap_preview = None
+    try:
+        from isbd.heatmap import generate_difference_heatmap
+        hm_img, ov_img, diff_stats = generate_difference_heatmap(img_b, img_a, colormap_type="turbo")
+        buf_ov = io.BytesIO()
+        ov_img.save(buf_ov, format="JPEG", quality=80)
+        buf_ov.seek(0)
+        heatmap_preview = "data:image/jpeg;base64," + base64.b64encode(buf_ov.read()).decode("utf-8")
+    except Exception:
+        pass
+
     return {
         "ok"           : True,
         "message"      : f"✅ AI শিখছে! '{label or 'untagged'}' পেয়ার থেকে {result['augmented']}টি অগমেন্টেড স্যাম্পল তৈরি হয়েছে এবং মাইক্রো ফাইন-টিউন শুরু হয়েছে।",
@@ -247,6 +261,8 @@ async def learn_from_real_pair_api(
         "total_real"   : result["total_real"],
         "total_pool"   : result["total_pool"],
         "finetune_pid" : result["finetune_pid"],
+        "diff_stats"   : diff_stats,
+        "heatmap_preview": heatmap_preview
     }
 
 
