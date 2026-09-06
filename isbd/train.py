@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from isbd.model import TinyUNet, param_count
 from isbd.data import torch_dataset, IMG_SIZE
+from isbd.thermal_guard import auto_cool_if_needed, get_cpu_temp
 
 ROOT = Path(__file__).resolve().parent.parent
 CKPT = ROOT / "checkpoints"
@@ -115,9 +116,13 @@ def main():
 
             if step % 25 == 0:
                 dt = time.time() - t0
-                print(f"step {step:6d} | loss {sum(running)/len(running):.4f} | {dt/25:.1f}s/step", flush=True)
+                print(f"step {step:6d} | loss {sum(running)/len(running):.4f} | {dt/25:.1f}s/step | CPU {get_cpu_temp():.0f}°C", flush=True)
                 running = []
                 t0 = time.time()
+
+            # ── Smart Thermal Guard: pause training if CPU overheats ──
+            if step % 50 == 0:
+                auto_cool_if_needed(high_threshold=80.0, target_cool=68.0)
 
             if step % 100 == 0 or step >= start_step + args.steps:
                 torch.save({"model": model.state_dict(), "opt": opt.state_dict(),

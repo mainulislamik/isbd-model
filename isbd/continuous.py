@@ -64,6 +64,13 @@ def main():
         except Exception as e:
             print(f"[git] auto-push skipped: {e}", flush=True)
 
+        # ── Smart Hardware Thermal Guard Check ──
+        try:
+            from isbd.thermal_guard import auto_cool_if_needed
+            auto_cool_if_needed(high_threshold=78.0, target_cool=65.0)
+        except Exception:
+            pass
+
         if after == before:  # no progress -> crash or lock held; backoff
             restarts += 1
             wait = min(30 * restarts, 300)
