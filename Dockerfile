@@ -2,11 +2,14 @@
 # Multi-service build: Panel (FastAPI :8077) + Continuous 24/7 Trainer
 FROM python:3.11-slim
 
-# Minimal system deps — opencv-python-headless needs only libglib2.0
-# git for auto-commit; lm-sensors not needed (thermal_guard reads sysfs)
+# Minimal system deps
+# - libglib2.0: OpenCV headless runtime
+# - git: auto-commit checkpoints from trainer
+# - docker.io (CLI only): panel controls trainer container via Docker socket
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     git \
+    docker.io \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

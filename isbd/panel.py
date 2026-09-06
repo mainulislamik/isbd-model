@@ -76,12 +76,19 @@ def _n_pairs():
 
 
 def _live():
-    """Parse the latest step/loss from the 24/7 trainer's journalctl."""
+    """Parse the latest step/loss from the 24/7 trainer (Docker or systemd)."""
     try:
+        # Try Docker logs first (isbd-trainer container)
         out = subprocess.run(
-            ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "30", "-o", "cat"],
+            ["docker", "logs", "isbd-trainer", "--tail", "30"],
             capture_output=True, text=True, timeout=10,
         ).stdout
+        if not out.strip():
+            # Fallback: systemd journal
+            out = subprocess.run(
+                ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "30", "-o", "cat"],
+                capture_output=True, text=True, timeout=10,
+            ).stdout
         last = {"step": 0, "loss": 0.0}
         for line in out.splitlines():
             if line.strip().startswith("step"):
@@ -391,22 +398,35 @@ async def real_pair_log_api(limit: int = Query(20)):
 
 
 @app.get("/api/training/toggle")
-async def toggle_training_api(action: str = Query(..., regex="^(start|stop|status)$")):
+async def toggle_training_api(action: str = Query(..., pattern="^(start|stop|status)$")):
     """Start, stop or check status of the 24/7 autonomous continuous training service."""
     try:
         if action == "status":
-            res = subprocess.run(["systemctl", "--user", "is-active", "isbd-train"], capture_output=True, text=True)
-            active = res.stdout.strip() == "active"
+            # Check Docker container first, then systemd
+            res = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", "isbd-trainer"],
+                                 capture_output=True, text=True)
+            if res.returncode == 0:
+                active = res.stdout.strip() == "true"
+            else:
+                res = subprocess.run(["systemctl", "--user", "is-active", "isbd-train"],
+                                     capture_output=True, text=True)
+                active = res.stdout.strip() == "active"
             return {"ok": True, "active": active}
-        
+
         elif action == "start":
-            subprocess.run(["systemctl", "--user", "start", "isbd-train"], check=True)
-            return {"ok": True, "active": True, "message": "২৪/৭ সেলফ-লার্নিং ট্রেনিং সফলভাবে চালু করা হয়েছে!"}
-            
+            # Try Docker first, then systemd
+            res = subprocess.run(["docker", "start", "isbd-trainer"], capture_output=True, text=True)
+            if res.returncode != 0:
+                subprocess.run(["systemctl", "--user", "start", "isbd-train"], check=True)
+            return {"ok": True, "active": True, "message": "২৪/৭ সেলফ-লার্নিং ট্রেনিং সফলভাবে চালু করা হয়েছে!"}
+
         elif action == "stop":
-            subprocess.run(["systemctl", "--user", "stop", "isbd-train"], check=True)
-            return {"ok": True, "active": False, "message": "২৪/৭ সেলফ-লার্নিং ট্রেনিং সাময়িকভাবে বন্ধ (পজ) করা হয়েছে!"}
-            
+            # Try Docker first, then systemd
+            res = subprocess.run(["docker", "stop", "isbd-trainer"], capture_output=True, text=True)
+            if res.returncode != 0:
+                subprocess.run(["systemctl", "--user", "stop", "isbd-train"], check=True)
+            return {"ok": True, "active": False, "message": "২৪/৭ সেলফ-লার্নিং ট্রেনিং সাময়িকভাবে বন্ধ (পজ) করা হয়েছে!"}
+
     except Exception as e:
         raise HTTPException(500, f"সার্ভিস কমান্ড ব্যর্থ: {str(e)}")
 
