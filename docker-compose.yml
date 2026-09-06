@@ -22,8 +22,9 @@ services:
       - ./checkpoints:/app/checkpoints
       - ./data:/app/data
       - ./samples:/app/samples
-      # Docker socket — panel reads trainer logs & controls trainer container
+      # Docker socket + CLI — panel reads trainer logs & controls trainer container
       - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
     mem_limit: 512m
     cpus: 1.5
     environment:
