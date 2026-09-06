@@ -15,7 +15,9 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -27,6 +29,16 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _docker_safe_python() -> str:
+    """Resolve the python interpreter for background fine-tune subprocesses.
+    Prefers the project venv (native install); inside Docker falls back to
+    the container's own python (sys.executable)."""
+    venv_py = ROOT / ".venv" / "bin" / "python"
+    if venv_py.exists():
+        return str(venv_py)
+    return sys.executable
 DATA = ROOT / "data"
 DATA.mkdir(exist_ok=True)
 NPZ = DATA / "pairs.npz"
@@ -187,7 +199,7 @@ async def train(
         FT_STATE.write_text(json.dumps({"running": True, "pid": 0, "started": time.time(), "target_steps": steps}))
         with open(FT_LOG, "w") as log:
             cmd = [
-                str(ROOT / ".venv" / "bin" / "python"),
+                _docker_safe_python(),
                 str(ROOT / "isbd" / "realfinetune.py"),
                 "--steps", str(steps),
                 "--lr", str(lr),

@@ -4,9 +4,21 @@ __pycache__/
 samples/
 data/cache/
 
+# Runtime state (not source)
+data/pairs.npz
+data/self_pool.npz
+data/hashes.json
+data/ft_state.json
+data/self_learn_state.json
+data/ft.log
+checkpoints/last.pt
+checkpoints/train.lock
+
 # Keep checkpoint weights & real training pairs safely tracked in git
 !checkpoints/best.pt
 !checkpoints/history.json
 !data/real_pairs.npz
 !data/real_pairs_log.json
 
+# Docker build cache
+.docker/

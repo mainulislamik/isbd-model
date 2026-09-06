@@ -8,9 +8,13 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import os
+import shutil
 
 ROOT = Path(__file__).resolve().parent.parent
-PY = ROOT / ".venv" / "bin" / "python"
+# Docker-compatible python resolver: use container/python3 interpreter when
+# .venv is absent (dockerized deployment), else the project venv.
+PY = Path((ROOT / ".venv" / "bin" / "python")) if (ROOT / ".venv" / "bin" / "python").exists() else Path(shutil.which("python") or shutil.which("python3") or sys.executable)
 TRAIN = ROOT / "isbd" / "train.py"
 EVAL = ROOT / "isbd" / "eval.py"
 

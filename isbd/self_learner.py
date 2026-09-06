@@ -193,11 +193,11 @@ def _trigger_micro_finetune(steps=200, lr=5e-5):
     Uses realfinetune.py with --wait-lock so it never clashes with the 24/7 trainer.
     """
     cmd = [
-        str(ROOT / ".venv" / "bin" / "python"),
-        str(ROOT / "isbd" / "realfinetune.py"),
-        "--steps", str(steps),
-        "--lr",    str(lr),
-        "--batch", "4",
+                _docker_safe_python(),
+                str(ROOT / "isbd" / "realfinetune.py"),
+                "--steps", str(steps),
+                "--lr", str(lr),
+                "--batch", "4",
         "--wait-lock", "120",
     ]
     log_path = DATA / "micro_ft.log"

@@ -1,0 +1,47 @@
+# ISBD v1.00 — Dockerized Panel + Continuous Trainer
+# Zero-downtime migration from native systemd services.
+#
+# Usage:
+#   docker compose build         # build the image (one-time)
+#   docker compose up -d         # start both services
+#   docker compose logs -f       # follow all logs
+#   docker compose logs -f isbd-trainer  # trainer only
+#
+# Volumes bind-mount host directories so training state persists
+# across container restarts (checkpoints, data, samples).
+
+services:
+  # ── Panel (FastAPI Studio Pro on :8077) ──────────────────────
+  isbd-panel:
+    build: .
+    container_name: isbd-panel
+    restart: unless-stopped
+    ports:
+      - "8077:8077"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./samples:/app/samples
+    mem_limit: 512m
+    cpus: 1.5
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # ── Continuous Trainer (24/7 never-stop learning) ────────────
+  isbd-trainer:
+    build: .
+    container_name: isbd-trainer
+    restart: unless-stopped
+    command: ["python", "isbd/continuous.py", "--round-steps", "5000", "--batch", "16"]
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./samples:/app/samples
+      # Thermal guard reads host CPU temps via sysfs
+      - /sys/class/thermal:/sys/class/thermal:ro
+      - /sys/class/hwmon:/sys/class/hwmon:ro
+    mem_limit: 4g
+    cpus: 3.5
+    shm_size: '2g'
+    environment:
+      - PYTHONUNBUFFERED=1
