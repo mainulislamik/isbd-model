@@ -628,20 +628,42 @@ body {
           </div>
         </div>
 
-        <!-- Label tag -->
-        <div style="display:flex; gap:8px; align-items:center;">
-          <label style="font-size:11px; color:var(--tx-muted); white-space:nowrap;">এডিটিং টাইপ:</label>
-          <select id="school-label" class="param-select" style="flex:1; padding:5px 8px;">
-            <option value="retouching">✨ Retouching (রিটাচিং)</option>
-            <option value="color_correction">🌈 Color Correction (কালার কারেকশন)</option>
-            <option value="clipping_path">✂️ Clipping Path (ক্লিপিং পাথ)</option>
-            <option value="image_masking">🎭 Image Masking (মাস্কিং)</option>
-            <option value="shadow_making">👥 Shadow Making (শ্যাডো)</option>
-            <option value="neck_joint">👔 Neck Joint (ম্যানিকুইন)</option>
-            <option value="enhancement">🔮 Enhancement (এনহ্যান্সমেন্ট)</option>
-            <option value="manipulation">🌌 Manipulation (ম্যানিপুলেশন)</option>
-            <option value="other">📁 অন্যান্য</option>
-          </select>
+        <!-- Multi-Select Editing Type Chips / Checkboxes -->
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#0f172a; display:block; margin-bottom:6px;">
+            🎨 এডিটিং টাইপ (Editing Services) — <span style="font-weight:500; color:var(--tx-muted);">একসাথে একাধিক অপশন সিলেক্ট করতে পারেন:</span>
+          </label>
+          <div id="school-labels-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; margin-bottom:4px;">
+            <label class="chip-label"><input type="checkbox" name="school-service" value="clipping_path" onchange="updateSelectedLabels()"> ✂️ Clipping Path</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="multi_clipping" onchange="updateSelectedLabels()"> 🎨 Multi Clipping</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="retouching" checked onchange="updateSelectedLabels()"> ✨ Retouching</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="color_correction" onchange="updateSelectedLabels()"> 🌈 Color Fix</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="shadow_making" onchange="updateSelectedLabels()"> 👥 Shadow Making</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="neck_joint" onchange="updateSelectedLabels()"> 👔 Neck Joint</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="image_masking" onchange="updateSelectedLabels()"> 🎭 Hair Masking</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="reflection" onchange="updateSelectedLabels()"> 🪞 Reflection</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="enhancement" onchange="updateSelectedLabels()"> 🔮 Enhancement</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="manipulation" onchange="updateSelectedLabels()"> 🌌 Manipulation</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="vector_tracing" onchange="updateSelectedLabels()"> 📐 Raster-Vector</label>
+            <label class="chip-label"><input type="checkbox" name="school-service" value="client_custom" onchange="updateSelectedLabels()"> 📝 Client Custom</label>
+          </div>
+          <input type="hidden" id="school-label" value="retouching">
+        </div>
+
+        <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
+        <div style="background: #f8fafc; border: 1px dashed rgba(6, 182, 212, 0.4); border-radius: var(--radius-sm); padding: 10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="font-size:11px; font-weight:700; color:#0891b2; display:flex; align-items:center; gap:6px;">
+              <span>📝 ক্লায়েন্টের এডিটিং নির্দেশনা (Optional Instruction):</span>
+            </label>
+            <span style="font-size:10px; color:var(--tx-muted);">PDF, Word, TXT, Image বা টেক্সট</span>
+          </div>
+          <textarea id="school-instruction-text" class="param-input" rows="2" placeholder="ক্লায়েন্ট কী কী এডিট করতে বলেছে এখানে লিখুন বা পেস্ট করুন (যেমন: remove background, smooth skin, make warm tone)..." style="resize:vertical; font-size:11.5px; margin-bottom:8px;"></textarea>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="font-size:10.5px; color:var(--tx-muted); white-space:nowrap;">বা নির্দেশনা ফাইল দিন:</label>
+            <input type="file" id="school-instruction-file" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg" class="param-input" style="padding:3px 6px; font-size:10.5px;">
+          </div>
         </div>
 
         <!-- Augmentation slider -->
@@ -1440,34 +1462,83 @@ async function submitSchoolPair() {
 
   const label  = document.getElementById('school-label').value;
   const augment= document.getElementById('school-aug').value;
+  const instructionText = document.getElementById('school-instruction-text') ? document.getElementById('school-instruction-text').value : '';
+  const instructionFile = document.getElementById('school-instruction-file') ? document.getElementById('school-instruction-file').files[0] : null;
 
   const statusEl = document.getElementById('school-status');
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span style="color:#6ee7b7;">⏳ AI শিখছে — পেয়ার আপলোড ও মাইক্রো ফাইন-টিউন শুরু হচ্ছে…</span>';
+  statusEl.innerHTML = '<span style="color:#059669;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
 
   const fd = new FormData();
   fd.append('before', fileB);
   fd.append('after',  fileA);
+  if (instructionFile) {
+    fd.append('instruction_file', instructionFile);
+  }
 
   try {
-    const res  = await fetch(`/api/learn-pair?label=${encodeURIComponent(label)}&augment=${augment}`, { method:'POST', body:fd });
+    const queryParams = new URLSearchParams({
+      label: label,
+      augment: augment,
+      instruction_text: instructionText
+    });
+
+    const res  = await fetch(`/api/learn-pair?${queryParams.toString()}`, { method:'POST', body:fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ত্রুটি');
 
+    const insights = data.learning_insights;
+    let insightsHtml = '';
+    if (insights && (insights.bangla || insights.english)) {
+      insightsHtml = `
+        <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); padding:10px 12px; border-radius:6px; margin-top:8px;">
+          <div style="color:#4338ca; font-weight:700; font-size:12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🧠 এআই এই ছবি থেকে যা শিখেছে (What AI Learned):</span>
+            <span style="font-size:10px; color:var(--tx-muted);">Bilingual Live Insight</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; font-size:11.5px;">
+            ${(insights.bangla || []).map((bn, idx) => `
+              <div style="border-left:2px solid #6366f1; padding-left:8px;">
+                <div style="color:#0f172a;">🇧🇩 <strong>বাংলা:</strong> ${bn}</div>
+                <div style="color:#64748b; font-size:10.5px; font-style:italic;">🇬🇧 <strong>EN:</strong> ${insights.english[idx] || ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+
+    let instructionHtml = '';
+    if (data.client_instruction) {
+      instructionHtml = `
+        <div style="background:rgba(6,182,212,0.08); border:1px dashed rgba(6,182,212,0.4); padding:8px 10px; border-radius:6px; margin-top:8px; font-size:11px;">
+          <div style="font-weight:700; color:#0e7490; margin-bottom:4px;">📝 ক্লায়েন্ট নির্দেশনা সংরক্ষিত হয়েছে (Source: ${data.instruction_source || 'Direct Text'}):</div>
+          <div style="color:var(--tx-secondary); max-height:70px; overflow-y:auto;">${(data.client_instruction || '').slice(0, 400)}</div>
+        </div>`;
+    }
+
     statusEl.innerHTML = `
-      <div style="color:#6ee7b7; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
+      <div style="color:#059669; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
       <div style="color:var(--tx-muted);">
-        📦 মোট Real Pairs: <strong style="color:#a5f3fc;">${data.total_real}</strong> &nbsp;|&nbsp;
-        🔁 Pool Size: <strong style="color:#a5f3fc;">${data.total_pool}</strong> &nbsp;|&nbsp;
-        ⚡ Micro Fine-tune PID: <strong style="color:#fbbf24;">${data.finetune_pid || 'background'}</strong>
-      </div>`;
+        📦 মোট Real Pairs: <strong style="color:#0284c7;">${data.total_real}</strong> &nbsp;|&nbsp;
+        🔁 Pool Size: <strong style="color:#0284c7;">${data.total_pool}</strong> &nbsp;|&nbsp;
+        ⚡ Micro Fine-tune PID: <strong style="color:#d97706;">${data.finetune_pid || 'background'}</strong>
+      </div>
+      ${insightsHtml}
+      ${instructionHtml}`;
 
     toast('🎓 AI নতুন এডিটিং শিখছে!', 'ok');
     loadSchoolLog();
   } catch(e) {
-    statusEl.innerHTML = `<span style="color:#f87171;">❌ ত্রুটি: ${e.message}</span>`;
+    statusEl.innerHTML = `<span style="color:#dc2626;">❌ ত্রুটি: ${e.message}</span>`;
     toast('Real Pair Learning ফেইল্ড: ' + e.message, 'err');
   }
+}
+
+function updateSelectedLabels() {
+  const checkboxes = document.querySelectorAll('input[name="school-service"]:checked');
+  const values = Array.from(checkboxes).map(cb => cb.value);
+  const hiddenInput = document.getElementById('school-label');
+  hiddenInput.value = values.length > 0 ? values.join(', ') : 'general_editing';
 }
 
 async function loadSchoolLog() {
