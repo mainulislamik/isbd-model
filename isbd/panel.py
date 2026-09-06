@@ -77,7 +77,19 @@ def _n_pairs():
 
 def _live():
     """Parse the latest step/loss from the 24/7 trainer (Docker or systemd)."""
+    last = {"step": 0, "loss": 0.0}
     try:
+        # Fallback to history.json baseline if needed
+        hist_path = ROOT / "checkpoints" / "history.json"
+        if hist_path.exists():
+            try:
+                h = json.loads(hist_path.read_text())
+                last["step"] = h.get("total_steps", 0)
+                if h.get("losses"):
+                    last["loss"] = float(h["losses"][-1])
+            except Exception:
+                pass
+
         # Try Docker logs first (isbd-trainer container)
         out = subprocess.run(
             ["docker", "logs", "isbd-trainer", "--tail", "30"],
@@ -89,7 +101,6 @@ def _live():
                 ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "30", "-o", "cat"],
                 capture_output=True, text=True, timeout=10,
             ).stdout
-        last = {"step": 0, "loss": 0.0}
         for line in out.splitlines():
             if line.strip().startswith("step"):
                 p = line.replace("|", " ").split()
@@ -99,7 +110,7 @@ def _live():
                     pass
         return last
     except Exception:
-        return {"step": 0, "loss": 0.0}
+        return last
 
 
 def _lock_busy():

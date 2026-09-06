@@ -96,7 +96,7 @@ def main():
                     help="Cosine annealing warm restart period (0=disabled)")
     args = ap.parse_args()
 
-    torch.set_num_threads(4)
+    torch.set_num_threads(2)
     torch.manual_seed(7)
     device = "cpu"
 
@@ -132,17 +132,22 @@ def main():
     last_path = CKPT / "last.pt"
     if args.resume and last_path.exists():
         state = torch.load(last_path, map_location="cpu", weights_only=True)
+        ckpt_arch = state.get("model_type", "tiny")  # old checkpoints have no model_type → "tiny"
         try:
             model.load_state_dict(state["model"])
-        except RuntimeError:
-            # Old checkpoint from TinyUNet — start fresh with SmallUNet
-            print(f"[resume] Model architecture mismatch — starting fresh with {args.model}")
-        else:
             opt.load_state_dict(state["opt"])
             sched.load_state_dict(state["sched"])
             start_step = state["step"]
             best = state.get("best", float("inf"))
             print(f"[resume] from step {start_step} (best loss {best:.4f})")
+        except RuntimeError:
+            # Architecture mismatch (TinyUNet→SmallUNet) — cannot load weights,
+            # but ALWAYS recover the step count from history.json so total is preserved
+            print(f"[resume] Architecture mismatch ({ckpt_arch}→{args.model}) — weights fresh, step count preserved")
+            hist = load_history()
+            start_step = hist.get("total_steps", 0)
+            best = hist.get("best", float("inf"))
+            print(f"[resume] recovered total_steps={start_step} from history.json")
 
     effective_batch = args.batch * args.accum_steps
     print(f"ISBD v1.00 | {args.model} | params {param_count(model):,} | img {IMG_SIZE}px "
@@ -186,16 +191,25 @@ def main():
             h["losses"].append(round(loss.item(), 5))
             h["total_steps"] = step
 
+            # ── Dynamic Thermal Pacing & Guard ──
+            cpu_t = get_cpu_temp()
+            if cpu_t >= 80.0:
+                time.sleep(0.06)  # heavy throttle
+            elif cpu_t >= 74.0:
+                time.sleep(0.03)  # moderate throttle
+            else:
+                time.sleep(0.01)  # small breather to keep temps steady on Surface Pro
+
             if step % 25 == 0:
                 dt = time.time() - t0
                 lr_now = opt.param_groups[0]["lr"]
-                print(f"step {step:6d} | loss {sum(running)/len(running):.4f} | {dt/25:.2f}s/step | lr {lr_now:.2e} | CPU {get_cpu_temp():.0f}°C", flush=True)
+                print(f"step {step:6d} | loss {sum(running)/len(running):.4f} | {dt/25:.2f}s/step | lr {lr_now:.2e} | CPU {cpu_t:.0f}°C", flush=True)
                 running = []
                 t0 = time.time()
 
-            # ── Smart Thermal Guard v2 ──
-            if step % 50 == 0:
-                auto_cool_if_needed(high_threshold=85.0, target_cool=72.0)
+            # Smart Thermal Guard check every 10 steps
+            if step % 10 == 0:
+                auto_cool_if_needed(high_threshold=82.0, target_cool=70.0)
 
             # ── Sample monitoring: save grid every500 steps ──
             if step % 500 == 0:

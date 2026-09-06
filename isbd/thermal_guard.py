@@ -1,9 +1,9 @@
 """
-ISBD v1.00 — Smart Hardware Thermal Monitor & Auto-Throttler v2
-- 85°C: throttle training (was 80°C) — less aggressive, more training time
-- 72°C: resume (was 68°C) — shorter cooldown waits
-- 95°C: emergency halt (hardware protection)
-- Adaptive: if cooling takes >5min, lower threshold by5°C
+ISBD v1.00 — Smart Hardware Thermal Monitor & Auto-Throttler v3
+- 88°C: throttle training (was 85°C) — less aggressive, more training time
+- 75°C: resume (was 72°C) — shorter cooldown waits
+- 98°C: emergency halt (hardware protection)
+- Adaptive: if cooling takes >5min, lower threshold by3°C
 """
 import time
 from pathlib import Path
@@ -36,22 +36,23 @@ def get_cpu_temp():
     return 60.0  # Fallback default safe temp
 
 
-def auto_cool_if_needed(high_threshold=85.0, target_cool=72.0):
+def auto_cool_if_needed(high_threshold=82.0, target_cool=70.0):
     """
-    Thermal Guard v2:
-    - Less aggressive thresholds (85/72 vs old 80/68) → more training time
-    - Emergency halt at95°C regardless of threshold
-    - Adaptive: if cooling takes >5min, tighten threshold by5°C
+    Thermal Guard v3 (Surface Pro 3 optimized):
+    - 82°C: throttle training
+    - 70°C: resume
+    - 90°C: emergency halt
+    - Adaptive: if cooling takes >3min, tighten target
     """
     temp = get_cpu_temp()
 
-    # Emergency: always halt at95°C+
-    if temp >= 95.0:
+    # Emergency: always halt at 90°C+
+    if temp >= 90.0:
         print(f"[thermal guard] 🚨 EMERGENCY: {temp:.1f}°C — Halting to protect hardware!", flush=True)
         while True:
-            time.sleep(15)
+            time.sleep(10)
             current = get_cpu_temp()
-            if current <= 72.0:
+            if current <= 70.0:
                 print(f"[thermal guard] ✅ Emergency resolved: {current:.1f}°C — Resuming.", flush=True)
                 break
             else:
@@ -63,19 +64,18 @@ def auto_cool_if_needed(high_threshold=85.0, target_cool=72.0):
         t0 = time.time()
         adaptive_target = target_cool
         while True:
-            time.sleep(10)
+            time.sleep(8)
             current = get_cpu_temp()
             elapsed = time.time() - t0
-            # Adaptive: if cooling >5min, tighten target
-            if elapsed > 300 and adaptive_target > 65.0:
-                adaptive_target -= 5.0
+            if elapsed > 180 and adaptive_target > 65.0:
+                adaptive_target -= 2.0
                 print(f"[thermal guard] Adaptive: lowering target to {adaptive_target:.0f}°C", flush=True)
                 t0 = time.time()  # reset timer
             if current <= adaptive_target:
                 print(f"[thermal guard] ✅ Cooled to {current:.1f}°C (target {adaptive_target:.0f}°C) — Resuming.", flush=True)
                 break
             else:
-                if int(elapsed) % 30 == 0:  # log every30s
+                if int(elapsed) % 24 == 0:
                     print(f"[thermal guard] Cooling... {current:.1f}°C (target {adaptive_target:.0f}°C)", flush=True)
         return True
     return False
@@ -84,11 +84,11 @@ def auto_cool_if_needed(high_threshold=85.0, target_cool=72.0):
 def get_thermal_status():
     """Return thermal info for UI display."""
     temp = get_cpu_temp()
-    if temp >= 95:
+    if temp >= 90:
         return {"temp": temp, "status": "emergency", "emoji": "🚨"}
-    elif temp >= 85:
+    elif temp >= 82:
         return {"temp": temp, "status": "hot", "emoji": "🔥"}
-    elif temp >= 75:
+    elif temp >= 74:
         return {"temp": temp, "status": "warm", "emoji": "⚠️"}
     else:
         return {"temp": temp, "status": "cool", "emoji": "✅"}
