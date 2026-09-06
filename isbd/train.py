@@ -28,6 +28,17 @@ ROOT = Path(__file__).resolve().parent.parent
 CKPT = ROOT / "checkpoints"
 CKPT.mkdir(exist_ok=True)
 SAMPLES = ROOT / "samples"
+PAUSE_FLAG = ROOT / "data" / "trainer_paused.flag"
+
+
+def _check_pause():
+    """Block training loop while pause flag exists. Prints status every 30s."""
+    if not PAUSE_FLAG.exists():
+        return
+    print("[trainer] ⏸️  Pause flag detected — training paused. Waiting for resume...", flush=True)
+    while PAUSE_FLAG.exists():
+        time.sleep(5)
+    print("[trainer] ▶️  Resumed!", flush=True)
 SAMPLES.mkdir(exist_ok=True)
 
 HISTORY = CKPT / "history.json"
@@ -210,6 +221,7 @@ def main():
             # Smart Thermal Guard check every 10 steps
             if step % 10 == 0:
                 auto_cool_if_needed(high_threshold=86.0, target_cool=74.0)
+                _check_pause()  # Honor pause flag from panel UI
 
             # ── Sample monitoring: save grid every500 steps ──
             if step % 500 == 0:

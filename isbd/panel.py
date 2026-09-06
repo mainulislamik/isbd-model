@@ -810,6 +810,33 @@ async def inpaint_api(
         raise HTTPException(500, f"ইনপেইন্টিং ত্রুটি: {str(e)}")
 
 
+# ── Trainer Pause / Resume ────────────────────────────────────────────────────
+PAUSE_FLAG = ROOT / "data" / "trainer_paused.flag"
+
+
+def _is_paused() -> bool:
+    return PAUSE_FLAG.exists()
+
+
+@app.post("/api/pause")
+async def pause_training():
+    """Pause the 24/7 continuous trainer gracefully via flag file."""
+    PAUSE_FLAG.touch()
+    return {"ok": True, "paused": True, "message": "ট্রেইনার পজ করা হয়েছে ✅"}
+
+
+@app.post("/api/resume")
+async def resume_training():
+    """Resume the paused trainer."""
+    PAUSE_FLAG.unlink(missing_ok=True)
+    return {"ok": True, "paused": False, "message": "ট্রেইনার রিজিউম করা হয়েছে ▶️"}
+
+
+@app.get("/api/paused")
+async def get_pause_state():
+    return {"paused": _is_paused()}
+
+
 @app.post("/api/purge")
 async def purge():
     if _ft_state().get("running"):
@@ -828,6 +855,7 @@ async def status():
         "ft": _ft_state(),
         "log": _ft_log_tail(),
         "history": _loss_history(40),
+        "paused": _is_paused(),
         "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
     }
 

@@ -2204,8 +2204,55 @@ async function poll() {
     if (j.log) {
       document.getElementById('term-log').textContent = j.log;
     }
+
+    // ── Pause/Resume UI sync ──
+    const paused = j.paused || false;
+    const statusEl = document.getElementById('side-train-status');
+    const btnSide = document.getElementById('btn-toggle-train');
+    const btnDash = document.getElementById('dash-btn-toggle');
+    if (statusEl) {
+      statusEl.textContent = paused ? '⏸️ Paused' : '▶️ Active';
+      statusEl.style.color = paused ? '#f59e0b' : '#059669';
+    }
+    [btnSide, btnDash].forEach(btn => {
+      if (!btn) return;
+      if (paused) {
+        btn.innerHTML = '▶️ সেলফ-লার্নিং চালু করুন';
+        btn.style.borderColor = '#059669';
+        btn.style.color = '#059669';
+      } else {
+        btn.innerHTML = '⏸️ সেলফ-লার্নিং পজ করুন';
+        btn.style.borderColor = '#fca5a5';
+        btn.style.color = '#dc2626';
+      }
+    });
   } catch(e) {}
 }
+
+let _pauseToggleBusy = false;
+async function toggleContinuousTraining() {
+  if (_pauseToggleBusy) return;
+  _pauseToggleBusy = true;
+  try {
+    const statusEl = document.getElementById('side-train-status');
+    const isPaused = statusEl && statusEl.textContent.includes('Paused');
+    const endpoint = isPaused ? '/api/resume' : '/api/pause';
+    const res = await fetch(endpoint, { method: 'POST' });
+    const j = await res.json();
+    // Immediately sync UI
+    if (statusEl) {
+      statusEl.textContent = j.paused ? '⏸️ Paused' : '▶️ Active';
+      statusEl.style.color = j.paused ? '#f59e0b' : '#059669';
+    }
+    alert(j.message);
+    await poll();
+  } catch(e) {
+    alert('ত্রুটি: ' + e.message);
+  } finally {
+    _pauseToggleBusy = false;
+  }
+}
+
 setInterval(poll, 3000);
 poll();
 addPairRow();
