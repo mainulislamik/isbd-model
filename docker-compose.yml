@@ -42,11 +42,11 @@ services:
       - ./checkpoints:/app/checkpoints
       - ./data:/app/data
       - ./samples:/app/samples
-      # Thermal guard reads host CPU temps via sysfs
+      - ./runs:/app/runs
       - /sys/class/thermal:/sys/class/thermal:ro
       - /sys/class/hwmon:/sys/class/hwmon:ro
     mem_limit: 4g
-    cpus: 1.5
+    cpus: 1.0
     shm_size: '2g'
     environment:
       - PYTHONUNBUFFERED=1

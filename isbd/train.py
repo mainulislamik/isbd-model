@@ -96,7 +96,7 @@ def main():
                     help="Cosine annealing warm restart period (0=disabled)")
     args = ap.parse_args()
 
-    torch.set_num_threads(2)
+    torch.set_num_threads(1)
     torch.manual_seed(7)
     device = "cpu"
 
@@ -191,14 +191,14 @@ def main():
             h["losses"].append(round(loss.item(), 5))
             h["total_steps"] = step
 
-            # ── Dynamic Thermal Pacing & Guard ──
+            # ── Steady Low-Heat Pacing & Dynamic Guard ──
             cpu_t = get_cpu_temp()
-            if cpu_t >= 80.0:
-                time.sleep(0.06)  # heavy throttle
-            elif cpu_t >= 74.0:
-                time.sleep(0.03)  # moderate throttle
+            if cpu_t >= 82.0:
+                time.sleep(0.10)  # cool-down pacing
+            elif cpu_t >= 76.0:
+                time.sleep(0.04)  # moderate pacing
             else:
-                time.sleep(0.01)  # small breather to keep temps steady on Surface Pro
+                time.sleep(0.01)  # minimal breather
 
             if step % 25 == 0:
                 dt = time.time() - t0
@@ -209,7 +209,7 @@ def main():
 
             # Smart Thermal Guard check every 10 steps
             if step % 10 == 0:
-                auto_cool_if_needed(high_threshold=82.0, target_cool=70.0)
+                auto_cool_if_needed(high_threshold=86.0, target_cool=74.0)
 
             # ── Sample monitoring: save grid every500 steps ──
             if step % 500 == 0:
