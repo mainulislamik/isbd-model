@@ -568,6 +568,11 @@ body {
       <button class="ws-btn" data-tab="tab-settings" onclick="switchTab('tab-settings')">
         <span class="icon">⚙️</span> কানেক্টেড মডেল ও API কি
       </button>
+          <div class="ws-category" style="margin-top:6px;">☁️ ক্লাউড হাব (Cloud Hub)</div>
+      <button class="ws-btn" data-tab="tab-cloud" onclick="switchTab('tab-cloud')">
+        <span class="icon">🚀</span> GitHub Auto Trainer
+      </button>
+
     </nav>
 
     <div class="ws-footer">
@@ -1195,6 +1200,7 @@ body {
           <span>কাঙ্ক্ষিত সার্ভিস নির্বাচন করুন:</span>
           <select class="param-select" id="service-select" style="padding: 8px 12px; font-size: 13px;" onchange="reRunStudioService()">
             <option value="clipping_path" selected>✂️ Clipping Path (ব্যাকগ্রাউন্ড কাটআউট)</option>
+            <option value="background_removal">🪄 Background Removal (ম্যাজিক ব্যাকগ্রাউন্ড রিমুভ)</option>
             <option value="multi_clipping_path">🎨 Multiple Clipping Path (কালার সেগমেন্টেশন)</option>
             <option value="image_masking">🎭 Image Masking (চুল/পশম মাস্কিং)</option>
             <option value="neck_joint">👔 Neck Joint (গোস্ট ম্যানিকুইন কলার)</option>
@@ -1261,27 +1267,22 @@ body {
         </div>
     <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
     <div class="panel-header">
-      <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ইরেজার ও এআই অবজেক্ট রিমুভার (Inpainting Brush)</h2>
-      <span style="font-size: 11px; color: #f472b6; font-weight: 600;">Interactive Mask Drawing Studio</span>
+      <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ব্যাকগ্রাউন্ড রিমুভার (AI Background Removal)</h2>
+      <span style="font-size: 11px; color: #f472b6; font-weight: 600;">U²-Net AI Powered</span>
     </div>
     <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      ছবি আপলোড করে ব্রাশ দিয়ে যে অংশ মুছতে চান (ওয়াটারমার্ক, দাগ বা অনাকাঙ্ক্ষিত অবজেক্ট) তার ওপর আঁকুন — এআই ব্যাকগ্রাউন্ডের সাথে ম্যাচ করে তা অদৃশ্য করে দেবে!
+      ছবি আপলোড করে এক ক্লিকে যেকোনো জটিল ছবির ব্যাকগ্রাউন্ড নিখুঁতভাবে রিমুভ করুন। এই ফিচারটি আপনার লোকাল এআই (U²-Net) দ্বারা ট্রেইন্ড।
     </p>
 
     <div class="det-grid">
       <div class="det-controls">
-        <input type="file" id="inpaint-file" accept="image/*" style="display:none" onchange="loadInpaintImage(this)">
-        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="document.getElementById('inpaint-file').click()">
-          🖼️ ছবি আপলোড করে ব্রাশ শুরু করুন
+        <input type="file" id="bg-remove-file" accept="image/*" style="display:none" onchange="loadBgRemoveImage(this)">
+        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="document.getElementById('bg-remove-file').click()">
+          🖼️ ছবি আপলোড করুন
         </button>
-        <div style="display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--tx-muted);">
-          <span>ব্রাশ সাইজ:</span>
-          <input type="range" id="brush-size" min="5" max="50" value="20" style="flex:1;">
-          <span id="brush-val">20px</span>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button class="btn btn-main" style="flex:1;" onclick="applyBgRemove()">✨ রিমুভ ব্যাকগ্রাউন্ড</button>
         </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn btn-main" style="flex:1;" onclick="applyInpaint()">✨ মুছে ফেলুন (Erase)</button>
-          <button class="btn btn-outline" onclick="clearInpaintMask()">রি-সেট ব্রাশ</button>
         </div>
       </div>
 
@@ -1538,6 +1539,46 @@ body {
       </div>
     </div>
 
+
+    <!-- Tab 11: CLOUD HUB TAB -->
+    <div id="tab-cloud" class="tab-pane">
+      <div class="header" style="margin-bottom:20px;">
+        <h2><span class="step-badge">☁️</span> Cloud Neural Expansion Hub</h2>
+        <p style="font-size:13px; color:#475569;">Manage and orchestrate remote AI training resources securely from your dashboard.</p>
+      </div>
+
+      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
+        
+        <!-- GitHub Auto Trainer Card -->
+        <div class="stat-card" style="border: 2px solid #e2e8f0; position: relative; padding:20px;">
+          <span style="position: absolute; top: -10px; right: 20px; background: #6366f1; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">FREE CPU</span>
+          <h2 style="margin:0 0 10px 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size:24px;">🤖</span> Continuous Auto-Trainer
+          </h2>
+          <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">
+            Runs automatically every 6 hours inside GitHub Actions. Uses free CPU resources to continuously adapt the model weights. The neural cache is synced securely via Git back to your studio.
+          </p>
+          
+          <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; border-left: 4px solid #6366f1; margin-bottom: 20px;">
+            <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600;">Live Status Network</div>
+            <div id="v-cloud-page-status" style="font-size: 20px; color: #4338ca; font-weight: 700; margin-top: 5px; display:flex; align-items: center; gap: 8px;">
+              <span class="icon">🔄</span> Checking Status...
+            </div>
+          </div>
+          
+          <div style="display:flex; gap: 10px;">
+            <button onclick="dispatchGitHubAction()" id="btn-force-gh" style="flex:1; background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: 0.2s; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);">
+              ▶ Force Start Sync
+            </button>
+            <a id="v-cloud-page-link" href="#" target="_blank" style="flex:1; text-align: center; background: #e2e8f0; color: #1e293b; text-decoration: none; border-radius: 8px; padding: 12px 20px; font-weight: 600; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center;">
+              View Live Logs
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1554,6 +1595,39 @@ window.coreHistories = {};
       if (btn) btn.classList.add('active');
       const pane = document.getElementById(tabId);
       if (pane) pane.classList.add('active');
+    };
+
+    window.appendTabTerminalLog = function(tab, logText) {
+      const el = document.getElementById('term-log-' + tab);
+      if (el) {
+        el.textContent = logText;
+        el.scrollTop = el.scrollHeight;
+      }
+      console.log(`[Terminal Log - ${tab}]:`, logText);
+    };
+
+
+    window.dispatchGitHubAction = async function() {
+        const btn = document.getElementById("btn-force-gh");
+        const origin = btn.textContent;
+        btn.textContent = "Dispatching...";
+        btn.disabled = true;
+        try {
+            let res = await fetch("/api/cloud/dispatch", {method: "POST"});
+            let data = await res.json();
+            if(data.success) {
+                btn.textContent = "Dispatched Successfully! 🚀";
+                setTimeout(() => { btn.textContent = origin; btn.disabled = false; }, 3000);
+            } else {
+                alert("Failed: " + data.error);
+                btn.textContent = origin;
+                btn.disabled = false;
+            }
+        } catch(e) {
+            alert(e);
+            btn.textContent = origin;
+            btn.disabled = false;
+        }
     };
 
 window.chartInstances = {};
@@ -2049,6 +2123,49 @@ document.getElementById('brush-size').addEventListener('input', e => {
   document.getElementById('brush-val').textContent = e.target.value + 'px';
 });
 
+function loadBgRemoveImage(input) {
+  if(input.files && input.files[0]) {
+    bgRemoveImg = input.files[0];
+    let reader = new FileReader();
+    reader.onload = function(e){
+      let img = new Image();
+      img.onload = function(){
+        let canvas = document.getElementById('inpaint-canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+async function applyBgRemove() {
+  if(!bgRemoveImg) {
+    alert('প্রথমে একটি ছবি আপলোড করুন');
+    return;
+  }
+  document.getElementById('inpaint-res').innerHTML = '<div style="text-align:center; padding: 20px;"><span class="icon animate-spin">🔄</span> AI ব্যাকগ্রাউন্ড রিমুভ করছে... দয়া করে অপেক্ষা করুন!</div>';
+  let formData = new FormData();
+  formData.append('image', bgRemoveImg);
+  formData.append('service_id', 'background_removal');
+  formData.append('model_id', 'isbd_v1');
+
+  try {
+    let res = await fetch('/api/service_process', { method: 'POST', body: formData });
+    let data = await res.json();
+    if(data.ok) {
+      document.getElementById('inpaint-res').innerHTML = `<img src="${data.image_b64}" style="width:100%; border-radius:8px; display:block; margin: 0 auto; box-shadow:0 4px 10px rgba(0,0,0,0.1);">`;
+    } else {
+      document.getElementById('inpaint-res').innerHTML = `<span style="color:#ef4444;">ত্রুটি: ${data.detail || data.error}</span>`;
+    }
+  } catch(e) {
+    document.getElementById('inpaint-res').innerHTML = `<span style="color:#ef4444;">নেটওয়ার্ক ত্রুটি: ${e}</span>`;
+  }
+}
+
 function loadInpaintImage(input) {
   const file = input.files[0];
   if (!file) return;
@@ -2460,6 +2577,26 @@ async function poll() {
          if (lk && cl.html_url) {
              lk.style.display = 'block';
              lk.href = cl.html_url;
+
+         // Update Cloud page elements safely
+         const st_page = document.getElementById('v-cloud-page-status');
+         const lk_page = document.getElementById('v-cloud-page-link');
+         if (st_page) {
+             if (cl.status === "in_progress" || cl.status === "queued" || cl.status === "running") {
+                 st_page.innerHTML = "<span class='icon animate-spin'>🔄</span> Active Execution (" + cl.status + ")";
+                 st_page.style.color = "#10b981";
+             } else if (cl.conclusion === "success") {
+                 st_page.innerHTML = "<span class='icon'>✅</span> Idle (Last: Success)";
+                 st_page.style.color = "#059669";
+             } else {
+                 st_page.innerHTML = "<span class='icon'>⏹</span> " + (cl.conclusion || "Idle");
+                 st_page.style.color = "#64748b";
+             }
+         }
+         if (lk_page && cl.html_url) {
+             lk_page.href = cl.html_url;
+         }
+
          }
 
          // Also update the Cloud Hub internal page

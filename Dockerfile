@@ -8,6 +8,9 @@ FROM python:3.11-slim
 # - docker.io (CLI only): panel controls trainer container via Docker socket
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
+    libxcb1 \
+    libxext6 \
+    libgl1 \
     git \
     docker.io \
     && rm -rf /var/lib/apt/lists/*

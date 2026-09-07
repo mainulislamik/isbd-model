@@ -853,6 +853,23 @@ async def get_pause_state():
     return {"paused": _is_paused()}
 
 
+@app.post("/api/cloud/dispatch")
+async def dispatch_cloud_trainer():
+    if 'GITHUB_TOKEN' not in os.environ or not os.environ['GITHUB_TOKEN'].strip():
+        return {"success": False, "error": "GitHub Token missing! Please check Settings tab to re-authenticate."}
+    try:
+        import urllib.request
+        import json
+        url = "https://api.github.com/repos/mainulislamik/isbd-model/actions/workflows/cloud_trainer.yml/dispatches"
+        data = json.dumps({"ref": "main", "inputs": {"steps": "500"}}).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Authorization", f"Bearer {os.environ['GITHUB_TOKEN']}")
+        req.add_header("Accept", "application/vnd.github.v3+json")
+        with urllib.request.urlopen(req) as response:
+            return {"success": True, "message": "Dispatched successfully"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.post("/api/purge")
 async def purge():
     if _ft_state().get("running"):

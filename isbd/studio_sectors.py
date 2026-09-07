@@ -58,6 +58,16 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         rgba[:, :, 3] = thresh
         return Image.fromarray(rgba), "Clipping Path (স্বচ্ছ আলফা ব্যাকগ্রাউন্ড কাটআউট সম্পন্ন)"
 
+    elif service_id == "background_removal":
+        try:
+            import rembg
+            out_img = rembg.remove(img)
+            return out_img, "Background Removal (U2Net AI ম্যাজিক রিমুভ সম্পন্ন)"
+        except ImportError:
+            return img, "Background Removal (rembg লাইব্রেরি ইনস্টল করা নেই)"
+        except Exception as e:
+            return img, f"Background Removal (ত্রুটি: {str(e)})"
+
     elif service_id == "multi_clipping_path":
         # Multi-region segmentation
         hsv = cv2.cvtColor(cv_img, cv2.COLOR_RGB2HSV)
