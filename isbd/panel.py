@@ -147,11 +147,27 @@ def _ft_state():
     return st
 
 
+import subprocess
+
 def _ft_log_tail(n=100):
+    text = ""
+    # Try fetching the continuous docker trainer log first
     try:
-        return "\n".join(FT_LOG.read_text().splitlines()[-n:])
+        res = subprocess.run(["docker", "logs", "--tail", str(n), "isbd-trainer"], capture_output=True, text=True, timeout=1)
+        if res.returncode == 0:
+            text = res.stdout + "\n" + res.stderr
     except Exception:
-        return ""
+        pass
+        
+    # Append the manual FT job logs if any
+    try:
+        if FT_LOG.exists():
+            text += "\n\n[MANUAL FINE-TUNE LOGS]\n"
+            text += "\n".join(FT_LOG.read_text().splitlines()[-n:])
+    except Exception:
+        pass
+        
+    return text.strip()
 
 
 def _loss_history(limit=50):
