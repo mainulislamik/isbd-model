@@ -28,7 +28,12 @@ RUN pip install --no-cache-dir \
     pypdf \
     python-docx \
     python-multipart==0.0.32 \
-    pyyaml==6.0.3
+    pyyaml==6.0.3 \
+    diffusers \
+    transformers \
+    accelerate \
+    albumentations \
+    rembg[cli]
 
 # Copy application code (isbd package + templates + model weights)
 COPY isbd/ ./isbd/
