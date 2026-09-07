@@ -1772,7 +1772,7 @@ async function loadSchoolLog() {
     }
     document.getElementById('school-total-badge').textContent =
       `🎓 মোট Real Pair Learning: ${data.total_real} পেয়ার সম্পন্ন`;
-  } catch(e) {}
+  } catch(e) { document.getElementById("term-log").textContent = "JS ERROR: " + e.message + "\n" + e.stack; }
 }
 
 // Load log on page start
@@ -2224,7 +2224,7 @@ async function startTraining() {
       const res = await fetch('/api/pair', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok) successCount++;
-    } catch(e) {}
+    } catch(e) { document.getElementById("term-log").textContent = "JS ERROR: " + e.message + "\n" + e.stack; }
   }
 
   const steps = document.getElementById('p-steps').value;
@@ -2479,10 +2479,9 @@ async function poll() {
              });
          }
       }
-    }
-  } catch(e) {}
   
-  
+      }
+
     // ── Pause/Resume UI sync ──
 
     const paused = j.paused || false;
@@ -2505,7 +2504,7 @@ async function poll() {
         btn.style.color = '#dc2626';
       }
     });
-  } catch(e) {}
+  } catch(e) { document.getElementById("term-log").textContent = "JS ERROR: " + e.message + "\n" + e.stack; }
 }
 
 let _pauseToggleBusy = false;
