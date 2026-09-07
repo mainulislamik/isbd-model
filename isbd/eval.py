@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from isbd.model import TinyUNet
+from isbd.model import TinyUNet, SmallUNet
 from isbd.data import make_pair
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -18,8 +18,12 @@ CKPT = ROOT / "checkpoints"
 
 def evaluate(ckpt: str = "", n: int = 100, seed_start: int = 9000):
     ckpt = ckpt or str(CKPT / "best.pt")
-    model = TinyUNet()
-    state = torch.load(ckpt, map_location="cpu", weights_only=True)
+    state = torch.load(ckpt, map_location="cpu", weights_only=False)
+    model_type = state.get("model_type", "tiny")
+    if model_type == "small":
+        model = SmallUNet()
+    else:
+        model = TinyUNet()
     model.load_state_dict(state["model"])
     model.eval()
 

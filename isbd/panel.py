@@ -868,6 +868,8 @@ import time
 
 _last_net = None
 _last_time = time.time()
+_last_gh_status = {"status": "waiting", "conclusion": None, "name": "Cloud AI Trainer"}
+_last_gh_check = 0.0
 
 def _get_system_telemetry():
     global _last_net, _last_time
@@ -894,6 +896,29 @@ def _get_system_telemetry():
         
     # Network Speed (MB/s calculation over the 3-second poll gap)
     current_net = psutil.net_io_counters()
+
+    # --- GitHub Actions Cloud Status (Cached every 30s to avoid API rate limit) ---
+    global _last_gh_status, _last_gh_check
+    if 'GITHUB_TOKEN' in os.environ and (time.time() - _last_gh_check > 30):
+        try:
+            import urllib.request
+            import json
+            req = urllib.request.Request("https://api.github.com/repos/mainulislamik/isbd-model/actions/runs?per_page=1")
+            req.add_header("Authorization", f"token {os.environ['GITHUB_TOKEN']}")
+            req.add_header("User-Agent", "ISBD-Studio-Dashboard")
+            with urllib.request.urlopen(req, timeout=3) as response:
+                data = json.loads(response.read().decode())
+                if data.get("workflow_runs"):
+                    run = data["workflow_runs"][0]
+                    _last_gh_status = {
+                        "status": run.get("status"),
+                        "conclusion": run.get("conclusion"),
+                        "name": run.get("name"),
+                        "html_url": run.get("html_url")
+                    }
+        except Exception:
+            _last_gh_status = {"status": "error", "conclusion": "offline", "name": "Cloud Trainer"}
+        _last_gh_check = time.time()
     current_time = time.time()
     
     net_speed_down = 0.0
@@ -917,7 +942,8 @@ def _get_system_telemetry():
         "disk_percent": round(disk_usage, 1),
         "cpu_temp": round(cpu_temp, 1),
         "net_down_kbps": round(net_speed_down, 1),
-        "net_up_kbps": round(net_speed_up, 1)
+        "net_up_kbps": round(net_speed_up, 1),
+        "cloud_status": _last_gh_status
     }
 
 

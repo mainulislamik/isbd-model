@@ -22,3 +22,4 @@ checkpoints/train.lock
 
 # Docker build cache
 .docker/
+.env

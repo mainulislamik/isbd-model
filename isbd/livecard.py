@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from isbd.model import TinyUNet
+from isbd.model import TinyUNet, SmallUNet
 from isbd.data import make_pair, IMG_SIZE
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,16 +48,16 @@ def live_state():
 
 
 def load_best():
-    m = TinyUNet()
-    state = torch_load_best()
+    import torch
+    state = torch.load(CKPT / "best.pt", map_location="cpu", weights_only=False)
+    model_type = state.get("model_type", "tiny")
+    if model_type == "small":
+        m = SmallUNet()
+    else:
+        m = TinyUNet()
     m.load_state_dict(state["model"])
     m.eval()
-    return m
-
-
-def torch_load_best():
-    import torch
-    return torch.load(CKPT / "best.pt", map_location="cpu", weights_only=True)
+    return m, state
 
 
 # ---------- image helpers ----------
@@ -97,7 +97,7 @@ def hr_font(sz):
 def build(seed=None):
     seed = seed if seed is not None else random.randrange(1 << 30)
     st = live_state()
-    model = load_best()
+    model, _ = load_best()
 
     W = 1000
     pad = 28
