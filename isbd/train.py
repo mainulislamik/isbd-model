@@ -166,7 +166,7 @@ def main():
           flush=True)
 
     ds = torch_dataset(augment_factor=12)(3000)
-    dl = DataLoader(ds, batch_size=args.batch, shuffle=True, num_workers=0)
+    dl = DataLoader(ds, batch_size=args.batch, shuffle=True, num_workers=2, pin_memory=True, prefetch_factor=3, persistent_workers=True)
 
     h = load_history()
     model.train()
