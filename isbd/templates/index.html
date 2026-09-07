@@ -504,6 +504,8 @@ body {
 }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -2432,57 +2434,57 @@ async function poll() {
       if (ram) ram.textContent = hw.ram_percent + '%';
       if (disk) disk.textContent = hw.disk_percent + '%';
       if (net) net.textContent = hw.net_up_kbps + ' ↑ ' + hw.net_down_kbps + ' ↓';
-      
+
       const coresContainer = document.getElementById('cpu-cores-container');
       if (coresContainer && hw.cpu_cores) {
-         coresContainer.innerHTML = '';
-         hw.cpu_cores.forEach((coreUsage, index) => {
-            let bgColor = '#f1f5f9';
-            let textColor = '#475569';
-            let barColor = '#cbd5e1';
-            
-            if (coreUsage > 85) { bgColor = '#fef2f2'; textColor = '#b91c1c'; barColor = '#ef4444'; }
-            else if (coreUsage > 60) { bgColor = '#fffbeb'; textColor = '#b45309'; barColor = '#f59e0b'; }
-            else if (coreUsage > 30) { bgColor = '#f0fdf4'; textColor = '#15803d'; barColor = '#22c55e'; }
-            else if (coreUsage > 5) { bgColor = '#eff6ff'; textColor = '#1d4ed8'; barColor = '#3b82f6'; }
-            
-            const coreHtml = `
-              <div style="background: ${bgColor}; border: 1px solid ${barColor}; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700; color: ${textColor}; flex: 1; min-width: 60px; text-align: center; font-family: 'JetBrains Mono', monospace;">
-                Core ${index}
-                <div style="font-size: 12.5px; margin-top: 2px;">${coreUsage.toFixed(1)}%</div>
-                <div style="height: 4px; width: 100%; background: rgba(0,0,0,0.06); border-radius: 4px; margin-top: 6px; overflow: hidden;">
-                  <div style="height: 100%; width: ${coreUsage}%; background: ${barColor}; transition: all 0.3s ease;"></div>
-                </div>
-              </div>
-            `;
-            coresContainer.insertAdjacentHTML('beforeend', coreHtml);
-         });
+         if (Object.keys(chartInstances).length === 0) {
+            coresContainer.innerHTML = '';
+            hw.cpu_cores.forEach((_, index) => {
+               coreHistories[index] = Array(MAX_HISTORY).fill(0);
+               const coreWrapper = document.createElement('div');
+               
+               coreWrapper.style.cssText = "background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0; width: calc(50% - 3px); height: 80px; position: relative; overflow: hidden;";
+               
+               const title = document.createElement('div');
+               title.style.cssText = "position: absolute; top: 4px; left: 8px; font-size: 10px; font-weight: 700; color: #475569; z-index: 10; text-transform: uppercase;";
+               title.id = `core-title-${index}`;
+               title.textContent = `CPU Core ${index} (0%)`;
+               
+               const canvasWrap = document.createElement('div');
+               canvasWrap.style.cssText = "position: absolute; top: 12px; left: 0; width: 100%; height: 75px;";
+               
+               const canvas = document.createElement('canvas');
+               canvas.id = `core-chart-${index}`;
+               
+               canvasWrap.appendChild(canvas);
+               coreWrapper.appendChild(title);
+               coreWrapper.appendChild(canvasWrap);
+               coresContainer.appendChild(coreWrapper);
+               
+               setTimeout(() => {
+                 chartInstances[index] = initCoreChart(`core-chart-${index}`, index);
+               }, 20);
+            });
+         } else {
+             hw.cpu_cores.forEach((coreUsage, index) => {
+                const title = document.getElementById(`core-title-${index}`);
+                if (title) title.textContent = `CPU Core ${index} (${coreUsage.toFixed(1)}%)`;
+                
+                if (coreHistories[index] && chartInstances[index]) {
+                   coreHistories[index].push(coreUsage);
+                   coreHistories[index].shift();
+                   chartInstances[index].data.datasets[0].data = coreHistories[index];
+                   chartInstances[index].update();
+                }
+             });
+         }
       }
-
-      
-      const coresContainer = document.getElementById('cpu-cores-container');
-      if (coresContainer && hw.cpu_cores) {
-         coresContainer.innerHTML = '';
-         hw.cpu_cores.forEach((coreUsage, index) => {
-            // color coded based on load
-            let bgColor = '#f1f5f9';
-            let textColor = '#475569';
-            let barColor = '#cbd5e1';
-            
-            if (coreUsage > 85) { bgColor = '#fef2f2'; textColor = '#b91c1c'; barColor = '#ef4444'; }
-            else if (coreUsage > 60) { bgColor = '#fffbeb'; textColor = '#b45309'; barColor = '#f59e0b'; }
-            else if (coreUsage > 30) { bgColor = '#f0fdf4'; textColor = '#15803d'; barColor = '#22c55e'; }
-            else if (coreUsage > 5) { bgColor = '#eff6ff'; textColor = '#1d4ed8'; barColor = '#3b82f6'; }
-            
-            const coreHtml = ;
-            coresContainer.insertAdjacentHTML('beforeend', coreHtml);
-         });
-      }
-
     }
-
-
+  } catch(e) {}
+  
+  
     // ── Pause/Resume UI sync ──
+
     const paused = j.paused || false;
     const statusEl = document.getElementById('side-train-status');
     const btnSide = document.getElementById('btn-toggle-train');
