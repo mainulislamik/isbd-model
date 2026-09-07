@@ -635,6 +635,62 @@ body {
   </div>
 
   
+
+<!-- ─ Hardware Telemetry Row ─ -->
+<div class="panel-box" style="margin-bottom: 24px; padding: 18px 24px;">
+  <div class="panel-header" style="margin-bottom: 14px;">
+    <h2 style="font-size: 14px;"><span class="step-badge" style="width: 24px; height: 24px; font-size: 11px;">🖥️</span> System Hardware Telemetry</h2>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+    
+    <!-- CPU -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">CPU Load</div>
+        <div style="font-size: 16px; font-weight: 800; color: #0f172a; font-family: 'JetBrains Mono', monospace;" id="hw-cpu">0.0%</div>
+      </div>
+      <div style="font-size: 20px;">🧠</div>
+    </div>
+
+    <!-- Heat -->
+    <div style="background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-size: 10px; font-weight: 700; color: #db2777; text-transform: uppercase;">Thermal Heat</div>
+        <div style="font-size: 16px; font-weight: 800; color: #9d174d; font-family: 'JetBrains Mono', monospace;" id="hw-heat">0°C</div>
+      </div>
+      <div style="font-size: 20px;">🔥</div>
+    </div>
+
+    <!-- RAM -->
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-size: 10px; font-weight: 700; color: #16a34a; text-transform: uppercase;">RAM Usage</div>
+        <div style="font-size: 16px; font-weight: 800; color: #166534; font-family: 'JetBrains Mono', monospace;" id="hw-ram">0.0%</div>
+      </div>
+      <div style="font-size: 20px;">⚡</div>
+    </div>
+
+    <!-- M.2 SSD Storage -->
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-size: 10px; font-weight: 700; color: #d97706; text-transform: uppercase;">Disk Space</div>
+        <div style="font-size: 16px; font-weight: 800; color: #b45309; font-family: 'JetBrains Mono', monospace;" id="hw-disk">0.0%</div>
+      </div>
+      <div style="font-size: 20px;">💾</div>
+    </div>
+
+    <!-- Network -->
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-size: 10px; font-weight: 700; color: #2563eb; text-transform: uppercase;">Net (Up/Dn)</div>
+        <div style="font-size: 12px; font-weight: 800; color: #1d4ed8; font-family: 'JetBrains Mono', monospace;" id="hw-net">0 / 0 KB/s</div>
+      </div>
+      <div style="font-size: 20px;">🌐</div>
+    </div>
+
+  </div>
+</div>
+
       <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 24px;">
         <div class="panel-box">
           <div class="panel-header">
@@ -2337,9 +2393,27 @@ async function poll() {
       badge.style.color = 'var(--tx-muted)';
     }
 
+
     if (j.log) {
       document.getElementById('term-log').textContent = j.log;
     }
+
+    // ── Telemetry Update ──
+    if (j.telemetry) {
+      const hw = j.telemetry;
+      const ecpu = document.getElementById('hw-cpu');
+      const heat = document.getElementById('hw-heat');
+      const ram = document.getElementById('hw-ram');
+      const disk = document.getElementById('hw-disk');
+      const net = document.getElementById('hw-net');
+
+      if (ecpu) ecpu.textContent = hw.cpu_percent + '%';
+      if (heat) heat.textContent = hw.cpu_temp + '°C';
+      if (ram) ram.textContent = hw.ram_percent + '%';
+      if (disk) disk.textContent = hw.disk_percent + '%';
+      if (net) net.textContent = hw.net_up_kbps + ' ↑ ' + hw.net_down_kbps + ' ↓';
+    }
+
 
     // ── Pause/Resume UI sync ──
     const paused = j.paused || false;

@@ -846,6 +846,63 @@ async def purge():
     return {"ok": True, "pairs": 0}
 
 
+# ── System Telemetry (CPU, RAM, Network, Heat) ──────────────────────────────
+import psutil
+import time
+
+_last_net = None
+_last_time = time.time()
+
+def _get_system_telemetry():
+    global _last_net, _last_time
+    
+    # Needs to be called twice with a small delay for accuracy, 
+    # but since this API is polled every 3s, interval=None returns usage since last call (perfect!)
+    cpu_usage = psutil.cpu_percent(interval=None)
+    
+    ram = psutil.virtual_memory()
+    ram_usage = ram.percent
+    
+    try:
+        disk = psutil.disk_usage('/app')
+        disk_usage = disk.percent
+    except Exception:
+        disk_usage = 0
+        
+    try:
+        from isbd.thermal_guard import get_cpu_temp
+        cpu_temp = get_cpu_temp()
+    except Exception:
+        cpu_temp = 0
+        
+    # Network Speed (MB/s calculation over the 3-second poll gap)
+    current_net = psutil.net_io_counters()
+    current_time = time.time()
+    
+    net_speed_down = 0.0
+    net_speed_up = 0.0
+    if _last_net is not None:
+        dt = current_time - _last_time
+        if dt > 0:
+            down_bytes = current_net.bytes_recv - _last_net.bytes_recv
+            up_bytes = current_net.bytes_sent - _last_net.bytes_sent
+            # Convert to Mbps (Megabits per sec) or KB/s. Let's use KB/s for precision.
+            net_speed_down = max(0.0, (down_bytes / 1024) / dt)
+            net_speed_up = max(0.0, (up_bytes / 1024) / dt)
+            
+    _last_net = current_net
+    _last_time = current_time
+    
+    return {
+        "cpu_percent": round(cpu_usage, 1),
+        "ram_percent": round(ram_usage, 1),
+        "disk_percent": round(disk_usage, 1),
+        "cpu_temp": round(cpu_temp, 1),
+        "net_down_kbps": round(net_speed_down, 1),
+        "net_up_kbps": round(net_speed_up, 1)
+    }
+
+
 @app.get("/api/status")
 async def status():
     return {
@@ -856,6 +913,7 @@ async def status():
         "log": _ft_log_tail(),
         "history": _loss_history(40),
         "paused": _is_paused(),
+        "telemetry": _get_system_telemetry(),
         "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
     }
 
