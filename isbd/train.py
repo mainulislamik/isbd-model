@@ -165,8 +165,8 @@ def main():
           f"| batch {args.batch}×{args.accum_steps}={effective_batch} | lr {args.lr} | device {device}",
           flush=True)
 
-    ds = torch_dataset(augment_factor=12)(3000)
-    dl = DataLoader(ds, batch_size=args.batch, shuffle=True, num_workers=2, pin_memory=True, prefetch_factor=3, persistent_workers=True)
+    ds = torch_dataset(augment_factor=16)(6000)
+    dl = DataLoader(ds, batch_size=args.batch, shuffle=True, num_workers=4, pin_memory=True, prefetch_factor=8, persistent_workers=True)
 
     h = load_history()
     model.train()

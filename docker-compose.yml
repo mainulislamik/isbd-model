@@ -36,7 +36,7 @@ services:
     build: .
     container_name: isbd-trainer
     restart: unless-stopped
-    command: ["python", "isbd/continuous.py", "--round-steps", "5000", "--batch", "32", "--model", "small", "--accum-steps", "2"]
+    command: ["python", "isbd/continuous.py", "--round-steps", "5000", "--batch", "64", "--model", "small", "--accum-steps", "2"]
     volumes:
       - ./isbd:/app/isbd
       - ./checkpoints:/app/checkpoints
@@ -45,9 +45,9 @@ services:
       - ./runs:/app/runs
       - /sys/class/thermal:/sys/class/thermal:ro
       - /sys/class/hwmon:/sys/class/hwmon:ro
-    mem_limit: 4g
-    cpus: 1.0
-    shm_size: '2g'
+    mem_limit: 6g
+    cpus: 1.5
+    shm_size: '4g'
     environment:
       - PYTHONUNBUFFERED=1
       - OMP_NUM_THREADS=1
