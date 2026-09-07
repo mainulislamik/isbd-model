@@ -626,6 +626,17 @@ body {
       <div class="stat-footer" id="v-self-sub">অটোনোমাস সেলফ-লার্নিং সক্রিয়</div>
     </div>
 
+    
+    <div class="stat-card" id="card-cloud">
+      <div class="stat-top">
+        <span class="stat-title" style="color: #6366f1;">GitHub Cloud Trainer</span>
+        <span class="stat-icon" id="v-cloud-icon">☁️</span>
+      </div>
+      <div class="stat-val" id="v-cloud-status" style="font-size: 16px; color: #4f46e5; margin-top: 6px;">Check...</div>
+      <div class="stat-footer" id="v-cloud-sub">Remote Syncing to GitHub</div>
+      <a id="v-cloud-link" href="#" target="_blank" style="display:none; font-size: 10px; color: #6366f1; text-decoration: underline; margin-top:4px;">View Live Console</a>
+    </div>
+
     <div class="stat-card" id="card-lock">
       <div class="stat-top">
         <span class="stat-title">Engine Lock</span>
@@ -2405,7 +2416,42 @@ async function poll() {
     }
 
     // ── Telemetry Update ──
+    
     if (j.telemetry) {
+      if (j.telemetry.cloud_status) {
+         const cl = j.telemetry.cloud_status;
+         const st = document.getElementById('v-cloud-status');
+         const ic = document.getElementById('v-cloud-icon');
+         const lk = document.getElementById('v-cloud-link');
+         
+         if (st) {
+             if (cl.status === "in_progress" || cl.status === "queued") {
+                 st.textContent = "🚀 Training Active!";
+                 st.style.color = "#10b981";
+                 ic.textContent = "🔄";
+                 ic.classList.add('animate-spin');
+                 document.getElementById('card-cloud').style.borderColor = "#6ee7b7";
+                 document.getElementById('card-cloud').style.background = "#f0fdf4";
+             } else if (cl.conclusion === "success") {
+                 st.textContent = "✅ Last Run: Success";
+                 st.style.color = "#059669";
+                 ic.textContent = "☁️";
+                 ic.classList.remove('animate-spin');
+                 document.getElementById('card-cloud').style.background = "#ffffff";
+                 document.getElementById('card-cloud').style.borderColor = "#e2e8f0";
+             } else {
+                 st.textContent = cl.conclusion ? "⏹ " + cl.conclusion : "Idle";
+                 st.style.color = "#64748b";
+                 ic.textContent = "☁️";
+                 ic.classList.remove('animate-spin');
+             }
+         }
+         if (lk && cl.html_url) {
+             lk.style.display = 'block';
+             lk.href = cl.html_url;
+         }
+      }
+
       const hw = j.telemetry;
       const ecpu = document.getElementById('hw-cpu');
       const heat = document.getElementById('hw-heat');
