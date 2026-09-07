@@ -1533,8 +1533,8 @@ body {
 <script>
 
 // ── Core History for Charts ──
-let coreHistories = {};
-let chartInstances = {};
+window.coreHistories = {};
+window.chartInstances = {};
 const MAX_HISTORY = 40; 
 
 function initCoreChart(canvasId, coreIndex) {
@@ -2397,7 +2397,11 @@ async function poll() {
 
 
     if (j.log) {
-      document.getElementById('term-log').textContent = j.log;
+      const termLogs = document.querySelectorAll('.terminal-area');
+      termLogs.forEach(el => {
+         el.textContent = j.log;
+         el.scrollTop = el.scrollHeight; // Auto-scroll to latest
+      });
     }
 
     // ── Telemetry Update ──
@@ -2419,10 +2423,10 @@ async function poll() {
 
       const coresContainer = document.getElementById('cpu-cores-container');
       if (coresContainer && hw.cpu_cores) {
-         if (Object.keys(chartInstances).length === 0) {
+         if (Object.keys(window.chartInstances).length === 0) {
             coresContainer.innerHTML = '';
             hw.cpu_cores.forEach((_, index) => {
-               coreHistories[index] = Array(MAX_HISTORY).fill(0);
+               window.coreHistories[index] = Array(MAX_HISTORY).fill(0);
                const coreWrapper = document.createElement('div');
                
                coreWrapper.style.cssText = "background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0; width: calc(50% - 3px); height: 80px; position: relative; overflow: hidden;";
@@ -2444,7 +2448,7 @@ async function poll() {
                coresContainer.appendChild(coreWrapper);
                
                setTimeout(() => {
-                 chartInstances[index] = initCoreChart(`core-chart-${index}`, index);
+                 window.chartInstances[index] = initCoreChart(`core-chart-${index}`, index);
                }, 20);
             });
          } else {
@@ -2452,11 +2456,11 @@ async function poll() {
                 const title = document.getElementById(`core-title-${index}`);
                 if (title) title.textContent = `CPU Core ${index} (${coreUsage.toFixed(1)}%)`;
                 
-                if (coreHistories[index] && chartInstances[index]) {
-                   coreHistories[index].push(coreUsage);
-                   coreHistories[index].shift();
-                   chartInstances[index].data.datasets[0].data = coreHistories[index];
-                   chartInstances[index].update();
+                if (window.coreHistories[index] && window.chartInstances[index]) {
+                   window.coreHistories[index].push(coreUsage);
+                   window.coreHistories[index].shift();
+                   window.chartInstances[index].data.datasets[0].data = window.coreHistories[index];
+                   window.chartInstances[index].update();
                 }
              });
          }
