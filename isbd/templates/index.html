@@ -1634,7 +1634,9 @@ window.chartInstances = {};
 const MAX_HISTORY = 40; 
 
 function initCoreChart(canvasId, coreIndex) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
+  const canvasEl = document.getElementById(canvasId);
+  if (!canvasEl || typeof Chart === 'undefined') return null;
+  const ctx = canvasEl.getContext('2d');
   
   const gradient = ctx.createLinearGradient(0, 0, 0, 100);
   gradient.addColorStop(0, 'rgba(17, 142, 233, 0.4)');
@@ -2513,113 +2515,53 @@ function slideCompare(val) {
 async function poll() {
   try {
     const res = await fetch('/api/status');
+    if (!res.ok) return;
     const j = await res.json();
 
-    document.getElementById('v-step').textContent = j.live.step ? j.live.step.toLocaleString() : '—';
-    document.getElementById('v-loss').textContent = j.live.loss ? j.live.loss.toFixed(4) : '—';
-    document.getElementById('v-pairs').textContent = j.pairs;
+    // ── Primary Training Metrics ──
+    const stepEl = document.getElementById('v-step');
+    if (stepEl) stepEl.textContent = (j.live && j.live.step) ? j.live.step.toLocaleString() : '—';
 
-    const lock = document.getElementById('v-lock');
-    lock.textContent = j.lock_busy ? 'Busy (Training)' : 'Free';
-    document.getElementById('card-lock').className = 'stat-card ' + (j.lock_busy ? 'warn' : 'ok');
+    const lossEl = document.getElementById('v-loss');
+    if (lossEl) lossEl.textContent = (j.live && j.live.loss != null) ? Number(j.live.loss).toFixed(4) : '—';
 
-    const badge = document.getElementById('badge-ft');
-    if (j.ft.running) {
-      badge.textContent = 'Running Fine-tune…';
-      badge.style.background = 'rgba(99,102,241,0.2)';
-      badge.style.color = '#818cf8';
-    } else {
-      badge.textContent = 'Idle';
-      badge.style.background = 'rgba(255,255,255,0.05)';
-      badge.style.color = 'var(--tx-muted)';
+    const pairsEl = document.getElementById('v-pairs');
+    if (pairsEl) {
+      if (j.self_learn && j.self_learn.total_self_learned_pairs != null) {
+        pairsEl.textContent = `${j.pairs || 0} (+${j.self_learn.total_self_learned_pairs} auto)`;
+      } else {
+        pairsEl.textContent = j.pairs ?? '0';
+      }
     }
 
+    const lock = document.getElementById('v-lock');
+    if (lock) lock.textContent = j.lock_busy ? 'Busy (Training)' : 'Free';
+    const cardLock = document.getElementById('card-lock');
+    if (cardLock) cardLock.className = 'stat-card ' + (j.lock_busy ? 'warn' : 'ok');
+
+    const badge = document.getElementById('badge-ft');
+    if (badge) {
+      if (j.ft && j.ft.running) {
+        badge.textContent = 'Running Fine-tune…';
+        badge.style.background = 'rgba(99,102,241,0.2)';
+        badge.style.color = '#818cf8';
+      } else {
+        badge.textContent = 'Idle';
+        badge.style.background = 'rgba(255,255,255,0.05)';
+        badge.style.color = 'var(--tx-muted)';
+      }
+    }
 
     if (j.log) {
       const termLogs = document.querySelectorAll('.terminal-area');
       termLogs.forEach(el => {
          el.textContent = j.log;
-         el.scrollTop = el.scrollHeight; // Auto-scroll to latest
+         el.scrollTop = el.scrollHeight;
       });
     }
 
-    // ── Telemetry Update ──
-    
+    // ── Telemetry & Cloud Update ──
     if (j.telemetry) {
-      if (j.telemetry.cloud_status) {
-         const cl = j.telemetry.cloud_status;
-         const st = document.getElementById('v-cloud-status');
-         const ic = document.getElementById('v-cloud-icon');
-         const lk = document.getElementById('v-cloud-link');
-         
-         if (st) {
-             if (cl.status === "in_progress" || cl.status === "queued") {
-                 st.textContent = "🚀 Training Active!";
-                 st.style.color = "#10b981";
-                 ic.textContent = "🔄";
-                 ic.classList.add('animate-spin');
-                 document.getElementById('card-cloud').style.borderColor = "#6ee7b7";
-                 document.getElementById('card-cloud').style.background = "#f0fdf4";
-             } else if (cl.conclusion === "success") {
-                 st.textContent = "✅ Last Run: Success";
-                 st.style.color = "#059669";
-                 ic.textContent = "☁️";
-                 ic.classList.remove('animate-spin');
-                 document.getElementById('card-cloud').style.background = "#ffffff";
-                 document.getElementById('card-cloud').style.borderColor = "#e2e8f0";
-             } else {
-                 st.textContent = cl.conclusion ? "⏹ " + cl.conclusion : "Idle";
-                 st.style.color = "#64748b";
-                 ic.textContent = "☁️";
-                 ic.classList.remove('animate-spin');
-             }
-         }
-         if (lk && cl.html_url) {
-             lk.style.display = 'block';
-             lk.href = cl.html_url;
-
-         // Update Cloud page elements safely
-         const st_page = document.getElementById('v-cloud-page-status');
-         const lk_page = document.getElementById('v-cloud-page-link');
-         if (st_page) {
-             if (cl.status === "in_progress" || cl.status === "queued" || cl.status === "running") {
-                 st_page.innerHTML = "<span class='icon animate-spin'>🔄</span> Active Execution (" + cl.status + ")";
-                 st_page.style.color = "#10b981";
-             } else if (cl.conclusion === "success") {
-                 st_page.innerHTML = "<span class='icon'>✅</span> Idle (Last: Success)";
-                 st_page.style.color = "#059669";
-             } else {
-                 st_page.innerHTML = "<span class='icon'>⏹</span> " + (cl.conclusion || "Idle");
-                 st_page.style.color = "#64748b";
-             }
-         }
-         if (lk_page && cl.html_url) {
-             lk_page.href = cl.html_url;
-         }
-
-         }
-
-         // Also update the Cloud Hub internal page
-         const st_page = document.getElementById('v-cloud-page-status');
-         const lk_page = document.getElementById('v-cloud-page-link');
-         if (st_page) {
-             if (cl.status === "in_progress" || cl.status === "queued") {
-                 st_page.innerHTML = "<span class='icon animate-spin'>🔄</span> Active Execution (" + cl.status + ")";
-                 st_page.style.color = "#10b981";
-             } else if (cl.conclusion === "success") {
-                 st_page.innerHTML = "<span class='icon'>✅</span> Idle (Last: Success)";
-                 st_page.style.color = "#059669";
-             } else {
-                 st_page.innerHTML = "<span class='icon'>⏹</span> " + (cl.conclusion || "Idle");
-                 st_page.style.color = "#64748b";
-             }
-         }
-         if (lk_page && cl.html_url) {
-             lk_page.href = cl.html_url;
-         }
-
-      }
-
       const hw = j.telemetry;
       const ecpu = document.getElementById('hw-cpu');
       const heat = document.getElementById('hw-heat');
@@ -2627,63 +2569,108 @@ async function poll() {
       const disk = document.getElementById('hw-disk');
       const net = document.getElementById('hw-net');
 
+      if (ecpu) ecpu.textContent = (hw.cpu_percent != null ? hw.cpu_percent : '0.0') + '%';
+      if (heat) heat.textContent = (hw.cpu_temp != null ? hw.cpu_temp : '0') + '°C';
+      if (ram) ram.textContent = (hw.ram_percent != null ? hw.ram_percent : '0.0') + '%';
+      if (disk) disk.textContent = (hw.disk_percent != null ? hw.disk_percent : '0.0') + '%';
+      if (net) net.textContent = (hw.net_up_kbps || 0) + ' ↑ ' + (hw.net_down_kbps || 0) + ' ↓';
 
+      if (hw.cloud_status) {
+        const cl = hw.cloud_status;
+        const st = document.getElementById('v-cloud-status');
+        const ic = document.getElementById('v-cloud-icon');
+        const lk = document.getElementById('v-cloud-link');
+        const cardCloud = document.getElementById('card-cloud');
+        
+        if (st) {
+          if (cl.status === "in_progress" || cl.status === "queued" || cl.status === "running") {
+            st.textContent = "🚀 Training Active!";
+            st.style.color = "#10b981";
+            if (ic) { ic.textContent = "🔄"; ic.classList.add('animate-spin'); }
+            if (cardCloud) { cardCloud.style.borderColor = "#6ee7b7"; cardCloud.style.background = "#f0fdf4"; }
+          } else if (cl.conclusion === "success") {
+            st.textContent = "✅ Last Run: Success";
+            st.style.color = "#059669";
+            if (ic) { ic.textContent = "☁️"; ic.classList.remove('animate-spin'); }
+            if (cardCloud) { cardCloud.style.background = "#ffffff"; cardCloud.style.borderColor = "#e2e8f0"; }
+          } else {
+            st.textContent = cl.conclusion ? "⏹ " + cl.conclusion : (cl.status || "Idle");
+            st.style.color = "#64748b";
+            if (ic) { ic.textContent = "☁️"; ic.classList.remove('animate-spin'); }
+          }
+        }
+        if (lk && cl.html_url) {
+          lk.style.display = 'block';
+          lk.href = cl.html_url;
+        }
 
-      if (ecpu) ecpu.textContent = hw.cpu_percent + '%';
-      if (heat) heat.textContent = hw.cpu_temp + '°C';
-      if (ram) ram.textContent = hw.ram_percent + '%';
-      if (disk) disk.textContent = hw.disk_percent + '%';
-      if (net) net.textContent = hw.net_up_kbps + ' ↑ ' + hw.net_down_kbps + ' ↓';
+        const st_page = document.getElementById('v-cloud-page-status');
+        const lk_page = document.getElementById('v-cloud-page-link');
+        if (st_page) {
+          if (cl.status === "in_progress" || cl.status === "queued" || cl.status === "running") {
+            st_page.innerHTML = '<span class="icon animate-spin">🔄</span> Active Execution (' + cl.status + ')';
+            st_page.style.color = "#10b981";
+          } else if (cl.conclusion === "success") {
+            st_page.innerHTML = '<span class="icon">✅</span> Idle (Last: Success)';
+            st_page.style.color = "#059669";
+          } else {
+            st_page.innerHTML = '<span class="icon">⏹</span> ' + (cl.conclusion || cl.status || "Idle");
+            st_page.style.color = "#64748b";
+          }
+        }
+        if (lk_page && cl.html_url) {
+          lk_page.href = cl.html_url;
+        }
+      }
 
+      // CPU Cores Chart
       const coresContainer = document.getElementById('cpu-cores-container');
-      if (coresContainer && hw.cpu_cores) {
-         if (Object.keys(window.chartInstances).length === 0) {
-            coresContainer.innerHTML = '';
-            hw.cpu_cores.forEach((_, index) => {
-               window.coreHistories[index] = Array(MAX_HISTORY).fill(0);
-               const coreWrapper = document.createElement('div');
-               
-               coreWrapper.style.cssText = "background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0; width: calc(50% - 3px); height: 80px; position: relative; overflow: hidden;";
-               
-               const title = document.createElement('div');
-               title.style.cssText = "position: absolute; top: 4px; left: 8px; font-size: 10px; font-weight: 700; color: #475569; z-index: 10; text-transform: uppercase;";
-               title.id = `core-title-${index}`;
-               title.textContent = `CPU Core ${index} (0%)`;
-               
-               const canvasWrap = document.createElement('div');
-               canvasWrap.style.cssText = "position: absolute; top: 12px; left: 0; width: 100%; height: 75px;";
-               
-               const canvas = document.createElement('canvas');
-               canvas.id = `core-chart-${index}`;
-               
-               canvasWrap.appendChild(canvas);
-               coreWrapper.appendChild(title);
-               coreWrapper.appendChild(canvasWrap);
-               coresContainer.appendChild(coreWrapper);
-               
-               setTimeout(() => {
-                 window.chartInstances[index] = initCoreChart(`core-chart-${index}`, index);
-               }, 20);
-            });
-         } else {
-             hw.cpu_cores.forEach((coreUsage, index) => {
-                const title = document.getElementById(`core-title-${index}`);
-                if (title) title.textContent = `CPU Core ${index} (${coreUsage.toFixed(1)}%)`;
-                
-                if (window.coreHistories[index] && window.chartInstances[index]) {
-                   window.coreHistories[index].push(coreUsage);
-                   window.coreHistories[index].shift();
-                   window.chartInstances[index].data.datasets[0].data = window.coreHistories[index];
-                   window.chartInstances[index].update();
-                }
-             });
-         }
+      if (coresContainer && hw.cpu_cores && typeof Chart !== 'undefined') {
+        if (Object.keys(window.chartInstances).length === 0) {
+          coresContainer.innerHTML = '';
+          hw.cpu_cores.forEach((_, index) => {
+            window.coreHistories[index] = Array(MAX_HISTORY).fill(0);
+            const coreWrapper = document.createElement('div');
+            coreWrapper.style.cssText = "background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0; width: calc(50% - 3px); height: 80px; position: relative; overflow: hidden;";
+            
+            const title = document.createElement('div');
+            title.style.cssText = "position: absolute; top: 4px; left: 8px; font-size: 10px; font-weight: 700; color: #475569; z-index: 10; text-transform: uppercase;";
+            title.id = `core-title-${index}`;
+            title.textContent = `CPU Core ${index} (0%)`;
+            
+            const canvasWrap = document.createElement('div');
+            canvasWrap.style.cssText = "position: absolute; top: 12px; left: 0; width: 100%; height: 75px;";
+            
+            const canvas = document.createElement('canvas');
+            canvas.id = `core-chart-${index}`;
+            
+            canvasWrap.appendChild(canvas);
+            coreWrapper.appendChild(title);
+            coreWrapper.appendChild(canvasWrap);
+            coresContainer.appendChild(coreWrapper);
+            
+            setTimeout(() => {
+              const inst = initCoreChart(`core-chart-${index}`, index);
+              if (inst) window.chartInstances[index] = inst;
+            }, 20);
+          });
+        } else {
+          hw.cpu_cores.forEach((coreUsage, index) => {
+            const title = document.getElementById(`core-title-${index}`);
+            if (title) title.textContent = `CPU Core ${index} (${coreUsage.toFixed(1)}%)`;
+            
+            if (window.coreHistories[index] && window.chartInstances[index]) {
+              window.coreHistories[index].push(coreUsage);
+              window.coreHistories[index].shift();
+              window.chartInstances[index].data.datasets[0].data = window.coreHistories[index];
+              window.chartInstances[index].update();
+            }
+          });
+        }
       }
-  
-      }
+    }
 
     // ── Pause/Resume UI sync ──
-
     const paused = j.paused || false;
     const statusEl = document.getElementById('side-train-status');
     const btnSide = document.getElementById('btn-toggle-train');
@@ -2704,7 +2691,9 @@ async function poll() {
         btn.style.color = '#dc2626';
       }
     });
-  } catch(e) { document.getElementById("term-log").textContent = "JS ERROR: " + e.message + "\n" + e.stack; }
+  } catch(e) {
+    console.error('Polling error:', e);
+  }
 }
 
 let _pauseToggleBusy = false;
