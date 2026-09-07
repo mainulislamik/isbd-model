@@ -1244,61 +1244,44 @@ body {
 
     <!-- Tab 7: Magic Eraser (TESTING 4) -->
     <div id="tab-magic" class="tab-pane">
-<!-- ─ NEW FEATURE 3: Magic Eraser & Inpainting Brush Studio ─ -->
-  
-        <!-- 🚀 Modern Model Switcher Bar for Magic Eraser -->
+        <!-- 🚀 Modern Model Switcher Bar for Magic Background Removal -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; padding:12px 18px; border-radius:12px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; box-shadow:0 1px 3px 0 rgba(0,0,0,0.03);">
           <div style="display:flex; align-items:center; gap:12px;">
-            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🧠</div>
+            <div style="width:36px; height:36px; border-radius:8px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:18px; border:1px solid #c7d2fe;">🪄</div>
             <div>
-              <div style="font-size:13px; font-weight:700; color:#0f172a;">সক্রিয় এআই মডেল (Active AI Model):</div>
-              <div style="font-size:11px; color:#64748b;">এই টেস্টিং টুলে প্রক্রিয়াকরণের জন্য এআই ইঞ্জিন নির্বাচন করুন</div>
+              <div style="font-size:13px; font-weight:700; color:#0f172a;">ম্যাজিক ব্যাকগ্রাউন্ড রিমুভার (AI Background Removal):</div>
+              <div style="font-size:11px; color:#64748b;">U²-Net AI আর্কিটেকচার দ্বারা যেকোনো ফটোর ব্যাকগ্রাউন্ড এক ক্লিকে রিমুভ করুন</div>
             </div>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <select class="param-select global-model-selector" id="model-select-magic" onchange="syncAllModelSelectors(this.value)" style="min-width:260px; padding:7px 14px; font-size:12.5px; font-weight:600; border-color:#cbd5e1; border-radius:8px;">
-              <option value="isbd_v1" selected>🚀 ISBD v1.00 Local (24/7 Self-Trained)</option>
-              
-              
-              
-              
-            </select>
+        </div>
+        <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
+          <div class="panel-header">
+            <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ব্যাকগ্রাউন্ড রিমুভার (AI Background Removal)</h2>
+            <span style="font-size: 11px; color: #f472b6; font-weight: 600;">U²-Net AI Powered</span>
+          </div>
+          <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
+            ছবি আপলোড করে এক ক্লিকে যেকোনো জটিল ছবির ব্যাকগ্রাউন্ড নিখুঁতভাবে রিমুভ করে ট্রান্সপারেন্ট PNG পান।
+          </p>
+
+          <div class="det-grid">
+            <div class="det-controls">
+              <input type="file" id="bg-remove-file" accept="image/*" style="display:none" onchange="loadBgRemoveImage(this)">
+              <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="document.getElementById('bg-remove-file').click()">
+                🖼️ ছবি আপলোড করুন
+              </button>
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-main" style="flex:1;" onclick="applyBgRemove()">✨ রিমুভ ব্যাকগ্রাউন্ড</button>
+              </div>
+            </div>
+
+            <div>
+              <div id="bg-remove-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
+                ছবি আপলোড করে 'রিমুভ ব্যাকগ্রাউন্ড' বাটনে ক্লিক করলে এখানে কাটআউট ফলাফল দেখতে পাবেন
+              </div>
+              <div id="bg-remove-res" style="text-align:center;"></div>
+            </div>
           </div>
         </div>
-    <div class="cv-lab-banner" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%); border-color: rgba(236, 72, 153, 0.25);">
-    <div class="panel-header">
-      <h2><span class="step-badge" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);">🪄</span> ম্যাজিক ব্যাকগ্রাউন্ড রিমুভার (AI Background Removal)</h2>
-      <span style="font-size: 11px; color: #f472b6; font-weight: 600;">U²-Net AI Powered</span>
-    </div>
-    <p style="font-size: 12.5px; color: var(--tx-secondary); margin-bottom: 16px;">
-      ছবি আপলোড করে এক ক্লিকে যেকোনো জটিল ছবির ব্যাকগ্রাউন্ড নিখুঁতভাবে রিমুভ করুন। এই ফিচারটি আপনার লোকাল এআই (U²-Net) দ্বারা ট্রেইন্ড।
-    </p>
-
-    <div class="det-grid">
-      <div class="det-controls">
-        <input type="file" id="bg-remove-file" accept="image/*" style="display:none" onchange="loadBgRemoveImage(this)">
-        <button class="btn btn-main" style="width: 100%; background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="document.getElementById('bg-remove-file').click()">
-          🖼️ ছবি আপলোড করুন
-        </button>
-        <div style="display: flex; gap: 10px; margin-top: 10px;">
-          <button class="btn btn-main" style="flex:1;" onclick="applyBgRemove()">✨ রিমুভ ব্যাকগ্রাউন্ড</button>
-        </div>
-        </div>
-      </div>
-
-      <div>
-        <div id="inpaint-canvas-wrap" style="position:relative; display:none; max-width:100%; border:1px solid var(--card-border); border-radius:var(--radius-md); overflow:hidden; background:#000;">
-          <canvas id="inpaint-canvas" style="max-width:100%; height:auto; cursor:crosshair; display:block;"></canvas>
-        </div>
-        <div id="inpaint-placeholder" style="border: 2px dashed var(--card-border); border-radius: var(--radius-md); padding: 36px; text-align: center; color: var(--tx-muted); font-size: 12px;">
-          ছবি লোড হলে এখানে ব্রাশ দিয়ে মার্ক করার ক্যানভাস দেখতে পাবেন
-        </div>
-        <img id="inpaint-result" class="det-result-img" style="margin-top:12px;">
-      </div>
-    </div>
-  </div>
-
-  
     </div>
 
     <!-- Tab 8: YOLO (TESTING 5) -->
@@ -2113,178 +2096,79 @@ function reApplyCV() {
   if (lastUploadedCVFile) runCVFilter(lastUploadedCVFile);
 }
 
-// ─ Magic Eraser & Inpainting Canvas Logic ─
-let inpaintImgObj = null;
-let inpaintCanvas = null;
-let inpaintCtx = null;
-let maskCanvas = null;
-let maskCtx = null;
-let isDrawing = false;
-
-document.getElementById('brush-size').addEventListener('input', e => {
-  document.getElementById('brush-val').textContent = e.target.value + 'px';
-});
+// ─ Magic Background Removal Logic ─
+let bgRemoveImg = null;
 
 function loadBgRemoveImage(input) {
-  if(input.files && input.files[0]) {
+  if (input.files && input.files[0]) {
     bgRemoveImg = input.files[0];
-    let reader = new FileReader();
-    reader.onload = function(e){
-      let img = new Image();
-      img.onload = function(){
-        let canvas = document.getElementById('inpaint-canvas');
-        let ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-      };
-      img.src = e.target.result;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const ph = document.getElementById('bg-remove-placeholder');
+      if (ph) ph.style.display = 'none';
+      const resDiv = document.getElementById('bg-remove-res');
+      if (resDiv) {
+        resDiv.innerHTML = `<img src="${e.target.result}" style="max-width:100%; max-height:400px; border-radius:8px; display:block; margin: 0 auto; box-shadow:0 4px 10px rgba(0,0,0,0.1);">`;
+      }
     };
     reader.readAsDataURL(input.files[0]);
   }
 }
 
 async function applyBgRemove() {
-  if(!bgRemoveImg) {
-    alert('প্রথমে একটি ছবি আপলোড করুন');
+  if (!bgRemoveImg) {
+    toast('প্রথমে একটি ছবি আপলোড করুন', 'warn');
     return;
   }
-  document.getElementById('inpaint-res').innerHTML = '<div style="text-align:center; padding: 20px;"><span class="icon animate-spin">🔄</span> AI ব্যাকগ্রাউন্ড রিমুভ করছে... দয়া করে অপেক্ষা করুন!</div>';
-  let formData = new FormData();
+  const resDiv = document.getElementById('bg-remove-res');
+  if (resDiv) {
+    resDiv.innerHTML = '<div style="text-align:center; padding: 30px; font-weight:600; color:#8b5cf6;"><span class="icon animate-spin">🔄</span> U²-Net AI ব্যাকগ্রাউন্ড রিমুভ করছে... দয়া করে অপেক্ষা করুন!</div>';
+  }
+  const formData = new FormData();
   formData.append('image', bgRemoveImg);
   formData.append('service_id', 'background_removal');
   formData.append('model_id', 'isbd_v1');
 
   try {
-    let res = await fetch('/api/service_process', { method: 'POST', body: formData });
-    let data = await res.json();
-    if(data.ok) {
-      document.getElementById('inpaint-res').innerHTML = `<img src="${data.image_b64}" style="width:100%; border-radius:8px; display:block; margin: 0 auto; box-shadow:0 4px 10px rgba(0,0,0,0.1);">`;
+    const res = await fetch('/api/service_process', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.ok && data.image_b64) {
+      if (resDiv) {
+        resDiv.innerHTML = `
+          <div style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 20px 20px; border-radius:8px; padding:10px; display:inline-block;">
+            <img src="${data.image_b64}" style="max-width:100%; max-height:450px; border-radius:6px; display:block; margin: 0 auto;">
+          </div>
+          <div style="margin-top:10px;">
+            <a href="${data.image_b64}" download="transparent_bg.png" class="btn btn-main" style="background:#10b981; text-decoration:none; display:inline-block; padding:8px 18px; font-size:12px;">⬇️ ডাউনলোড ট্রান্সপারেন্ট PNG</a>
+          </div>`;
+      }
+      toast('ম্যাজিক ব্যাকগ্রাউন্ড রিমুভ সম্পন্ন!', 'ok');
     } else {
-      document.getElementById('inpaint-res').innerHTML = `<span style="color:#ef4444;">ত্রুটি: ${data.detail || data.error}</span>`;
+      if (resDiv) resDiv.innerHTML = `<span style="color:#ef4444;">ত্রুটি: ${data.detail || data.error}</span>`;
+      toast('রিমুভ করতে ত্রুটি', 'err');
     }
   } catch(e) {
-    document.getElementById('inpaint-res').innerHTML = `<span style="color:#ef4444;">নেটওয়ার্ক ত্রুটি: ${e}</span>`;
+    if (resDiv) resDiv.innerHTML = `<span style="color:#ef4444;">নেটওয়ার্ক ত্রুটি: ${e.message}</span>`;
+    toast('নেটওয়ার্ক ত্রুটি', 'err');
   }
-}
-
-function loadInpaintImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    inpaintImgObj = new Image();
-    inpaintImgObj.onload = () => {
-      inpaintCanvas = document.getElementById('inpaint-canvas');
-      inpaintCtx = inpaintCanvas.getContext('2d');
-      
-      inpaintCanvas.width = inpaintImgObj.width;
-      inpaintCanvas.height = inpaintImgObj.height;
-      inpaintCtx.drawImage(inpaintImgObj, 0, 0);
-
-      // Create separate hidden mask canvas (black background, white strokes)
-      maskCanvas = document.createElement('canvas');
-      maskCanvas.width = inpaintImgObj.width;
-      maskCanvas.height = inpaintImgObj.height;
-      maskCtx = maskCanvas.getContext('2d');
-      maskCtx.fillStyle = '#000000';
-      maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-      document.getElementById('inpaint-canvas-wrap').style.display = 'block';
-      document.getElementById('inpaint-placeholder').style.display = 'none';
-      document.getElementById('inpaint-result').style.display = 'none';
-
-      setupCanvasEvents();
-      toast('ছবি লোড হয়েছে — অনাকাঙ্ক্ষিত অংশের ওপর ব্রাশ করুন', 'ok');
-    };
-    inpaintImgObj.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function setupCanvasEvents() {
-  inpaintCanvas.onmousedown = e => { isDrawing = true; drawBrush(e); };
-  window.onmouseup = () => { isDrawing = false; };
-  inpaintCanvas.onmousemove = drawBrush;
-  
-  // Touch support for mobile
-  inpaintCanvas.ontouchstart = e => { isDrawing = true; drawBrush(e.touches[0]); };
-  window.ontouchend = () => { isDrawing = false; };
-  inpaintCanvas.ontouchmove = e => { drawBrush(e.touches[0]); };
-}
-
-function drawBrush(e) {
-  if (!isDrawing || !inpaintCtx) return;
-  const rect = inpaintCanvas.getBoundingClientRect();
-  const scaleX = inpaintCanvas.width / rect.width;
-  const scaleY = inpaintCanvas.height / rect.height;
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
-  const radius = document.getElementById('brush-size').value;
-
-  // Draw semi-transparent pink on visible canvas
-  inpaintCtx.beginPath();
-  inpaintCtx.arc(x, y, radius, 0, Math.PI * 2);
-  inpaintCtx.fillStyle = 'rgba(236, 72, 153, 0.6)';
-  inpaintCtx.fill();
-
-  // Draw white on mask canvas
-  maskCtx.beginPath();
-  maskCtx.arc(x, y, radius, 0, Math.PI * 2);
-  maskCtx.fillStyle = '#ffffff';
-  maskCtx.fill();
-}
-
-function clearInpaintMask() {
-  if (!inpaintImgObj) return;
-  inpaintCtx.drawImage(inpaintImgObj, 0, 0);
-  maskCtx.fillStyle = '#000000';
-  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-  document.getElementById('inpaint-result').style.display = 'none';
-  toast('ব্রাশ রিসেট করা হয়েছে', 'ok');
-}
-
-async function applyInpaint() {
-  if (!inpaintImgObj) { toast('আগে ছবি আপলোড করুন', 'warn'); return; }
-  toast('এআই ব্যাকগ্রাউন্ড ব্লেন্ড করে মুছে ফেলছে…', 'ok');
-
-  const fileInput = document.getElementById('inpaint-file');
-  const imgFile = fileInput.files[0];
-
-  maskCanvas.toBlob(async maskBlob => {
-    const fd = new FormData();
-    fd.append('image', imgFile);
-    fd.append('mask', maskBlob, 'mask.png');
-
-    try {
-      const res = await fetch('/api/inpaint', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('ইনপেইন্টিং ব্যর্থ');
-      const blob = await res.blob();
-      const resImg = document.getElementById('inpaint-result');
-      resImg.src = URL.createObjectURL(blob);
-      resImg.style.display = 'block';
-      toast('সফলভাবে মুছে ফেলা হয়েছে!', 'ok');
-    } catch(e) {
-      toast('ইরেজার ত্রুটি: ' + e.message, 'err');
-    }
-  }, 'image/png');
 }
 
 // ─ Drag and drop ─
 const dz = document.getElementById('dz');
-['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
-['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
-dz.addEventListener('drop', ev => {
-  ev.preventDefault();
-  const f = ev.dataTransfer.files;
-  if (f.length >= 2) {
-    addPairRow(f[0], f[1]);
-    toast('ড্র্যাগ করা পেয়ার যোগ হয়েছে!', 'ok');
-  } else {
-    toast('আগে ও পরের দুটি ছবি ড্রপ করুন', 'warn');
-  }
-});
+if (dz) {
+  ['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', ev => {
+    ev.preventDefault();
+    const f = ev.dataTransfer.files;
+    if (f.length >= 2) {
+      addPairRow(f[0], f[1]);
+      toast('ড্র্যাগ করা পেয়ার যোগ হয়েছে!', 'ok');
+    } else {
+      toast('আগে ও পরের দুটি ছবি ড্রপ করুন', 'warn');
+    }
+  });
+}
 
 // ─ Pair Rows ─
 function addPairRow(bfFile, afFile) {
