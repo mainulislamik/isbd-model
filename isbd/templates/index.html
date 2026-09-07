@@ -1532,73 +1532,55 @@ body {
 
 <script>
 
-// ── Pro Toast Notifications ──
-function showToast(message, type = "success") {
-  let container = document.getElementById("toast-container");
-  if (!container) {
-    container = document.createElement("div");
-    container.id = "toast-container";
-    document.body.appendChild(container);
-  }
-  const toast = document.createElement("div");
-  toast.className = `custom-toast ${type}`;
-  const icon = type === "success" ? "✅" : "⚠️";
-  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add("fade-out");
-    setTimeout(() => toast.remove(), 350);
-  }, 4000);
-}
+// ── Core History for Charts ──
+let coreHistories = {};
+let chartInstances = {};
+const MAX_HISTORY = 40; 
 
-document.addEventListener("DOMContentLoaded", () => {
-    // Add subtle hover effects to all buttons
-    document.querySelectorAll("button").forEach(b => {
-        b.addEventListener("mousedown", () => b.style.transform = "scale(0.97)");
-        b.addEventListener("mouseup", () => b.style.transform = "scale(1)");
-        b.addEventListener("mouseleave", () => b.style.transform = "scale(1)");
-    });
-});
+function initCoreChart(canvasId, coreIndex) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  
+  const gradient = ctx.createLinearGradient(0, 0, 0, 100);
+  gradient.addColorStop(0, 'rgba(17, 142, 233, 0.4)');
+  gradient.addColorStop(1, 'rgba(17, 142, 233, 0.05)');
 
-
-function appendTabTerminalLog(tabId, logText) {
-  const term = document.getElementById(`term-log-${tabId}`);
-  if (term && logText) {
-    term.textContent = logText;
-  }
-}
-
-// ─ Global Model State & Sync ─
-let CURRENT_GLOBAL_MODEL = 'isbd_v1';
-
-function syncAllModelSelectors(val) {
-  CURRENT_GLOBAL_MODEL = val;
-  document.querySelectorAll('.global-model-selector').forEach(sel => {
-    sel.value = val;
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: Array(MAX_HISTORY).fill(''),
+      datasets: [{
+        label: 'Core ' + coreIndex,
+        data: Array(MAX_HISTORY).fill(0),
+        borderColor: 'rgba(17, 142, 233, 1)',
+        borderWidth: 1.5,
+        backgroundColor: gradient,
+        fill: true,
+        pointRadius: 0,
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 0 },
+      scales: {
+        y: { 
+          min: 0, max: 100, 
+          display: true, 
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: { display: false }
+        },
+        x: { 
+          display: true, 
+          grid: { color: 'rgba(0,0,0,0.04)' } 
+        }
+      },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      layout: { padding: 0 }
+    }
   });
-  toast(`সক্রিয় এআই মডেল সুইচ হয়েছে: ${val}`, 'ok');
-
-  // If there is an active service image already uploaded, re-process with new model
-  if (typeof lastUploadedServiceFile !== 'undefined' && lastUploadedServiceFile) {
-    runStudioService(lastUploadedServiceFile);
-  }
 }
 
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.ws-btn').forEach(b => b.classList.remove('active'));
-  
-  const target = document.getElementById(tabId);
-  if (target) target.classList.add('active');
-  
-  const btn = document.querySelector('[data-tab="' + tabId + '"]');
-  if (btn) btn.classList.add('active');
-  
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-</script>
-
-<script>
 
 // ── Pro Toast Notifications ──
 function showToast(message, type = "success") {
