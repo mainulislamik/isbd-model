@@ -427,6 +427,82 @@ body {
 
 .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .param-field label { font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 5px; }
+
+/* ─ Modern CSS Upgrades ─ */
+.btn-main {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-main:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 16px -2px rgba(79, 70, 229, 0.6);
+}
+.btn-outline {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  transition: all 0.3s ease;
+}
+.btn-outline:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.ws-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.ws-btn:active { transform: scale(0.97); }
+
+.file-upload {
+  border: 2px dashed #cbd5e1;
+  background: #f8fafc;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.file-upload:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 9999;
+}
+.custom-toast {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  transform-origin: bottom;
+}
+.custom-toast.success { border-left: 5px solid #10b981; }
+.custom-toast.error { border-left: 5px solid #ef4444; }
+.custom-toast.fade-out { animation: fadeOutDown 0.35s forwards; }
+
+@keyframes slideInUp { from { opacity: 0; transform: translateY(30px) scale(0.90); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes fadeOutDown { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(30px) scale(0.95); } }
+
+/* ─ Glassmorphism Panels ─ */
+.panel-box, .cv-lab-banner {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
 </style>
 </head>
 
@@ -1379,6 +1455,36 @@ body {
 </div>
 
 <script>
+
+// ── Pro Toast Notifications ──
+function showToast(message, type = "success") {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = `custom-toast ${type}`;
+  const icon = type === "success" ? "✅" : "⚠️";
+  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("fade-out");
+    setTimeout(() => toast.remove(), 350);
+  }, 4000);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Add subtle hover effects to all buttons
+    document.querySelectorAll("button").forEach(b => {
+        b.addEventListener("mousedown", () => b.style.transform = "scale(0.97)");
+        b.addEventListener("mouseup", () => b.style.transform = "scale(1)");
+        b.addEventListener("mouseleave", () => b.style.transform = "scale(1)");
+    });
+});
+
+
 function appendTabTerminalLog(tabId, logText) {
   const term = document.getElementById(`term-log-${tabId}`);
   if (term && logText) {
@@ -1417,6 +1523,36 @@ function switchTab(tabId) {
 </script>
 
 <script>
+
+// ── Pro Toast Notifications ──
+function showToast(message, type = "success") {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = `custom-toast ${type}`;
+  const icon = type === "success" ? "✅" : "⚠️";
+  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("fade-out");
+    setTimeout(() => toast.remove(), 350);
+  }, 4000);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Add subtle hover effects to all buttons
+    document.querySelectorAll("button").forEach(b => {
+        b.addEventListener("mousedown", () => b.style.transform = "scale(0.97)");
+        b.addEventListener("mouseup", () => b.style.transform = "scale(1)");
+        b.addEventListener("mouseleave", () => b.style.transform = "scale(1)");
+    });
+});
+
+
 let lastUploadedDetFile = null;
 let lastUploadedCVFile = null;
 
@@ -2244,10 +2380,10 @@ async function toggleContinuousTraining() {
       statusEl.textContent = j.paused ? '⏸️ Paused' : '▶️ Active';
       statusEl.style.color = j.paused ? '#f59e0b' : '#059669';
     }
-    alert(j.message);
+    showToast(j.message, "success");
     await poll();
   } catch(e) {
-    alert('ত্রুটি: ' + e.message);
+    showToast('ত্রুটি: ' + e.message, 'error');
   } finally {
     _pauseToggleBusy = false;
   }
