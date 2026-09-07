@@ -24,38 +24,6 @@ BUILTIN_IMAGE_MODELS = [
         "type": "restoration",
         "badge": "24/7 Self-Trained",
         "vision_support": True
-    },
-    {
-        "id": "antigravity/gemini-3.7-flash-high",
-        "name": "Gemini 3.7 Flash High Vision",
-        "provider": "Antigravity (Free)",
-        "type": "vlm_vision",
-        "badge": "High Resolution",
-        "vision_support": True
-    },
-    {
-        "id": "antigravity/claude-sonnet-4-6-low",
-        "name": "Claude 3.7 / 3.5 Sonnet Vision",
-        "provider": "Antigravity (Free)",
-        "type": "vlm_vision",
-        "badge": "Pro Vision",
-        "vision_support": True
-    },
-    {
-        "id": "deepseek-v4-flash-vision-exp",
-        "name": "DeepSeek v4 Flash Vision",
-        "provider": "b.ai Free",
-        "type": "vlm_vision",
-        "badge": "Fast Vision",
-        "vision_support": True
-    },
-    {
-        "id": "omniroute/auto",
-        "name": "OmniRoute Keyless Vision Agent",
-        "provider": "OmniRoute LAN",
-        "type": "router",
-        "badge": "LAN Multi-Model",
-        "vision_support": True
     }
 ]
 
@@ -155,21 +123,5 @@ def save_hermes_provider_config(provider_name: str, base_url: str = None, api_ke
 def get_available_test_models():
     """Return all models ready for image restoration and vision editing."""
     models = list(BUILTIN_IMAGE_MODELS)
-    hermes_data = load_hermes_providers()
-    
-    # Add discovered vision models from custom providers
-    for prov in hermes_data.get("providers", []):
-        pname = prov["name"]
-        for m in prov.get("models", []):
-            if any(k in m.lower() for k in ["vision", "vl", "flash", "gemini", "claude", "qwen", "hy3", "auto"]):
-                # Avoid duplicates
-                if not any(x["id"] == f"{pname}:{m}" for x in models):
-                    models.append({
-                        "id": f"{pname}:{m}",
-                        "name": f"{m} ({pname})",
-                        "provider": pname,
-                        "type": "hermes_bridge",
-                        "badge": "Hermes Connected",
-                        "vision_support": True
-                    })
+    # the user requested to remove all other models and keep only ISBD.
     return models
