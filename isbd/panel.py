@@ -858,7 +858,8 @@ def _get_system_telemetry():
     
     # Needs to be called twice with a small delay for accuracy, 
     # but since this API is polled every 3s, interval=None returns usage since last call (perfect!)
-    cpu_usage = psutil.cpu_percent(interval=None)
+    cpu_cores = psutil.cpu_percent(interval=None, percpu=True)
+    cpu_usage = sum(cpu_cores) / len(cpu_cores) if cpu_cores else 0.0
     
     ram = psutil.virtual_memory()
     ram_usage = ram.percent
@@ -895,6 +896,7 @@ def _get_system_telemetry():
     
     return {
         "cpu_percent": round(cpu_usage, 1),
+        "cpu_cores": [round(c, 1) for c in cpu_cores],
         "ram_percent": round(ram_usage, 1),
         "disk_percent": round(disk_usage, 1),
         "cpu_temp": round(cpu_temp, 1),

@@ -689,7 +689,25 @@ body {
     </div>
 
   </div>
+
+  <div style="margin-top: 14px; border-top: 1px dashed #cbd5e1; padding-top: 14px;">
+    <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Live Core Usage</div>
+    <div id="cpu-cores-container" style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <!-- Cores will be injected here -->
+      <span style="font-size:12px; color:#94a3b8;">Waiting for metrics...</span>
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; border-top: 1px dashed #cbd5e1; padding-top: 14px;">
+    <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Live Core Usage</div>
+    <div id="cpu-cores-container" style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <!-- Cores will be injected here -->
+      <span style="font-size:12px; color:#94a3b8;">Waiting for metrics...</span>
+    </div>
+  </div>
 </div>
+
+
 
       <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 24px;">
         <div class="panel-box">
@@ -2407,11 +2425,60 @@ async function poll() {
       const disk = document.getElementById('hw-disk');
       const net = document.getElementById('hw-net');
 
+
+
       if (ecpu) ecpu.textContent = hw.cpu_percent + '%';
       if (heat) heat.textContent = hw.cpu_temp + '°C';
       if (ram) ram.textContent = hw.ram_percent + '%';
       if (disk) disk.textContent = hw.disk_percent + '%';
       if (net) net.textContent = hw.net_up_kbps + ' ↑ ' + hw.net_down_kbps + ' ↓';
+      
+      const coresContainer = document.getElementById('cpu-cores-container');
+      if (coresContainer && hw.cpu_cores) {
+         coresContainer.innerHTML = '';
+         hw.cpu_cores.forEach((coreUsage, index) => {
+            let bgColor = '#f1f5f9';
+            let textColor = '#475569';
+            let barColor = '#cbd5e1';
+            
+            if (coreUsage > 85) { bgColor = '#fef2f2'; textColor = '#b91c1c'; barColor = '#ef4444'; }
+            else if (coreUsage > 60) { bgColor = '#fffbeb'; textColor = '#b45309'; barColor = '#f59e0b'; }
+            else if (coreUsage > 30) { bgColor = '#f0fdf4'; textColor = '#15803d'; barColor = '#22c55e'; }
+            else if (coreUsage > 5) { bgColor = '#eff6ff'; textColor = '#1d4ed8'; barColor = '#3b82f6'; }
+            
+            const coreHtml = `
+              <div style="background: ${bgColor}; border: 1px solid ${barColor}; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700; color: ${textColor}; flex: 1; min-width: 60px; text-align: center; font-family: 'JetBrains Mono', monospace;">
+                Core ${index}
+                <div style="font-size: 12.5px; margin-top: 2px;">${coreUsage.toFixed(1)}%</div>
+                <div style="height: 4px; width: 100%; background: rgba(0,0,0,0.06); border-radius: 4px; margin-top: 6px; overflow: hidden;">
+                  <div style="height: 100%; width: ${coreUsage}%; background: ${barColor}; transition: all 0.3s ease;"></div>
+                </div>
+              </div>
+            `;
+            coresContainer.insertAdjacentHTML('beforeend', coreHtml);
+         });
+      }
+
+      
+      const coresContainer = document.getElementById('cpu-cores-container');
+      if (coresContainer && hw.cpu_cores) {
+         coresContainer.innerHTML = '';
+         hw.cpu_cores.forEach((coreUsage, index) => {
+            // color coded based on load
+            let bgColor = '#f1f5f9';
+            let textColor = '#475569';
+            let barColor = '#cbd5e1';
+            
+            if (coreUsage > 85) { bgColor = '#fef2f2'; textColor = '#b91c1c'; barColor = '#ef4444'; }
+            else if (coreUsage > 60) { bgColor = '#fffbeb'; textColor = '#b45309'; barColor = '#f59e0b'; }
+            else if (coreUsage > 30) { bgColor = '#f0fdf4'; textColor = '#15803d'; barColor = '#22c55e'; }
+            else if (coreUsage > 5) { bgColor = '#eff6ff'; textColor = '#1d4ed8'; barColor = '#3b82f6'; }
+            
+            const coreHtml = ;
+            coresContainer.insertAdjacentHTML('beforeend', coreHtml);
+         });
+      }
+
     }
 
 
