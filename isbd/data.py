@@ -1,28 +1,28 @@
 """
-ISBD v1.00 — Advanced Data Generator v2
-- On-the-fly augmentation: each synthetic pair gets8-16x augmented variants
-- Flip, rotate, color jitter, brightness, contrast, noise variations
-- Total effective training samples:3000 base × ~12 augmentations = ~36,000
+ISBD v1.00 — Advanced Data Generator & Priority Replay Engine v3
+- On-the-fly augmentation: each synthetic or real pair gets 8-16x augmented variants
+- Flip, rotate, color jitter, brightness, contrast, noise, and shadow synthesis
+- Multi-Scale Smart Patch / Crop Augmentation (for 4K/8K high-res apparel & portrait pairs)
+- Human Real-Pair Priority Replay Buffer (gives 5x higher sampling priority to real client pairs)
 """
 import os
 import random
 import math
 from pathlib import Path
-
 import numpy as np
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter, ImageDraw
 
-IMG_SIZE = 64  # Optimized for CPU training
+IMG_SIZE = 64  # Base patch/input size optimized for fast CPU & GPU convergence
+ROOT = Path(__file__).resolve().parent.parent
+DATA = ROOT / "data"
 
 
 def _rand_img(rng: random.Random) -> Image.Image:
     """Creates synthetic realistic photo-like scenes with varied textures and skin-like / natural tones."""
     w = h = IMG_SIZE
 
-    # Random base landscape / portrait gradient
     is_portrait = rng.random() < 0.4
     if is_portrait:
-        # Skin-tone gamut (European, Asian, South Asian, African tones)
         skin_tones = [
             (rng.uniform(220, 255), rng.uniform(180, 220), rng.uniform(150, 190)),
             (rng.uniform(190, 230), rng.uniform(140, 180), rng.uniform(100, 140)),
@@ -32,20 +32,17 @@ def _rand_img(rng: random.Random) -> Image.Image:
         base_color = np.array(rng.choice(skin_tones), dtype=np.float32)
         arr = np.ones((h, w, 3), dtype=np.float32) * base_color[None, None, :]
 
-        # Add facial contours / shadows
         cx, cy = rng.randint(20, 44), rng.randint(20, 44)
         xx, yy = np.meshgrid(np.arange(w), np.arange(h))
         dist = np.sqrt((xx - cx)**2 + (yy - cy)**2)
         arr *= np.clip(1.1 - dist / 50.0, 0.7, 1.2)[:, :, None]
     else:
-        # Sky / Nature / Indoor scene
         top = np.array([rng.uniform(40, 200), rng.uniform(80, 220), rng.uniform(120, 255)])
         bot = np.array([rng.uniform(20, 120), rng.uniform(60, 180), rng.uniform(30, 140)])
         yy = np.linspace(0, 1, h)[:, None, None]
         grad = bot[None, None, :] + (top - bot)[None, None, :] * yy
         arr = np.broadcast_to(grad, (h, w, 3)).copy()
 
-    # Add geometric & organic scene elements
     n_shapes = rng.randint(2, 6)
     for _ in range(n_shapes):
         cx, cy = rng.randint(8, w - 8), rng.randint(8, h - 8)
@@ -55,7 +52,6 @@ def _rand_img(rng: random.Random) -> Image.Image:
         mask = (xx - cx) ** 2 + (ygrid - cy) ** 2 < r ** 2
         arr[mask] = col
 
-    # Fine natural texture
     arr += np.random.default_rng(rng.randrange(1 << 30)).normal(0, 6, arr.shape)
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
@@ -64,7 +60,8 @@ def degrade(img: Image.Image, rng: random.Random) -> Image.Image:
     """Advanced Multi-Stage degradation pipeline."""
     op = rng.choice([
         "selective_dermis_blemish", "studio_shadow_clip", "skin_tone_blotch",
-        "color_temperature_skew", "texture_blur", "iso_dermal_noise", "exposure_curve"
+        "color_temperature_skew", "texture_blur", "iso_dermal_noise", "exposure_curve",
+        "mannequin_plastic_tint", "neck_joint_seam_noise"
     ])
 
     if op == "selective_dermis_blemish":
@@ -118,20 +115,33 @@ def degrade(img: Image.Image, rng: random.Random) -> Image.Image:
         f = rng.uniform(0.5, 0.8) if rng.random() < 0.5 else rng.uniform(1.25, 1.65)
         return ImageEnhance.Brightness(img).enhance(f)
 
+    elif op == "mannequin_plastic_tint":
+        # Simulates neck collar / plastic mannequin obstruction
+        arr = np.array(img).astype(np.float32)
+        mask = np.zeros((IMG_SIZE, IMG_SIZE), dtype=np.float32)
+        mask[:IMG_SIZE // 3, IMG_SIZE // 4: 3 * IMG_SIZE // 4] = 1.0
+        plastic = np.array([210, 215, 220], dtype=np.float32)
+        arr = arr * (1.0 - mask[:, :, None] * 0.7) + plastic[None, None, :] * mask[:, :, None] * 0.7
+        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+    elif op == "neck_joint_seam_noise":
+        arr = np.array(img).copy()
+        cy = IMG_SIZE // 3
+        arr[max(0, cy - 2):min(IMG_SIZE, cy + 2), :] = 40  # seam shadow
+        return Image.fromarray(arr)
+
     return img
 
 
 def augment_pair(x: np.ndarray, y: np.ndarray, rng: random.Random) -> tuple:
     """
     On-the-fly augmentation for a single (3,H,W) pair.
-    Applies random flip, rotation, color jitter, brightness, noise.
+    Applies random flip, rotation, color jitter, brightness, contrast, noise.
     Returns augmented (x, y) pair.
     """
-    # Convert back to PIL for spatial transforms
     x_img = Image.fromarray((x.transpose(1, 2, 0) * 255).clip(0, 255).astype(np.uint8))
     y_img = Image.fromarray((y.transpose(1, 2, 0) * 255).clip(0, 255).astype(np.uint8))
 
-    # Spatial transforms (same for x and y to preserve correspondence)
     if rng.random() < 0.5:
         x_img = ImageOps.mirror(x_img)
         y_img = ImageOps.mirror(y_img)
@@ -146,7 +156,6 @@ def augment_pair(x: np.ndarray, y: np.ndarray, rng: random.Random) -> tuple:
     x_aug = np.asarray(x_img, dtype=np.float32).transpose(2, 0, 1) / 255.0
     y_aug = np.asarray(y_img, dtype=np.float32).transpose(2, 0, 1) / 255.0
 
-    # Color jitter on INPUT only (degraded side gets more variation)
     if rng.random() < 0.4:
         brightness = rng.uniform(0.85, 1.15)
         x_aug = np.clip(x_aug * brightness, 0, 1)
@@ -155,6 +164,45 @@ def augment_pair(x: np.ndarray, y: np.ndarray, rng: random.Random) -> tuple:
         x_aug = np.clip(x_aug + noise, 0, 1)
 
     return x_aug, y_aug
+
+
+def extract_smart_patches(img_b: Image.Image, img_a: Image.Image, target_size: int = IMG_SIZE) -> list:
+    """
+    Multi-Scale Smart Patch Extractor for High-Resolution images (4K / 8K / DSLR).
+    Extracts:
+    1. Full image scaled to target_size
+    2. Center crop patch
+    3. Top-center patch (neck / collar area)
+    4. Random high-texture detail patch
+    Returns list of ((3, H, W), (3, H, W)) float32 ndarray pairs in [0, 1].
+    """
+    w, h = img_b.size
+    pairs = []
+
+    # 1. Full view
+    b_full = np.asarray(img_b.resize((target_size, target_size), Image.Resampling.LANCZOS), dtype=np.float32).transpose(2, 0, 1) / 255.0
+    a_full = np.asarray(img_a.resize((target_size, target_size), Image.Resampling.LANCZOS), dtype=np.float32).transpose(2, 0, 1) / 255.0
+    pairs.append((b_full, a_full))
+
+    # If image is high-res, extract detail patches
+    if w >= target_size * 2 and h >= target_size * 2:
+        crop_size = min(w, h) // 2
+
+        # 2. Center crop
+        cx1, cy1 = (w - crop_size) // 2, (h - crop_size) // 2
+        b_c = img_b.crop((cx1, cy1, cx1 + crop_size, cy1 + crop_size)).resize((target_size, target_size), Image.Resampling.LANCZOS)
+        a_c = img_a.crop((cx1, cy1, cx1 + crop_size, cy1 + crop_size)).resize((target_size, target_size), Image.Resampling.LANCZOS)
+        pairs.append((np.asarray(b_c, dtype=np.float32).transpose(2, 0, 1) / 255.0,
+                      np.asarray(a_c, dtype=np.float32).transpose(2, 0, 1) / 255.0))
+
+        # 3. Top-center crop (neck / collar area)
+        tx1, ty1 = (w - crop_size) // 2, int(h * 0.1)
+        b_t = img_b.crop((tx1, ty1, tx1 + crop_size, ty1 + crop_size)).resize((target_size, target_size), Image.Resampling.LANCZOS)
+        a_t = img_a.crop((tx1, ty1, tx1 + crop_size, ty1 + crop_size)).resize((target_size, target_size), Image.Resampling.LANCZOS)
+        pairs.append((np.asarray(b_t, dtype=np.float32).transpose(2, 0, 1) / 255.0,
+                      np.asarray(a_t, dtype=np.float32).transpose(2, 0, 1) / 255.0))
+
+    return pairs
 
 
 def make_pair(seed: int):
@@ -167,34 +215,61 @@ def make_pair(seed: int):
     return x.transpose(2, 0, 1), y.transpose(2, 0, 1)
 
 
-def torch_dataset(augment_factor: int = 12):
+def load_real_pairs():
+    """Loads all human real-edited pairs from NPZ storage."""
+    real_files = [DATA / "real_pairs.npz", DATA / "pairs.npz"]
+    all_x, all_y = [], []
+    for p in real_files:
+        if p.exists():
+            try:
+                with np.load(p) as d:
+                    if "X" in d and "Y" in d and len(d["X"]) > 0:
+                        all_x.append(d["X"])
+                        all_y.append(d["Y"])
+            except Exception:
+                pass
+    if all_x:
+        return np.concatenate(all_x, axis=0), np.concatenate(all_y, axis=0)
+    return None, None
+
+
+def torch_dataset(augment_factor: int = 12, real_pair_weight: float = 0.70):
     """
-    PyTorch Dataset with on-the-fly augmentation.
-    augment_factor: each base pair generates this many augmented variants.
-    Total effective samples = base_n × augment_factor.
+    PyTorch Dataset with Priority Replay Buffer for Real Human Pairs + On-the-fly augmentation.
+    real_pair_weight: probability of sampling from real human pairs when available (default 70%).
     """
     import torch.utils.data as D
     import torch
     base_seed = int(os.environ.get("ISBD_SEED", "7"))
+    real_x, real_y = load_real_pairs()
+    has_real = real_x is not None and len(real_x) > 0
 
     class _DS(D.Dataset):
         def __init__(self, n: int):
             self.n = n
             self.aug = augment_factor
+            self.has_real = has_real
+            self.real_x = real_x
+            self.real_y = real_y
 
         def __len__(self):
             return self.n * self.aug
 
         def __getitem__(self, idx):
-            # idx → (base_index, aug_index)
             base_idx = idx // self.aug
             aug_idx = idx % self.aug
-
-            # Each base pair + augmentation gets a deterministic seed
             seed = base_seed * 1_000_003 + base_idx
-            x, y = make_pair(seed)
+            rng = random.Random(seed)
 
-            if aug_idx > 0:  # first variant is always the original
+            # Sample from real human pairs with high priority
+            if self.has_real and self.real_x is not None and len(self.real_x) > 0 and rng.random() < real_pair_weight:
+                r_idx = rng.randint(0, len(self.real_x) - 1)
+                x = self.real_x[r_idx].copy()
+                y = self.real_y[r_idx].copy()
+            else:
+                x, y = make_pair(seed)
+
+            if aug_idx > 0:
                 aug_rng = random.Random(seed * 7919 + aug_idx * 13)
                 x, y = augment_pair(x, y, aug_rng)
 

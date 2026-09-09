@@ -424,6 +424,118 @@ async def real_pair_log_api(limit: int = Query(20)):
     }
 
 
+@app.post("/api/bulk-pairs")
+async def bulk_pairs_api(
+    zip_file: UploadFile = File(...),
+    label: str = Query("bulk_dataset", description="ট্যাগ / লেবেল"),
+    augment: int = Query(8, ge=1, le=16),
+):
+    """
+    Bulk ZIP Pair Ingestion API for Batch AI Training.
+    Extracts matching before/after pairs from ZIP archives and adds them to Priority Training Pool.
+    Supports:
+    - Subfolder matching: 'before/xxx.jpg' and 'after/xxx.jpg'
+    - Suffix matching: 'xxx_before.jpg' and 'xxx_after.jpg' / 'xxx_raw.png' and 'xxx_edit.png'
+    """
+    import zipfile
+    import re
+    from isbd.self_learner import learn_from_real_pair, _trigger_micro_finetune
+
+    raw_zip = await zip_file.read()
+    if not raw_zip:
+        raise HTTPException(400, "জিপ ফাইলটি খালি")
+    if len(raw_zip) > 100 * 1024 * 1024:  # 100MB
+        raise HTTPException(413, "জিপ ফাইল 100MB-এর বেশি হতে পারবে না")
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw_zip))
+    except Exception as e:
+        raise HTTPException(400, f"অবৈধ জিপ ফাইল: {str(e)}")
+
+    namelist = [n for n in zf.namelist() if not n.startswith("__MACOSX/") and not n.endswith("/")]
+    image_exts = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff')
+    img_files = [n for n in namelist if n.lower().endswith(image_exts)]
+
+    # Pair discovery strategy
+    pairs = []  # list of (before_name, after_name)
+
+    # Strategy 1: Subfolders 'before/' and 'after/'
+    before_folder = [n for n in img_files if n.lower().startswith("before/") or "/before/" in n.lower()]
+    after_folder = [n for n in img_files if n.lower().startswith("after/") or "/after/" in n.lower()]
+    if before_folder and after_folder:
+        after_map = {Path(n).name.lower(): n for n in after_folder}
+        for b_path in before_folder:
+            b_name = Path(b_path).name.lower()
+            if b_name in after_map:
+                pairs.append((b_path, after_map[b_name]))
+
+    # Strategy 2: Suffix matching (_before / _after, _b / _a, _raw / _edit)
+    if not pairs:
+        stem_map = {}
+        for f in img_files:
+            p = Path(f)
+            stem = p.stem.lower()
+            base_key = re.sub(r'(_before|_after|_raw|_edit|_edited|_b|_a|-before|-after|-b|-a)$', '', stem)
+            if base_key not in stem_map:
+                stem_map[base_key] = {}
+            if any(s in stem for s in ['before', 'raw', '_b', '-b']):
+                stem_map[base_key]['before'] = f
+            elif any(s in stem for s in ['after', 'edit', 'edited', '_a', '-a']):
+                stem_map[base_key]['after'] = f
+
+        for k, v in stem_map.items():
+            if 'before' in v and 'after' in v:
+                pairs.append((v['before'], v['after']))
+
+    # Strategy 3: Alphabetical sequential pair fallback
+    if not pairs and len(img_files) >= 2 and len(img_files) % 2 == 0:
+        sorted_files = sorted(img_files)
+        for i in range(0, len(sorted_files), 2):
+            pairs.append((sorted_files[i], sorted_files[i+1]))
+
+    if not pairs:
+        raise HTTPException(400, f"জিপ ফাইলে কোনো Before/After পেয়ার মেলানো যায়নি (মোট {len(img_files)}টি ছবি পাওয়া গেছে)। ফাইলের নামের শেষে _before ও _after লিখুন অথবা before/ ও after/ ফোল্ডারে রাখুন।")
+
+    added_count = 0
+    total_aug = 0
+    errors = []
+
+    for b_file, a_file in pairs:
+        try:
+            b_bytes = zf.read(b_file)
+            a_bytes = zf.read(a_file)
+            img_b = Image.open(io.BytesIO(b_bytes)).convert("RGB")
+            img_a = Image.open(io.BytesIO(a_bytes)).convert("RGB")
+            res = learn_from_real_pair(
+                before_pil=img_b,
+                after_pil=img_a,
+                label=label,
+                augment=augment,
+                trigger_finetune=False
+            )
+            added_count += 1
+            total_aug += res.get("augmented", augment)
+        except Exception as e:
+            errors.append(f"{Path(b_file).name}: {str(e)}")
+
+    # Trigger single fine-tune for entire batch
+    ft_pid = None
+    if added_count > 0:
+        try:
+            ft_pid = _trigger_micro_finetune(steps=min(600, max(200, added_count * 20)), lr=5e-5)
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "message": f"✅ সফলভাবে {added_count} জোড়া ({total_aug}টি অগমেন্টেড স্যাম্পল) ডেটাসেটে যুক্ত হয়েছে এবং ব্যাচ ফাইন-টিউন শুরু হয়েছে!",
+        "pairs_added": added_count,
+        "total_augmented": total_aug,
+        "finetune_pid": ft_pid,
+        "errors": errors
+    }
+
+
 @app.get("/api/training/toggle")
 async def toggle_training_api(action: str = Query(..., pattern="^(start|stop|status)$")):
     """Start, stop or check status of the 24/7 autonomous continuous training service."""

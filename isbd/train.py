@@ -23,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from isbd.model import SmallUNet, TinyUNet, param_count
 from isbd.data import torch_dataset, IMG_SIZE
 from isbd.thermal_guard import auto_cool_if_needed, get_cpu_temp
+from isbd.loss import ISBDProLoss
+from isbd.export import export_all_formats
 
 ROOT = Path(__file__).resolve().parent.parent
 CKPT = ROOT / "checkpoints"
@@ -174,6 +176,7 @@ def main():
     t0 = time.time()
     running = []
     accum_count = 0
+    criterion = ISBDProLoss(ssim_weight=0.25, edge_weight=0.20, mse_weight=0.05)
 
     opt.zero_grad(set_to_none=True)
 
@@ -182,7 +185,7 @@ def main():
             if step >= start_step + args.steps:
                 break
             pred = model(x)
-            loss = nn.functional.l1_loss(pred, y) + 0.1 * nn.functional.mse_loss(pred, y)
+            loss = criterion(pred, y)
 
             # Gradient accumulation: scale loss by accumulation steps
             loss_scaled = loss / args.accum_steps
@@ -236,6 +239,10 @@ def main():
                     best = loss.item()
                     torch.save({"model": model.state_dict(), "step": step,
                                 "model_type": args.model}, CKPT / "best.pt")
+                    try:
+                        export_all_formats(model, step)
+                    except Exception as e:
+                        print(f"[export] auto-export skipped: {e}", flush=True)
         if step >= start_step + args.steps:
             break
 

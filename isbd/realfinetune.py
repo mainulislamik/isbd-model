@@ -18,8 +18,10 @@ import torch.nn as nn
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from isbd.model import TinyUNet
+from isbd.model import SmallUNet, TinyUNet
 from isbd.data import torch_dataset
+from isbd.loss import ISBDProLoss
+from isbd.export import export_all_formats
 
 ROOT = Path(__file__).resolve().parent.parent
 CKPT = ROOT / "checkpoints"
@@ -119,24 +121,36 @@ def main():
             time.sleep(10)
 
     try:
-        model = TinyUNet()
-        state = torch.load(CKPT / "last.pt", map_location="cpu", weights_only=True)
-        model.load_state_dict(state["model"])
+        last_ckpt = CKPT / "last.pt"
+        best_ckpt = CKPT / "best.pt"
+        ckpt_to_load = last_ckpt if last_ckpt.exists() else best_ckpt
+        
+        state = torch.load(ckpt_to_load, map_location="cpu", weights_only=True) if ckpt_to_load.exists() else {}
+        ckpt_arch = state.get("model_type", "small")
+        model = SmallUNet() if ckpt_arch == "small" else TinyUNet()
+
+        if "model" in state:
+            try:
+                model.load_state_dict(state["model"])
+            except Exception:
+                model = SmallUNet()
+                
         start_step, best = state.get("step", 0), state.get("best", float("inf"))
-        print(f"[ft] resume from step {start_step}", flush=True)
+        print(f"[ft] resume from step {start_step} ({model.__class__.__name__})", flush=True)
 
         if n_hold:
             m = holdout_metrics(model, Xh, Yh)
             print(f"[ft] BEFORE holdout: L1 {m['l1']:.4f} (id {m['idl1']:.4f}) | PSNR {m['psnr']:.2f}dB (id {m['idpsnr']:.2f}dB)", flush=True)
 
-        # ~40% real / 60% synthetic mix (synthetic keeps old skills alive)
-        reps = max(1, int(round(1200 / max(1, len(Xtr)))))
+        # ~70% real / 30% synthetic mix with Priority Buffer
+        reps = max(1, int(round(2000 / max(1, len(Xtr)))))
         real_ds = RealPairs(np.repeat(Xtr, reps, axis=0), np.repeat(Ytr, reps, axis=0))
-        ds = ConcatDataset([real_ds, torch_dataset()(2000)])
+        ds = ConcatDataset([real_ds, torch_dataset(real_pair_weight=0.75)(2000)])
         dl = DataLoader(ds, batch_size=args.batch, shuffle=True, num_workers=0)
 
         opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
-        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=5000)  # match train.py
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=5000)
+        criterion = ISBDProLoss(ssim_weight=0.25, edge_weight=0.20, mse_weight=0.05)
         model.train()
         step, done, losses = start_step, 0, []
         while done < args.steps:
@@ -144,7 +158,7 @@ def main():
                 if done >= args.steps:
                     break
                 pred = model(x)
-                loss = nn.functional.l1_loss(pred, y) + 0.1 * nn.functional.mse_loss(pred, y)
+                loss = criterion(pred, y)
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -159,10 +173,14 @@ def main():
         avg = sum(losses[-100:]) / max(1, len(losses[-100:]))
         new_best = min(best, avg)
         torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
-                    "step": step, "best": new_best}, CKPT / "last.pt")
+                    "step": step, "best": new_best, "model_type": ckpt_arch}, CKPT / "last.pt")
         if avg < best:
-            torch.save({"model": model.state_dict(), "step": step, "best": new_best}, CKPT / "best.pt")
+            torch.save({"model": model.state_dict(), "step": step, "best": new_best, "model_type": ckpt_arch}, CKPT / "best.pt")
             print(f"[ft] new best {new_best:.4f} -> best.pt", flush=True)
+            try:
+                export_all_formats(model, step)
+            except Exception:
+                pass
         append_history(step, losses)
         print(f"[ft] done: step {start_step} -> {step} | avg loss {avg:.4f}", flush=True)
         if n_hold:

@@ -770,6 +770,18 @@ body {
       <!-- Left: Controls -->
       <div class="det-controls" style="gap:12px;">
 
+        <!-- Upload Mode Switcher -->
+        <div style="display:flex; gap:8px; margin-bottom:4px;">
+          <button type="button" id="btn-mode-single" onclick="toggleSchoolMode('single')" class="btn btn-main" style="flex:1; padding:7px; font-size:12px; background:linear-gradient(135deg, #10b981, #059669);">
+            🖼️ সিঙ্গেল পেয়ার (Single Pair)
+          </button>
+          <button type="button" id="btn-mode-bulk" onclick="toggleSchoolMode('bulk')" class="btn" style="flex:1; padding:7px; font-size:12px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">
+            📦 বাল্ক জিপ আপলোড (Bulk ZIP Archive - ৫০-২০০+ ছবি)
+          </button>
+        </div>
+
+        <!-- Mode 1: Single Pair Upload Container -->
+        <div id="school-single-container">
         <!-- Before / After upload -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
@@ -843,8 +855,27 @@ body {
           <span style="font-size:10px; color:var(--tx-muted);">কপি/পেয়ার</span>
         </div>
 
-        <!-- Submit button -->
-        <button class="btn btn-main" style="width:100%; background:linear-gradient(135deg,#10b981,#6366f1); font-size:13px; padding:10px;"
+        </div> <!-- End school-single-container -->
+
+        <!-- Mode 2: Bulk ZIP Upload Container -->
+        <div id="school-bulk-container" style="display:none; background:#f8fafc; border:1.5px dashed #0284c7; border-radius:var(--radius-sm); padding:16px; text-align:center;">
+          <div style="font-size:32px; margin-bottom:6px;">📦</div>
+          <div style="font-size:13px; font-weight:700; color:#0369a1; margin-bottom:4px;">৫০-২০০+ ছবির Before/After জিপ ফাইল (ZIP) আপলোড করুন</div>
+          <div style="font-size:11px; color:var(--tx-muted); margin-bottom:12px;">
+            ফাইলের নাম: <code>photo_before.jpg</code> ও <code>photo_after.jpg</code> অথবা <code>before/</code> ও <code>after/</code> সাবফোল্ডারে রাখুন
+          </div>
+          <input type="file" id="school-bulk-zip" accept=".zip" style="display:none" onchange="document.getElementById('bulk-zip-name').textContent = this.files[0] ? '📁 ' + this.files[0].name + ' (' + (this.files[0].size/(1024*1024)).toFixed(1) + 'MB)' : ''">
+          <button type="button" onclick="document.getElementById('school-bulk-zip').click()" class="btn" style="background:#0284c7; color:#fff; font-size:12px; padding:8px 16px; margin-bottom:8px;">
+            📁 জিপ ফাইল সিলেক্ট করুন (.ZIP)
+          </button>
+          <div id="bulk-zip-name" style="font-size:11.5px; font-weight:700; color:#059669; min-height:18px; margin-bottom:6px;"></div>
+          <button type="button" class="btn btn-main" style="width:100%; background:linear-gradient(135deg,#0284c7,#6366f1); font-size:13px; padding:10px;" onclick="submitBulkZip()">
+            🚀 জিপ থেকে সব ছবি একসাথে এআই-কে শেখাও (Ingest All)
+          </button>
+        </div>
+
+        <!-- Submit button (Single) -->
+        <button id="btn-submit-single" class="btn btn-main" style="width:100%; background:linear-gradient(135deg,#10b981,#6366f1); font-size:13px; padding:10px;"
                 onclick="submitSchoolPair()">
           🎓 AI-কে এই এডিটিং শেখাও (Learn Now!)
         </button>
@@ -2607,6 +2638,56 @@ async function toggleContinuousTraining() {
 setInterval(poll, 3000);
 poll();
 addPairRow();
+
+function toggleSchoolMode(mode) {
+  const isBulk = mode === 'bulk';
+  document.getElementById('school-single-container').style.display = isBulk ? 'none' : 'block';
+  document.getElementById('btn-submit-single').style.display = isBulk ? 'none' : 'block';
+  document.getElementById('school-bulk-container').style.display = isBulk ? 'block' : 'none';
+  
+  document.getElementById('btn-mode-single').style.background = isBulk ? '#f1f5f9' : 'linear-gradient(135deg, #10b981, #059669)';
+  document.getElementById('btn-mode-single').style.color = isBulk ? '#475569' : '#fff';
+  document.getElementById('btn-mode-bulk').style.background = isBulk ? 'linear-gradient(135deg, #0284c7, #4f46e5)' : '#f1f5f9';
+  document.getElementById('btn-mode-bulk').style.color = isBulk ? '#fff' : '#475569';
+}
+
+async function submitBulkZip() {
+  const zipInput = document.getElementById('school-bulk-zip');
+  if (!zipInput.files || !zipInput.files[0]) {
+    toast('দয়া করে একটি .ZIP ফাইল সিলেক্ট করুন!', 'warn');
+    return;
+  }
+  const file = zipInput.files[0];
+  const label = document.getElementById('school-label').value;
+  const augment = document.getElementById('school-aug').value;
+  const statusEl = document.getElementById('school-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<span style="color:#0284c7;">⏳ বাল্ক জিপ প্রসেস হচ্ছে — সব পেয়ার আনপ্যাক ও এআই ট্রেইনিং পুলে যুক্ত হচ্ছে…</span>';
+
+  const fd = new FormData();
+  fd.append('zip_file', file);
+
+  try {
+    const q = new URLSearchParams({ label: label, augment: augment });
+    const res = await fetch(`/api/bulk-pairs?${q.toString()}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'বাল্ক আপলোড ব্যর্থ');
+
+    statusEl.innerHTML = `
+      <div style="color:#059669; font-weight:700; margin-bottom:6px;">${data.message}</div>
+      <div style="color:var(--tx-muted); font-size:11.5px;">
+        📦 যুক্ত হয়েছে: <strong style="color:#0284c7;">${data.pairs_added} জোড়া</strong> &nbsp;|&nbsp;
+        ✨ অগমেন্টেড: <strong style="color:#0284c7;">${data.total_augmented}টি স্যাম্পল</strong> &nbsp;|&nbsp;
+        ⚡ ব্যাচ ফাইন-টিউন PID: <strong style="color:#d97706;">${data.finetune_pid || 'Active'}</strong>
+      </div>`;
+    toast(`🎉 ${data.pairs_added} জোড়া ছবি সফলভাবে ট্রেইনিংয়ে যুক্ত হয়েছে!`, 'ok');
+    loadSchoolLog();
+  } catch(e) {
+    statusEl.innerHTML = `<span style="color:#dc2626;">❌ ত্রুটি: ${e.message}</span>`;
+    toast('বাল্ক আপলোড ফেইল্ড: ' + e.message, 'err');
+  }
+}
+
 </script>
 </body>
 </html>
