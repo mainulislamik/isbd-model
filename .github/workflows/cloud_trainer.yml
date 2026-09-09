@@ -8,9 +8,9 @@ on:
     # Manual trigger
     inputs:
       steps:
-        description: 'Number of steps to train'
+        description: 'Number of steps per training round'
         required: true
-        default: '3000'
+        default: '1500'
 
 jobs:
   train-model:
@@ -35,14 +35,17 @@ jobs:
 
       - name: 🚀 Run AI Continuous Training
         run: |
-          STEPS=${{ github.event.inputs.steps || '3000' }}
-          echo "Starting training for $STEPS steps on GitHub Cloud Runner (2 Cores, 7GB RAM)..."
-          python isbd/continuous.py --round-steps $STEPS --batch 32 --accum-steps 2 --model small
+          STEPS=${{ github.event.inputs.steps || '1500' }}
+          echo "Starting training for $STEPS steps per round on GitHub Cloud Runner (2 Cores, 7GB RAM)..."
+          # Use smaller round-steps to complete within 6-hour GitHub limit
+          # continuous.py will auto-commit & push after each round
+          python isbd/continuous.py --round-steps $STEPS --batch 32 --accum-steps 2 --model small --max-restarts 3
 
-      - name: 💾 Commit & Push Trained Checkpoints
+      - name: 💾 Final Commit & Push Trained Checkpoints
+        if: always()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add checkpoints/ data/ samples/
-          git commit -m "🤖 cloud: Cloud AI Trainer completed $STEPS steps [skip ci]" || echo "No changes to commit"
+          git commit -m "🤖 cloud: Cloud AI Trainer completed ${{ github.event.inputs.steps || '1500' }} steps/round [skip ci]" || echo "No changes to commit"
           git push origin main
