@@ -36,6 +36,8 @@ RUN pip install --no-cache-dir \
     transformers \
     accelerate \
     albumentations \
+    kornia \
+    timm \
     rembg[cli]
 
 # Copy application code (isbd package + templates + model weights)

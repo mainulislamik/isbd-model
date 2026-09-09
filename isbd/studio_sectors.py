@@ -24,6 +24,10 @@ ROOT = Path(__file__).resolve().parent.parent
 
 SERVICES_CONFIG = [
     {"id": "clipping_path", "title": "Clipping Path", "title_bn": "ক্লিপিং পাথ (ব্যাকগ্রাউন্ড কাটআউট)", "icon": "✂️", "desc": "অবজেক্ট নিখুঁতভাবে ব্যাকগ্রাউন্ড থেকে আলাদা করে স্বচ্ছ করা"},
+    {"id": "background_removal", "title": "Magic Background Removal", "title_bn": "ম্যাজিক ব্যাকগ্রাউন্ড রিমুভার (U²-Net)", "icon": "🪄", "desc": "এক ক্লিকে আল্ট্রা-শার্প ট্রান্সপারেন্ট ব্যাকগ্রাউন্ড রিমুভাল"},
+    {"id": "super_resolution_4k", "title": "4K Super-Resolution", "title_bn": "৪K সুপার রেজোলিউশন ও আপস্কেলার", "icon": "🔍", "desc": "ছবিকে ২x-৪x ক্রিস্টাল ক্লিয়ার হাই-রেজোলিউশন ও শার্প টেক্সচারে রূপান্তর"},
+    {"id": "face_beauty_retouch", "title": "Face & Skin Beauty Pro", "title_bn": "এআই ফেস বিউটি ও স্কিন রিটাচিং", "icon": "💎", "desc": "পোর্ট্রেট ও ফ্যাশন মডেলদের স্কিন টোন, চোখ ও চেহারার দাগ নিখুঁত রিটাচ"},
+    {"id": "smart_part_selector", "title": "Smart Part Selector", "title_bn": "১-ক্লিক স্মার্ট পার্ট ও কলার সিলেক্টর", "icon": "🎯", "desc": "পোশাকের কলার, বোতাম বা আলাদা অংশ এক ক্লিকে সিলেক্ট ও কাটআউট"},
     {"id": "multi_clipping_path", "title": "Multiple Clipping Path", "title_bn": "মাল্টিপল ক্লিপিং পাথ (কালার সেগমেন্টেশন)", "icon": "🎨", "desc": "ছবির বিভিন্ন অংশকে আলাদা আলাদা কালার ও লেয়ারে বিভক্ত করা"},
     {"id": "image_masking", "title": "Image Masking", "title_bn": "ইমেজ মাস্কিং (চুল/পশম রিফাইনমেন্ট)", "icon": "🎭", "desc": "জটিল চুল বা পশমের সূক্ষ্ম বর্ডার অক্ষুণ্ণ রেখে ব্যাকগ্রাউন্ড রিমুভাল"},
     {"id": "neck_joint", "title": "Neck Joint / Ghost Mannequin", "title_bn": "নেক জয়েন্ট / গোস্ট ম্যানিকুইন", "icon": "👔", "desc": "পোশাকের ভেতর ও বাইরের কলার নিখুঁতভাবে জয়েন্ট করে থ্রিডি লুক"},
@@ -67,6 +71,18 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
             return img, "Background Removal (rembg লাইব্রেরি ইনস্টল করা নেই)"
         except Exception as e:
             return img, f"Background Removal (ত্রুটি: {str(e)})"
+
+    elif service_id == "super_resolution_4k":
+        from isbd.opensource_ai import super_resolution_4k
+        return super_resolution_4k(img, scale=2)
+
+    elif service_id == "face_beauty_retouch":
+        from isbd.opensource_ai import face_beauty_retouch
+        return face_beauty_retouch(img)
+
+    elif service_id == "smart_part_selector":
+        from isbd.opensource_ai import smart_part_selector
+        return smart_part_selector(img)
 
     elif service_id == "multi_clipping_path":
         # Multi-region segmentation
