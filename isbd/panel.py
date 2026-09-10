@@ -424,6 +424,60 @@ async def real_pair_log_api(limit: int = Query(20)):
     }
 
 
+@app.post("/api/ps-teach")
+async def ps_teach_api(
+    image: UploadFile = File(None),
+    rounds: int = Query(3, ge=1, le=10, description="কত রাউন্ড টেকনিক-পেয়ার জেনারেট হবে"),
+    augment: int = Query(8, ge=1, le=16),
+    source: str = Query("", description="কন্টেইনার-ভেতরের সোর্স ইমেজ পাথ (ঐচ্ছিক)"),
+):
+    """
+    Photoshop 2026 Technique Teacher API.
+    Takes any image, applies pro Photoshop transformations (LAB cast removal,
+    Frequency Separation, PHLEARN pro retouch order, Dodge & Burn, L-channel
+    sharpening) as before/after pairs, and teaches the model RIGHT NOW.
+    No image: teaches from samples/selftest_input.png.
+    """
+    import subprocess as _sp
+    from isbd.ps_teacher import TECHNIQUES
+    from isbd.self_learner import learn_from_real_pair
+    import cv2, random, time as _time
+    from PIL import Image as _Image
+
+    src_path = "/app/samples/selftest_input.png"
+    if source:
+        # only allow paths inside the container project tree
+        cand = Path(source)
+        if not str(cand).startswith("/app/"):
+            raise HTTPException(400, "source must be an /app/... path")
+        src_path = str(cand)
+    if image and image.filename:
+        raw = await image.read()
+        if len(raw) > MAX_FILE:
+            raise HTTPException(413, "ছবি 25MB-এর বেশি")
+        try:
+            pil_img = _Image.open(io.BytesIO(raw)).convert("RGB")
+        except Exception:
+            raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+        import numpy as _np
+        cv_img = cv2.cvtColor(_np.array(pil_img), cv2.COLOR_RGB2BGR)
+        # save temporarily for the teacher script
+        tmp = DATA / "ps_teach_source.png"
+        cv2.imwrite(str(tmp), cv_img)
+        src_path = str(tmp)
+
+    from isbd.ps_teacher import teach_from_source
+    results = teach_from_source(Path(src_path), rounds=rounds, augment=augment)
+    return {
+        "ok": True,
+        "source": src_path,
+        "techniques": [t[0] for t in TECHNIQUES],
+        "ingested_pairs": len(results),
+        "results": results,
+        "note": "Photoshop 2026 টেকনিক-পেয়ার শেখানো শেষ — প্রতিটি পেয়ারে micro fine-tune ট্রিগার হয়েছে।",
+    }
+
+
 @app.post("/api/bulk-pairs")
 async def bulk_pairs_api(
     zip_file: UploadFile = File(...),

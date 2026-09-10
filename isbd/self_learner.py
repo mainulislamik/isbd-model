@@ -11,6 +11,7 @@ import os
 import json
 import random
 import subprocess
+import sys
 import numpy as np
 from pathlib import Path
 from PIL import Image
@@ -185,6 +186,16 @@ def learn_from_real_pair(before_pil: Image.Image,
         "total_pool"   : total_synth,
         "finetune_pid" : ft_pid
     }
+
+
+def _docker_safe_python() -> str:
+    """Resolve python interpreter for background fine-tune subprocesses.
+    Prefers the project venv (native install); inside Docker falls back to
+    the container's own python (sys.executable). Mirrors panel.py helper."""
+    venv_py = ROOT / ".venv" / "bin" / "python"
+    if venv_py.exists():
+        return str(venv_py)
+    return sys.executable
 
 
 def _trigger_micro_finetune(steps=200, lr=5e-5):
