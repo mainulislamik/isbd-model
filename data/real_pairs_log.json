@@ -33,5 +33,75 @@
     "before_px": "64×64",
     "after_px": "64×64",
     "total_pairs": 32
+  },
+  {
+    "ts": "2026-09-10 12:11:12",
+    "label": "ps2026_lab_cast_removal",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 40
+  },
+  {
+    "ts": "2026-09-10 12:11:12",
+    "label": "ps2026_frequency_separation",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 48
+  },
+  {
+    "ts": "2026-09-10 12:11:13",
+    "label": "ps2026_pro_retouch_order",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 56
+  },
+  {
+    "ts": "2026-09-10 12:11:13",
+    "label": "ps2026_dodge_burn_sculpt",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 64
+  },
+  {
+    "ts": "2026-09-10 12:11:13",
+    "label": "ps2026_lab_sharpen_l",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 72
+  },
+  {
+    "ts": "2026-09-10 12:44:12",
+    "label": "ps2026_lab_cast_removal",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 80
+  },
+  {
+    "ts": "2026-09-10 12:44:13",
+    "label": "ps2026_frequency_separation",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 88
+  },
+  {
+    "ts": "2026-09-10 12:44:14",
+    "label": "ps2026_pro_retouch_order",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 96
+  },
+  {
+    "ts": "2026-09-10 12:44:16",
+    "label": "ps2026_dodge_burn_sculpt",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 104
+  },
+  {
+    "ts": "2026-09-10 12:44:22",
+    "label": "ps2026_lab_sharpen_l",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "total_pairs": 112
   }
 ]
