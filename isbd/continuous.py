@@ -108,18 +108,38 @@ def main():
             print(f"[eval] skipped: {e}", flush=True)
 
         # Auto-commit & push every round
+        # NOTE: samples/ is gitignored — do NOT `git add` it (that made the final
+        # sync step exit 1 and silently dropped 6 hours of training before).
+        # Also: a runner has no default git identity — set one or commit fails.
         try:
-            subprocess.run(["git", "add", "checkpoints/best.pt", "checkpoints/history.json",
-                            "data/real_pairs.npz", "data/real_pairs_log.json"],
-                           cwd=str(ROOT), capture_output=True)
+            subprocess.run(["git", "config", "user.email", "cloud-runner@users.noreply.github.com"], cwd=str(ROOT), capture_output=True)
+            subprocess.run(["git", "config", "user.name", "ISBD Cloud Runner"], cwd=str(ROOT), capture_output=True)
+            add_res = subprocess.run(
+                ["git", "add", "checkpoints/best.pt", "checkpoints/cloud_state.pt",
+                 "checkpoints/history.json",
+                 "data/real_pairs.npz", "data/real_pairs_log.json"],
+                cwd=str(ROOT), capture_output=True, text=True)
+            if add_res.returncode != 0:
+                print(f"[git] add failed: {add_res.stderr.strip()[:200]}", flush=True)
             commit_res = subprocess.run(
                 ["git", "commit", "-m", f"Auto-checkpoint: step {after} ({args.model}, {steps_done} steps/round)"],
                 cwd=str(ROOT), capture_output=True, text=True)
             if commit_res.returncode == 0:
-                push_res = subprocess.run(["git", "push", "origin", "main"],
-                                          cwd=str(ROOT), capture_output=True, text=True, timeout=45)
-                if push_res.returncode == 0:
-                    print(f"[git] Synced to GitHub ✓ step {after} | {get_disk_usage()}", flush=True)
+                # sync with remote first (another run may have pushed) then push
+                pull_res = subprocess.run(["git", "pull", "--rebase", "origin", "main"],
+                                         cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+                if pull_res.returncode != 0:
+                    subprocess.run(["git", "rebase", "--abort"], cwd=str(ROOT), capture_output=True)
+                    print(f"[git] pull --rebase failed (push skipped this round): {pull_res.stderr.strip()[:200]}", flush=True)
+                else:
+                    push_res = subprocess.run(["git", "push", "origin", "main"],
+                                              cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+                    if push_res.returncode == 0:
+                        print(f"[git] Synced to GitHub ✓ step {after} | {get_disk_usage()}", flush=True)
+                    else:
+                        print(f"[git] PUSH FAILED: {push_res.stderr.strip()[:300]}", flush=True)
+            else:
+                print(f"[git] commit failed: {commit_res.stderr.strip()[:300]}", flush=True)
         except Exception as e:
             print(f"[git] auto-push skipped: {e}", flush=True)
 

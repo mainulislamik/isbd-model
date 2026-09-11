@@ -161,6 +161,29 @@ def main():
             start_step = hist.get("total_steps", 0)
             best = hist.get("best", float("inf"))
             print(f"[resume] recovered total_steps={start_step} from history.json")
+    elif args.resume:
+        # ── Cloud mode: no last.pt on disk (it is gitignored, so a fresh runner
+        # checkout never has it). Without this branch every cloud run silently
+        # restarted training from SCRATCH and reset history total_steps. ──
+        hist = load_history()
+        start_step = hist.get("total_steps", 0)
+        # anchor priority: cloud_state.pt (full opt state from last cloud run) → best.pt
+        cloud_state = CKPT / "cloud_state.pt"
+        anchor = cloud_state if cloud_state.exists() else (CKPT / "best.pt")
+        if anchor.exists():
+            state = torch.load(anchor, map_location="cpu", weights_only=True)
+            try:
+                model.load_state_dict(state["model"])
+                if "opt" in state:
+                    opt.load_state_dict(state["opt"])
+                    sched.load_state_dict(state["sched"])
+                    print(f"[resume] cloud mode: full state from {anchor.name} (step {state.get('step')})")
+                else:
+                    print(f"[resume] cloud mode: weights from {anchor.name} (step {state.get('step')}, no opt state)")
+            except RuntimeError:
+                print(f"[resume] cloud mode: {anchor.name} architecture mismatch — weights fresh")
+        best = min(hist.get("losses") or [float("inf")])
+        print(f"[resume] cloud mode: recovered total_steps={start_step} | best loss {best:.4f} from history.json")
 
     effective_batch = args.batch * args.accum_steps
     print(f"ISBD v1.00 | {args.model} | params {param_count(model):,} | img {IMG_SIZE}px "
@@ -250,6 +273,11 @@ def main():
     torch.save({"model": model.state_dict(), "opt": opt.state_dict(),
                 "sched": sched.state_dict(), "step": step, "best": best,
                 "model_type": args.model}, last_path)
+    # Cloud-tracked full state (last.pt is gitignored, so cloud runners need this
+    # to resume optimizer state — without it every cloud round restarted partially)
+    torch.save({"model": model.state_dict(), "opt": opt.state_dict(),
+                "sched": sched.state_dict(), "step": step, "best": best,
+                "model_type": args.model}, CKPT / "cloud_state.pt")
     save_history(h)
     save_sample_grid(model, device, step)
     print(f"[done] reached step {step} | last loss {h['losses'][-1]} | best {best:.4f}")

@@ -30,6 +30,11 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: 🔧 Setup Git Identity (round commits need this)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
 
@@ -46,6 +51,9 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add checkpoints/ data/ samples/
+          # samples/ is gitignored — git add samples/ would exit 1 and kill the
+          # whole sync step (it silently dropped a full 6-hour run before).
+          git add checkpoints/best.pt checkpoints/cloud_state.pt checkpoints/history.json data/real_pairs.npz data/real_pairs_log.json || true
+          git add checkpoints/ data/ || true
           git commit -m "🤖 cloud: Cloud AI Trainer completed ${{ github.event.inputs.steps || '1500' }} steps/round [skip ci]" || echo "No changes to commit"
-          git push origin main
+          git push origin main || echo "push failed (non-fatal)"

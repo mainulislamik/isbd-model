@@ -17,6 +17,7 @@ checkpoints/train.lock
 # Keep checkpoint weights & real training pairs safely tracked in git
 !checkpoints/best.pt
 !checkpoints/history.json
+!checkpoints/cloud_state.pt
 !data/real_pairs.npz
 !data/real_pairs_log.json
 
