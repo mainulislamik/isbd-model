@@ -89,7 +89,9 @@ def main():
              "--steps", str(args.round_steps),
              "--batch", str(args.batch),
              "--model", args.model,
-             "--accum-steps", str(args.accum_steps)],
+             "--accum-steps", str(args.accum_steps),
+             "--resume"],  # ALWAYS resume — without this flag every round
+                            # restarted from scratch (cost 2 full cloud runs)
             cwd=str(ROOT),
         )
 
