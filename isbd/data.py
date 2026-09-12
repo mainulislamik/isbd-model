@@ -61,7 +61,8 @@ def degrade(img: Image.Image, rng: random.Random) -> Image.Image:
     op = rng.choice([
         "selective_dermis_blemish", "studio_shadow_clip", "skin_tone_blotch",
         "color_temperature_skew", "texture_blur", "iso_dermal_noise", "exposure_curve",
-        "mannequin_plastic_tint", "neck_joint_seam_noise"
+        "mannequin_plastic_tint", "neck_joint_seam_noise", "garment_wrinkle_crease",
+        "specular_jewelry_dust", "apparel_hue_shift"
     ])
 
     if op == "selective_dermis_blemish":
@@ -129,6 +130,30 @@ def degrade(img: Image.Image, rng: random.Random) -> Image.Image:
         cy = IMG_SIZE // 3
         arr[max(0, cy - 2):min(IMG_SIZE, cy + 2), :] = 40  # seam shadow
         return Image.fromarray(arr)
+
+    elif op == "garment_wrinkle_crease":
+        # Simulates cloth fold shadows & creases
+        arr = np.array(img).astype(np.float32)
+        n_folds = rng.randint(2, 5)
+        for _ in range(n_folds):
+            y_fold = rng.randint(5, IMG_SIZE - 6)
+            arr[max(0, y_fold - 2):min(IMG_SIZE, y_fold + 2), :] *= rng.uniform(0.65, 0.85)
+        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+    elif op == "specular_jewelry_dust":
+        # Simulates lint and sensor dust particles
+        arr = np.array(img).copy()
+        n_specks = rng.randint(5, 15)
+        for _ in range(n_specks):
+            sx, sy = rng.randint(0, IMG_SIZE - 1), rng.randint(0, IMG_SIZE - 1)
+            arr[sy, sx] = 255 if rng.random() < 0.5 else 15
+        return Image.fromarray(arr)
+
+    elif op == "apparel_hue_shift":
+        # Random garment color shift to train color correction & recolor
+        arr = np.array(img.convert("HSV"))
+        arr[:, :, 0] = (arr[:, :, 0].astype(np.int32) + rng.randint(20, 160)) % 180
+        return Image.fromarray(arr, mode="HSV").convert("RGB")
 
     return img
 
