@@ -64,24 +64,20 @@ def face_beauty_retouch(pil_img: Image.Image) -> tuple[Image.Image, str]:
     Smooths skin tones, removes micro-blemishes, while preserving eye/lip sharpness and skin pores.
     """
     cv_img = np.array(pil_img.convert("RGB"))
-    
-    # 1. Bilateral skin smoothing (preserves strong edges like eyes/lips)
-    smooth = cv2.bilateralFilter(cv_img, d=9, sigmaColor=60, sigmaSpace=60)
-    
-    # 2. High-pass texture extraction (skin pore detail retention)
-    low_pass = cv2.GaussianBlur(cv_img, (5, 5), 0)
-    high_pass = cv2.subtract(cv_img, low_pass) + 128
-    
-    # 3. Blending high-frequency texture onto smoothed dermis
-    retouched = cv2.addWeighted(smooth, 0.85, high_pass, 0.15, 0)
-    
-    # 4. Subtle glamour tone curve
+    cv_bgr = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+
+    from isbd.frequency_engine import commercial_frequency_retouch
+    res = commercial_frequency_retouch(cv_bgr, skin_smooth_strength=0.55, texture_retention=1.12, radius=9)
+    retouched = cv2.cvtColor(res["processed_bgr"], cv2.COLOR_BGR2RGB)
+
+    # Subtle glamour tone curve
     lab = cv2.cvtColor(retouched, cv2.COLOR_RGB2LAB)
     l, a, b = cv2.split(lab)
     l = cv2.normalize(l, None, alpha=10, beta=245, norm_type=cv2.NORM_MINMAX)
     final_rgb = cv2.cvtColor(cv2.merge((l, a, b)), cv2.COLOR_LAB2RGB)
-    
-    return Image.fromarray(final_rgb), "Face & Skin Beauty (পোর্ট্রেট বিউটি ও ন্যাচারাল স্কিন রিটাচিং সম্পন্ন)"
+
+    score_pct = int(res["texture_retention_score"] * 100)
+    return Image.fromarray(final_rgb), f"Face & Skin Beauty (ফ্রিকোয়েন্সি সেপারেশন ও ন্যাচারাল স্কিন পোরস সংরক্ষিত: {score_pct}%)"
 
 
 def smart_part_selector(pil_img: Image.Image) -> tuple[Image.Image, str]:

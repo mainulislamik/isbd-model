@@ -30,13 +30,12 @@ def execute_model_specific_retouching(pil_img: Image.Image, model_id: str = "isb
     h, w = img_cv.shape[:2]
 
     if model_id == "isbd_v1":
-        # ── LOCAL ISBD v1.00 MODEL (Fast Lightweight Classical Frequency Separation) ──
-        # Simple bilateral smooth + low-pass skin leveling
-        low_pass = cv2.bilateralFilter(img_cv, d=9, sigmaColor=75, sigmaSpace=75)
-        high_pass = cv2.subtract(img_cv, cv2.GaussianBlur(img_cv, (9, 9), 2))
-        retouched_cv = cv2.addWeighted(low_pass, 0.85, high_pass, 0.55, 0)
-        desc = "ISBD v1.00 Local Engine: স্ট্যান্ডার্ড ফ্রিকোয়েন্সি সেপারেশন ও স্কিন লেভেলিং প্রয়োগ করা হয়েছে।"
-        model_name = "ISBD v1.00 (Local 117k Engine)"
+        # ── LOCAL ISBD v1.00 MODEL (Pro Dual-Branch Frequency Separation Engine) ──
+        from isbd.frequency_engine import commercial_frequency_retouch
+        res = commercial_frequency_retouch(img_cv, skin_smooth_strength=0.55, texture_retention=1.12, radius=9)
+        retouched_cv = res["processed_bgr"]
+        desc = f"ISBD v1.00 Engine: ডুয়াল-ফ্রিকোয়েন্সি সেপারেশন ও গাইডেড টেক্সচার ইনজেকশন সম্পন্ন (টেক্সচার রিটেনশন: {res['texture_retention_score']*100:.1f}%)"
+        model_name = "ISBD v1.00 (Pro Frequency Engine)"
 
     elif "gemini" in model_id.lower():
         # ── GEMINI 3.7 FLASH HIGH VLM ENGINE (True Studio Retouching Pipeline) ──

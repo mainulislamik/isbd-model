@@ -210,3 +210,37 @@ class ISBDDistillationLoss(nn.Module):
             total = total + self.feat_weight * feat_loss
 
         return total
+
+
+class ISBDFrequencySeparationLoss(nn.Module):
+    """
+    Dual-Branch Frequency Separation Loss:
+    - Low-frequency tone matching (macro illumination, skin undertones)
+    - High-frequency texture conservation (skin pores, fabric weave, micro edges)
+    """
+    def __init__(self, kernel_size: int = 7, low_weight: float = 0.5, high_weight: float = 1.0):
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.low_weight = low_weight
+        self.high_weight = high_weight
+        self.pool = nn.AvgPool2d(kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # Low frequency branch (smooth tones & macro light)
+        pred_low = self.pool(pred)
+        target_low = self.pool(target)
+        loss_low = F.l1_loss(pred_low, target_low)
+
+        # High frequency branch (micro texture residual: pores, hair, cloth)
+        pred_high = pred - pred_low
+        target_high = target - target_low
+        loss_high_l1 = F.l1_loss(pred_high, target_high)
+
+        # Cosine alignment of high-pass frequency vectors
+        pred_flat = pred_high.view(pred_high.size(0), -1)
+        target_flat = target_high.view(target_high.size(0), -1)
+        cos_sim = F.cosine_similarity(pred_flat, target_flat, dim=1).mean()
+        loss_high_cos = 1.0 - cos_sim
+
+        return (self.low_weight * loss_low) + (self.high_weight * (loss_high_l1 + 0.5 * loss_high_cos))
+
