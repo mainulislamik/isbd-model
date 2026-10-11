@@ -111,5 +111,13 @@
     "after_px": "512×512",
     "patches_256": 4,
     "total_pairs": 117
+  },
+  {
+    "ts": "2026-10-11 19:11:04",
+    "label": "retouching",
+    "before_px": "300×300",
+    "after_px": "300×300",
+    "patches_256": 1,
+    "total_pairs": 125
   }
 ]
