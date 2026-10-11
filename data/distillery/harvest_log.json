@@ -37,5 +37,31 @@
     "patches_256": 1,
     "augmented": 8,
     "total_real": 149
+  },
+  {
+    "ok": true,
+    "teacher_name": "CodeFormer-Neural-Retouch",
+    "domain": "retouching",
+    "model_score": 0.97,
+    "consensus_score": 0.9838,
+    "is_gold_consensus": true,
+    "threshold": 0.98,
+    "timestamp": "2026-10-11 19:29:49",
+    "patches_256": 1,
+    "augmented": 8,
+    "total_real": 157
+  },
+  {
+    "ok": true,
+    "teacher_name": "Depth-Jewelry-Gloss-V2",
+    "domain": "jewelry_retouch",
+    "model_score": 0.96,
+    "consensus_score": 0.9871,
+    "is_gold_consensus": true,
+    "threshold": 0.98,
+    "timestamp": "2026-10-11 19:29:53",
+    "patches_256": 1,
+    "augmented": 8,
+    "total_real": 165
   }
 ]

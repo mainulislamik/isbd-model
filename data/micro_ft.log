@@ -1,2 +1,2 @@
-[ft] 155 real pair(s) | 200 steps | lr 5e-05
-[ft] resume from step 412600 (SmallUNet)
+[ft] 171 real pair(s) | 200 steps | lr 5e-05
+[ft] resume from step 412900 (SmallUNet)

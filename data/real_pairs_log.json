@@ -143,5 +143,21 @@
     "after_px": "256×256",
     "patches_256": 1,
     "total_pairs": 149
+  },
+  {
+    "ts": "2026-10-11 19:29:49",
+    "label": "distill_retouching",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "patches_256": 1,
+    "total_pairs": 157
+  },
+  {
+    "ts": "2026-10-11 19:29:54",
+    "label": "distill_jewelry_retouch",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "patches_256": 1,
+    "total_pairs": 165
   }
 ]
