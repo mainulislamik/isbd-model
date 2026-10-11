@@ -103,5 +103,13 @@
     "before_px": "256×256",
     "after_px": "256×256",
     "total_pairs": 112
+  },
+  {
+    "ts": "2026-10-11 19:09:20",
+    "label": "clipping_path",
+    "before_px": "512×512",
+    "after_px": "512×512",
+    "patches_256": 4,
+    "total_pairs": 117
   }
 ]
