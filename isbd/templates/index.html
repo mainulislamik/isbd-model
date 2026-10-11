@@ -1596,6 +1596,36 @@ body {
           </div>
         </div>
       
+        <!-- ⚡ Pre-built Open-Source Pro Vision Suite Controls -->
+        <div style="margin-top:14px; background:#ffffff; border:1.5px solid #e2e8f0; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">⚡</span>
+              <div>
+                <span style="font-size:13px; font-weight:800; color:#0f172a;">ওপেন-সোর্স প্রো লাইব্রেরি স্যুট (Open-Source Pro Library Suite)</span>
+                <div style="font-size:11px; color:#64748b;">MediaPipe 468pt Face Mesh, PyMatting Alpha Matting, Bézier SVG & Adobe Photoshop PSD</div>
+              </div>
+            </div>
+            <span style="font-size:10.5px; background:#dbeafe; color:#1d4ed8; font-weight:700; padding:2px 8px; border-radius:6px;">SOTA C++/Python</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px; margin-top:8px;">
+            <button type="button" class="btn" style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; font-size:11.5px; font-weight:700; padding:8px 12px; border-radius:8px; text-align:left; display:flex; align-items:center; gap:6px;" onclick="runMediaPipeMesh()">
+              <span>👤</span> <span>MediaPipe ফেস মেশ (দাঁত/চোখ/ত্বক)</span>
+            </button>
+            <button type="button" class="btn" style="background:#f0f9ff; border:1px solid #bae6fd; color:#0369a1; font-size:11.5px; font-weight:700; padding:8px 12px; border-radius:8px; text-align:left; display:flex; align-items:center; gap:6px;" onclick="runPyMattingAlpha()">
+              <span>✂️</span> <span>PyMatting আলফা হেয়ার ম্যাটিং</span>
+            </button>
+            <button type="button" class="btn" style="background:#faf5ff; border:1px solid #e9d5ff; color:#6b21a8; font-size:11.5px; font-weight:700; padding:8px 12px; border-radius:8px; text-align:left; display:flex; align-items:center; gap:6px;" onclick="exportBezierSVG()">
+              <span>✒️</span> <span>Bézier পেন-টুল পাথ (.SVG)</span>
+            </button>
+            <button type="button" class="btn" style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; font-size:11.5px; font-weight:700; padding:8px 12px; border-radius:8px; text-align:left; display:flex; align-items:center; gap:6px;" onclick="exportMultiLayerPSD()">
+              <span>🎨</span> <span>ফটোশপ মাল্টি-লেয়ার (.PSD)</span>
+            </button>
+          </div>
+          <div id="pro-suite-status" style="margin-top:8px; font-size:11px; font-weight:600; color:#475569; display:none;"></div>
+        </div>
+
         <!-- 🖥️ Live Terminal Log Console for services -->
         <div style="margin-top:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 14px; font-family:'JetBrains Mono',monospace; box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1e293b; padding-bottom:4px;">
@@ -2445,6 +2475,139 @@ async function submitRLHFCorrection() {
 
 function reRunStudioService() {
   if (lastUploadedServiceFile) runStudioService(lastUploadedServiceFile);
+}
+
+// ─ Pre-built Open-Source Pro Vision Suite JS Handlers ─
+async function runMediaPipeMesh() {
+  if (!lastUploadedServiceFile) {
+    toast('প্রথমে একটি ছবি আপলোড করুন', 'err');
+    return;
+  }
+  const st = document.getElementById('pro-suite-status');
+  st.style.display = 'block';
+  st.style.color = '#0284c7';
+  st.textContent = '⏳ Google MediaPipe 468-Point ফেস মেশ অ্যানালাইসিস ও রিটাচিং চলছে…';
+  const fd = new FormData();
+  fd.append('image', lastUploadedServiceFile);
+  try {
+    const res = await fetch('/api/mediapipe-retouch', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'MediaPipe রিটাচ ব্যর্থ');
+    const resImg = document.getElementById('service-result');
+    resImg.src = data.processed_image;
+    resImg.style.display = 'block';
+    document.getElementById('service-placeholder').style.display = 'none';
+    st.style.color = '#10b981';
+    st.textContent = `✔ ${data.description} (প্রয়োগকৃত ফিচার: ${data.features_applied.join(', ')})`;
+    toast('MediaPipe ফেস মেশ রিটাচিং সম্পন্ন!', 'ok');
+  } catch(e) {
+    st.style.color = '#ef4444';
+    st.textContent = 'ত্রুটি: ' + e.message;
+    toast('MediaPipe ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+async function runPyMattingAlpha() {
+  if (!lastUploadedServiceFile) {
+    toast('প্রথমে একটি ছবি আপলোড করুন', 'err');
+    return;
+  }
+  const st = document.getElementById('pro-suite-status');
+  st.style.display = 'block';
+  st.style.color = '#0284c7';
+  st.textContent = '⏳ PyMatting Closed-Form আলফা ম্যাটিং চলছে (হেয়ার স্ট্র্যান্ড ও স্বচ্ছতা)…';
+  const fd = new FormData();
+  fd.append('image', lastUploadedServiceFile);
+  try {
+    const res = await fetch('/api/alpha-matting', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'PyMatting ব্যর্থ');
+    const resImg = document.getElementById('service-result');
+    resImg.src = data.processed_image;
+    resImg.style.display = 'block';
+    document.getElementById('service-placeholder').style.display = 'none';
+    st.style.color = '#10b981';
+    st.textContent = `✔ PyMatting আলফা ম্যাটিং সফল (${data.method})`;
+    toast('PyMatting আলফা হেয়ার ম্যাটিং সম্পন্ন!', 'ok');
+  } catch(e) {
+    st.style.color = '#ef4444';
+    st.textContent = 'ত্রুটি: ' + e.message;
+    toast('PyMatting ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+async function exportBezierSVG() {
+  if (!lastUploadedServiceFile) {
+    toast('প্রথমে একটি ছবি আপলোড করুন', 'err');
+    return;
+  }
+  const st = document.getElementById('pro-suite-status');
+  st.style.display = 'block';
+  st.style.color = '#0284c7';
+  st.textContent = '⏳ Bézier কিউবিক কার্ভ এক্সট্রাকশন ও পেন-টুল ভেক্টর জেনারেশন চলছে…';
+  const fd = new FormData();
+  fd.append('image', lastUploadedServiceFile);
+  try {
+    const res = await fetch('/api/export-bezier-svg', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'ভেক্টর এক্সপোর্ট ব্যর্থ');
+    
+    // Trigger download
+    const blob = new Blob([data.svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'isbd_bezier_clipping_path.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    st.style.color = '#10b981';
+    st.textContent = `✔ Bézier ভেক্টর পাথ ডাউনলোড সম্পন্ন (${data.points_count}টি অ্যাঙ্কর পয়েন্ট, ${data.paths_count}টি পাথ)`;
+    toast('Bézier ভেক্টর SVG ফাইল ডাউনলোড হয়েছে!', 'ok');
+  } catch(e) {
+    st.style.color = '#ef4444';
+    st.textContent = 'ত্রুটি: ' + e.message;
+    toast('ভেক্টর এক্সপোর্ট ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+async function exportMultiLayerPSD() {
+  if (!lastUploadedServiceFile) {
+    toast('প্রথমে একটি ছবি আপলোড করুন', 'err');
+    return;
+  }
+  const st = document.getElementById('pro-suite-status');
+  st.style.display = 'block';
+  st.style.color = '#0284c7';
+  st.textContent = '⏳ ফটোশপ মাল্টি-লেয়ার (.PSD) ফাইল রেন্ডারিং চলছে…';
+  const fd = new FormData();
+  fd.append('image', lastUploadedServiceFile);
+  try {
+    const res = await fetch('/api/export-psd', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'PSD এক্সপোর্ট ব্যর্থ');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'isbd_multilayers.psd';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    st.style.color = '#10b981';
+    st.textContent = '✔ অ্যাডোব ফটোশপ মাল্টি-লেয়ার PSD ফাইল সফলভাবে ডাউনলোড হয়েছে!';
+    toast('ফটোশপ (.PSD) ফাইল ডাউনলোড সম্পন্ন!', 'ok');
+  } catch(e) {
+    st.style.color = '#ef4444';
+    st.textContent = 'ত্রুটি: ' + e.message;
+    toast('PSD ডাউনলোড ত্রুটি: ' + e.message, 'err');
+  }
 }
 
 // ─ Object Detection & Anatomy Inspector Scanner ─

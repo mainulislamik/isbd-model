@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import torch
-from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1249,6 +1249,169 @@ def _get_system_telemetry():
         "net_up_kbps": round(net_speed_up, 1),
         "cloud_status": _last_gh_status
     }
+
+
+# ── Pre-built Open-Source Library Suite APIs ─────────────────────────────────
+
+@app.post("/api/mediapipe-retouch")
+async def mediapipe_retouch_api(
+    image: UploadFile = File(...),
+    teeth_whiten: bool = Query(True),
+    eye_pop: bool = Query(True),
+    lip_gloss: bool = Query(True),
+    dermis_smooth: bool = Query(True)
+):
+    """Google MediaPipe 468-point 3D anatomical Face Mesh portrait retouching."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        import cv2
+        from isbd.mediapipe_retouch import mediapipe_pro_retouch
+        
+        nparr = np.frombuffer(raw, np.uint8)
+        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        res = mediapipe_pro_retouch(
+            img_bgr,
+            teeth_whiten=teeth_whiten,
+            eye_pop=eye_pop,
+            lip_gloss=lip_gloss,
+            dermis_retouch=dermis_smooth
+        )
+
+        _, enc = cv2.imencode(".jpg", res["processed_bgr"], [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+        b64 = "data:image/jpeg;base64," + base64.b64encode(enc.tobytes()).decode("utf-8")
+
+        return {
+            "ok": True,
+            "face_detected": res["face_detected"],
+            "landmarks_count": res["landmarks_count"],
+            "features_applied": res["features_applied"],
+            "description": res["description"],
+            "processed_image": b64
+        }
+    except Exception as e:
+        raise HTTPException(500, f"MediaPipe রিটাচিং ত্রুটি: {str(e)}")
+
+
+@app.post("/api/alpha-matting")
+async def alpha_matting_api(
+    image: UploadFile = File(...)
+):
+    """PyMatting closed-form continuous alpha matting for flyaway hair & glass transparency."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        import cv2
+        from isbd.alpha_matting import extract_alpha_matte
+        
+        nparr = np.frombuffer(raw, np.uint8)
+        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        # Estimate coarse segmentation mask via saliency/otsu thresholding
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+        _, coarse_mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+        # Invert if edges dominate foreground
+        edge_pts = np.sum(coarse_mask[0, :]) + np.sum(coarse_mask[-1, :]) + np.sum(coarse_mask[:, 0]) + np.sum(coarse_mask[:, -1])
+        if edge_pts > (coarse_mask.shape[0] + coarse_mask.shape[1]) * 128:
+            coarse_mask = cv2.bitwise_not(coarse_mask)
+
+        res = extract_alpha_matte(img_bgr, coarse_mask)
+
+        _, enc_rgba = cv2.imencode(".png", res["rgba"])
+        b64_rgba = "data:image/png;base64," + base64.b64encode(enc_rgba.tobytes()).decode("utf-8")
+
+        _, enc_alpha = cv2.imencode(".png", res["alpha_mask"])
+        b64_alpha = "data:image/png;base64," + base64.b64encode(enc_alpha.tobytes()).decode("utf-8")
+
+        return {
+            "ok": True,
+            "method": res["method"],
+            "processed_image": b64_rgba,
+            "alpha_mask": b64_alpha
+        }
+    except Exception as e:
+        raise HTTPException(500, f"PyMatting আলফা ম্যাটিং ত্রুটি: {str(e)}")
+
+
+@app.post("/api/export-bezier-svg")
+async def export_bezier_svg_api(
+    image: UploadFile = File(...)
+):
+    """Converts image segmentation mask to Adobe Pen-tool Bézier vector SVG path."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        import cv2
+        from isbd.vector_path import mask_to_bezier_svg
+        
+        nparr = np.frombuffer(raw, np.uint8)
+        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        
+        res = mask_to_bezier_svg(mask)
+        return res
+    except Exception as e:
+        raise HTTPException(500, f"ভেক্টর পাথ এক্সপোর্ট ত্রুটি: {str(e)}")
+
+
+@app.post("/api/export-psd")
+async def export_psd_api(
+    image: UploadFile = File(...)
+):
+    """Exports multi-layer non-destructive Adobe Photoshop (.psd) document."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    try:
+        import cv2
+        from isbd.psd_exporter import create_commercial_psd
+        from isbd.frequency_engine import commercial_frequency_retouch
+        
+        nparr = np.frombuffer(raw, np.uint8)
+        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        # Layer 1: Frequency retouched tone
+        freq_res = commercial_frequency_retouch(img_bgr)
+        retouched_bgr = freq_res["processed_bgr"]
+
+        # Layer 2: Subject Cutout RGBA
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        cutout_rgba = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2BGRA)
+        cutout_rgba[:, :, 3] = mask
+
+        psd_res = create_commercial_psd(
+            original_bgr=img_bgr,
+            cutout_rgba=cutout_rgba,
+            retouched_bgr=retouched_bgr
+        )
+
+        if not psd_res["ok"]:
+            raise HTTPException(500, f"PSD তৈরিতে ব্যর্থ: {psd_res.get('error')}")
+
+        return Response(
+            content=psd_res["psd_bytes"],
+            media_type="image/vnd.adobe.photoshop",
+            headers={"Content-Disposition": "attachment; filename=isbd_multilayers.psd"}
+        )
+    except Exception as e:
+        raise HTTPException(500, f"PSD এক্সপোর্ট ত্রুটি: {str(e)}")
 
 
 @app.get("/api/status")
