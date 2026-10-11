@@ -550,6 +550,55 @@ async def ps_teach_api(
     }
 
 
+@app.get("/api/distillery/stats")
+async def distillery_stats_api():
+    from isbd.distiller import get_distillery_stats
+    return get_distillery_stats()
+
+
+@app.post("/api/distillery/harvest")
+async def distillery_harvest_api(
+    teacher_key: str = Query("birefnet", description="Teacher model: birefnet, codeformer, jewelry, esrgan"),
+    image: UploadFile = File(None),
+    consensus_threshold: float = Query(0.85, ge=0.5, le=0.99),
+):
+    """
+    AI Model Distillery & Consensus Harvesting API.
+    Runs SOTA teacher representation, evaluates dual consensus score,
+    and ingests verified gold pairs into the student training memory pool.
+    """
+    from isbd.distiller import harvest_teacher_pair, get_distillery_stats
+    import cv2
+    import numpy as np
+
+    if image and image.filename:
+        raw = await image.read()
+        nparr = np.frombuffer(raw, np.uint8)
+        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            raise HTTPException(400, "ছবি ডিকোড করা যায়নি — বৈধ JPG/PNG দিন")
+    else:
+        sample_path = "/app/samples/selftest_input.png"
+        img_bgr = cv2.imread(sample_path)
+        if img_bgr is None:
+            raise HTTPException(404, "ডিফল্ট স্যাম্পল ইমেজ পাওয়া যায়নি")
+
+    result, target_bgr = harvest_teacher_pair(
+        img_bgr,
+        teacher_key=teacher_key,
+        consensus_threshold=consensus_threshold
+    )
+
+    _, buf = cv2.imencode(".png", target_bgr)
+    b64_preview = f"data:image/png;base64,{base64.b64encode(buf.tobytes()).decode('ascii')}"
+
+    return {
+        **result,
+        "preview_target": b64_preview,
+        "distillery_stats": get_distillery_stats()
+    }
+
+
 @app.post("/api/bulk-pairs")
 async def bulk_pairs_api(
     zip_file: UploadFile = File(...),

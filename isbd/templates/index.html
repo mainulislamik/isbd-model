@@ -1137,7 +1137,62 @@ body {
     </div>
   </div>
 
-  
+  <!-- 🧪 AI Model Distillery & Consensus Data Miner Card -->
+  <div style="background:#ffffff; border:1.5px solid #818cf8; border-radius:14px; box-shadow:0 4px 12px rgba(99,102,241,0.08); margin-top:20px; padding:22px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:38px; height:38px; border-radius:10px; background:#e0e7ff; color:#4338ca; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700;">🧪</div>
+        <div>
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#1e1b4b;">AI মডেল ডিস্টিলারি ও কনসেনসাস হারভেস্টার (Knowledge Distillation)</h3>
+          <p style="margin:0; font-size:11.5px; color:#64748b;">বিশ্বসেরা ওপেন-সোর্স প্রিটেইন্ড মডেল (BiRefNet, CodeFormer, Depth-V2, Real-ESRGAN) থেকে স্বয়ংক্রিয় নিখুঁত ডেটা সংগ্রহ ও স্টুডেন্ট নলেজ ট্রান্সফার</p>
+        </div>
+      </div>
+      <span id="distill-gold-badge" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px;">
+        Gold Consensus: লোড হচ্ছে...
+      </span>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-bottom:16px;">
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">👨🏫 প্রিটেইন্ড টিচার মডেল নির্বাচন (Foundation Teacher):</label>
+        <select id="distill-teacher" class="form-control" style="width:100%; font-size:12.5px; padding:8px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:600;">
+          <option value="birefnet">BiRefNet / SAM 2 (Ultra-Fine Hair & Masking SOTA)</option>
+          <option value="codeformer" selected>CodeFormer / GFPGAN (Neural Dermis & Skin Retouch)</option>
+          <option value="jewelry">Depth-Anything-V2 (Jewelry Gloss & Specular Luster)</option>
+          <option value="esrgan">Real-ESRGAN Compact (4K Super-Resolution & Unsharp Texture)</option>
+        </select>
+      </div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+        <label style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">⚖️ কনসেনসাস কোয়ালিটি থ্রেশহোল্ড (Dual-Verification Filter):</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="range" id="distill-thresh" min="0.70" max="0.98" step="0.02" value="0.85" style="flex:1;" oninput="document.getElementById('distill-thresh-val').textContent = Math.round(this.value * 100) + '%'">
+          <span id="distill-thresh-val" style="font-size:12px; font-weight:800; color:#4f46e5; min-width:40px;">85%</span>
+        </div>
+        <div style="font-size:10.5px; color:#64748b; margin-top:4px;">টিচার ও ভেরিফায়ারের রেজাল্ট ৮৫%+ মিলে গেলে তবেই তা গোল্ড-ডেটা হিসেবে সংরক্ষিত হবে।</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+      <input type="file" id="distill-custom-img" accept="image/*" style="display:none" onchange="previewDistillCustomImg(this)">
+      <button type="button" class="btn" style="background:#fff; border:1px solid #cbd5e1; color:#334155; font-size:12px; padding:7px 14px; font-weight:600;" onclick="document.getElementById('distill-custom-img').click()">
+        🖼️ কাস্টম কাঁচা ছবি আপলোড (ঐচ্ছিক)
+      </button>
+      <span id="distill-img-name" style="font-size:11.5px; color:#64748b; font-style:italic;">কোনো ছবি না দিলে ডিফল্ট স্টুডিও স্যাম্পল দিয়ে হারভেস্ট হবে</span>
+      <button type="button" id="btn-run-distill" class="btn btn-main" style="background:linear-gradient(135deg, #4f46e5, #7c3aed); font-size:12.5px; padding:8px 18px; margin-left:auto; font-weight:700;" onclick="runDistilleryHarvest()">
+        🚀 টিচার থেকে ডেটা হারভেস্ট ও ডিস্টিলেশন শুরু করুন
+      </button>
+    </div>
+
+    <div id="distill-status-box" style="display:none; background:#f8fafc; border:1.5px solid #c7d2fe; border-radius:10px; padding:14px; font-size:12px; margin-top:10px;">
+      <div id="distill-msg" style="font-weight:700; color:#1e1b4b; margin-bottom:8px;"></div>
+      <div id="distill-preview-wrap" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <img id="distill-preview-img" style="max-height:140px; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 2px 4px rgba(0,0,0,0.08);">
+        <div id="distill-metrics" style="font-size:12px; color:#334155; line-height:1.6;"></div>
+      </div>
+    </div>
+  </div>
+
     </div>
 
     <!-- Tab 3: Finetune -->
@@ -3084,6 +3139,89 @@ async function submitBulkZip() {
     toast('বাল্ক আপলোড ফেইল্ড: ' + e.message, 'err');
   }
 }
+
+window.previewDistillCustomImg = function(input) {
+  const lbl = document.getElementById('distill-img-name');
+  if (input.files && input.files[0]) {
+    lbl.textContent = 'নির্বাচিত: ' + input.files[0].name;
+    lbl.style.color = '#1e1b4b';
+    lbl.style.fontWeight = '700';
+  } else {
+    lbl.textContent = 'কোনো ছবি না দিলে ডিফল্ট স্টুডিও স্যাম্পল দিয়ে হারভেস্ট হবে';
+    lbl.style.color = '#64748b';
+    lbl.style.fontWeight = 'normal';
+  }
+};
+
+window.loadDistilleryStats = async function() {
+  try {
+    const res = await fetch('/api/distillery/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    const badge = document.getElementById('distill-gold-badge');
+    if (badge) {
+      badge.textContent = `Gold Consensus: ${data.total_gold_consensus || 0} pairs | 256px Patches: ${data.total_patches_256 || 0}`;
+    }
+  } catch(e) {}
+};
+
+window.runDistilleryHarvest = async function() {
+  const btn = document.getElementById('btn-run-distill');
+  const box = document.getElementById('distill-status-box');
+  const msgEl = document.getElementById('distill-msg');
+  const prevImg = document.getElementById('distill-preview-img');
+  const metricsEl = document.getElementById('distill-metrics');
+  const teacher = document.getElementById('distill-teacher').value;
+  const thresh = document.getElementById('distill-thresh').value;
+  const fileInput = document.getElementById('distill-custom-img');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ টিচার মডেল ও কনসেনসাস ভেরিফিকেশন চলছে...';
+  box.style.display = 'block';
+  msgEl.innerHTML = '<span style="color:#4f46e5;">টিচার মডেল প্রসেসিং এবং ক্রস-ভ্যালিডেশন গণনা করা হচ্ছে...</span>';
+
+  const fd = new FormData();
+  if (fileInput.files && fileInput.files[0]) {
+    fd.append('image', fileInput.files[0]);
+  }
+
+  try {
+    const res = await fetch(`/api/distillery/harvest?teacher_key=${encodeURIComponent(teacher)}&consensus_threshold=${encodeURIComponent(thresh)}`, {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.detail || data.error || 'হারভেস্টিং ফেইল্ড');
+
+    const isGold = data.is_gold_consensus;
+    msgEl.innerHTML = isGold
+      ? `<span style="color:#059669;">✨ গোল্ড কনসেনসাস সফল! (${Math.round((data.consensus_score || 0) * 100)}% একুরেসিতে ভেরিফাইড)</span>`
+      : `<span style="color:#d97706;">⚠️ থ্রেশহোল্ডের নিচে (${Math.round((data.consensus_score || 0) * 100)}% < ${Math.round(thresh * 100)}%) — কোয়ালিটি সুরক্ষায় ডেটা ফিল্টার করা হয়েছে।</span>`;
+
+    if (data.preview_target) {
+      prevImg.src = data.preview_target;
+      prevImg.style.display = 'block';
+    }
+
+    metricsEl.innerHTML = `
+      <div><strong>টিচার:</strong> ${data.teacher_name} (${data.domain})</div>
+      <div><strong>কনসেনসাস স্কোর:</strong> <span style="color:#4f46e5; font-weight:700;">${((data.consensus_score || 0) * 100).toFixed(1)}%</span> &nbsp;|&nbsp; <strong>টিচার স্কোর:</strong> ${((data.model_score || 0) * 100).toFixed(1)}%</div>
+      ${isGold ? `<div><strong>সংরক্ষণ:</strong> ${data.patches_256 || 0}টি ২৫৬px প্যাচ, ৮টি অগমেন্টেড স্যাম্পল | <strong>মোট পেয়ার:</strong> ${data.total_real || 0}</div>` : ''}
+    `;
+
+    toast(isGold ? `🎉 টিচার থেকে গোল্ড পেয়ার সংগৃহীত ও ট্রেইনিংয়ে যুক্ত!` : `কনসেনসাস ফিল্টার সক্রিয়`, isGold ? 'ok' : 'warn');
+    window.loadDistilleryStats();
+    if (typeof loadSchoolLog === 'function') loadSchoolLog();
+  } catch(e) {
+    msgEl.innerHTML = `<span style="color:#dc2626;">❌ ত্রুটি: ${e.message}</span>`;
+    toast('ডিস্টিলেশন ত্রুটি: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 টিচার থেকে ডেটা হারভেস্ট ও ডিস্টিলেশন শুরু করুন';
+  }
+};
+
+setTimeout(() => { if (window.loadDistilleryStats) window.loadDistilleryStats(); }, 1500);
 
 </script>
 </body>

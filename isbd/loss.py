@@ -1,15 +1,18 @@
 """
-ISBD Pro Loss Engine — Advanced Multi-Objective Loss Functions
+ISBD Pro Loss Engine — Advanced Multi-Objective Loss Functions & Knowledge Distillation
 Includes:
 - Differentiable 2D SSIM (Structural Similarity)
 - Sobel Gradient Edge Loss (for sharp outlines, collars, hair edges)
 - Laplacian 2nd-Order Edge Loss (for razor-sharp boundary details & flyaways)
 - Cosine Hue & Color Constancy Loss (for authentic skin/fabric chromaticity)
-- Composite Pro Studio Loss Suite
+- KL-Divergence Soft Distillation Loss (Hinton-style Teacher-Student knowledge transfer)
+- Feature Embedding Cosine Alignment Loss
+- Composite Pro Studio & Distillation Loss Suites
 """
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 
 
 def _gaussian_window(size: int = 11, sigma: float = 1.5, channels: int = 3) -> torch.Tensor:
@@ -112,6 +115,36 @@ def color_cosine_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     return torch.clamp(1.0 - cos_sim.mean(), 0.0, 2.0)
 
 
+def kl_distillation_loss(student_pred: torch.Tensor, teacher_target: torch.Tensor,
+                         temperature: float = 2.0) -> torch.Tensor:
+    """
+    Hinton-style Knowledge Distillation Soft Loss.
+    Scales logits/pixels by temperature T, computes log-softmax of student vs
+    softmax of teacher, and weights by T^2 to transfer dark knowledge.
+    """
+    b, c, h, w = student_pred.shape
+    # Flatten spatial features
+    s_flat = student_pred.view(b, c, -1) / temperature
+    t_flat = teacher_target.view(b, c, -1) / temperature
+
+    s_log_soft = F.log_softmax(s_flat, dim=-1)
+    t_soft = F.softmax(t_flat, dim=-1)
+
+    kd = F.kl_div(s_log_soft, t_soft, reduction="batchmean") * (temperature ** 2)
+    return kd
+
+
+def feature_cosine_distill_loss(student_feat: torch.Tensor, teacher_feat: torch.Tensor) -> torch.Tensor:
+    """
+    Cosine alignment between normalized student and teacher feature representations.
+    """
+    eps = 1e-7
+    s_norm = student_feat / (torch.norm(student_feat, dim=1, keepdim=True) + eps)
+    t_norm = teacher_feat / (torch.norm(teacher_feat, dim=1, keepdim=True) + eps)
+    cos_sim = (s_norm * t_norm).sum(dim=1).mean()
+    return torch.clamp(1.0 - cos_sim, 0.0, 2.0)
+
+
 class ISBDProLoss(nn.Module):
     """
     Composite studio loss function:
@@ -147,3 +180,33 @@ class ISBDProLoss(nn.Module):
             loss = loss + self.mse_weight * F.mse_loss(pred, target)
 
         return loss
+
+
+class ISBDDistillationLoss(nn.Module):
+    """
+    Full Knowledge Distillation Suite:
+    Combines Ground Truth Reconstruction (ISBDProLoss) + Teacher Soft-Target KD + Feature Cosine Alignment.
+    """
+    def __init__(self, pro_loss: Optional[ISBDProLoss] = None, kd_weight: float = 0.25,
+                 feat_weight: float = 0.15, temperature: float = 2.0):
+        super().__init__()
+        self.pro_loss = pro_loss or ISBDProLoss()
+        self.kd_weight = kd_weight
+        self.feat_weight = feat_weight
+        self.temperature = temperature
+
+    def forward(self, student_pred: torch.Tensor, ground_truth: torch.Tensor,
+                teacher_target: Optional[torch.Tensor] = None,
+                student_feat: Optional[torch.Tensor] = None,
+                teacher_feat: Optional[torch.Tensor] = None) -> torch.Tensor:
+        total = self.pro_loss(student_pred, ground_truth)
+
+        if teacher_target is not None and self.kd_weight > 0:
+            kd = kl_distillation_loss(student_pred, teacher_target, self.temperature)
+            total = total + self.kd_weight * kd
+
+        if student_feat is not None and teacher_feat is not None and self.feat_weight > 0:
+            feat_loss = feature_cosine_distill_loss(student_feat, teacher_feat)
+            total = total + self.feat_weight * feat_loss
+
+        return total
