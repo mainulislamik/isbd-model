@@ -1514,6 +1514,33 @@ body {
         </div>
         <img id="service-result" class="det-result-img">
       
+        <!-- 🧠 RLHF 1-Click Human Correction & Re-train Widget -->
+        <div id="service-correction-card" style="display:none; margin-top:14px; background:#f8fafc; border:1.5px dashed #6366f1; border-radius:12px; padding:14px; box-shadow:0 2px 4px rgba(99,102,241,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">✏️</span>
+              <strong style="font-size:13px; color:#1e1b4b;">মানুষের ফিডব্যাক ও রি-ট্রেইনিং লুপ (RLHF Active Loop)</strong>
+            </div>
+            <span style="font-size:10px; background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:12px; font-weight:700;">Human-in-the-Loop</span>
+          </div>
+          <p style="font-size:11.5px; color:#475569; margin:0 0 10px 0; line-height:1.4;">
+            এআই-এর আউটপুটে সামান্য ত্রুটি বা অমিল আছে? আপনার পারফেক্ট এডিটেড ফাইলটি দিন—এআই আপনার স্টাইল ও পছন্দ সরাসরি রক্তস্থ করে নিবে!
+          </p>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="file" id="service-corr-file" accept="image/*" style="display:none" onchange="previewCorrectionFile(this)">
+            <button type="button" class="btn" style="background:#ffffff; border:1px solid #c7d2fe; color:#4338ca; font-size:11.5px; padding:6px 12px; font-weight:600;" onclick="document.getElementById('service-corr-file').click()">
+              📂 কারেক্টেড পারফেক্ট ছবি নির্বাচন করুন
+            </button>
+            <span id="service-corr-name" style="font-size:11px; color:#64748b; font-style:italic;">কোনো ফাইল সিলেক্ট করা হয়নি</span>
+          </div>
+          <div id="service-corr-status" style="margin-top:8px; font-size:11px; font-weight:600; display:none;"></div>
+          <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+            <button id="btn-submit-correction" type="button" class="btn btn-main" style="background:linear-gradient(135deg, #4f46e5, #7c3aed); font-size:11.5px; padding:6px 14px; display:none;" onclick="submitRLHFCorrection()">
+              🚀 AI-কে মানুষের পছন্দ শেখান (Learn & Re-Train)
+            </button>
+          </div>
+        </div>
+      
         <!-- 🖥️ Live Terminal Log Console for services -->
         <div style="margin-top:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px 14px; font-family:'JetBrains Mono',monospace; box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1e293b; padding-bottom:4px;">
@@ -2292,8 +2319,72 @@ async function runStudioService(input) {
     if (data.terminal_log) appendTabTerminalLog('services', data.terminal_log);
 
     toast(`সার্ভিস সফলভাবে সম্পন্ন হয়েছে (${data.model_used || activeModel})!`, 'ok');
+
+    // Show RLHF Human-in-the-Loop Correction Card
+    const corrCard = document.getElementById('service-correction-card');
+    if (corrCard) {
+      corrCard.style.display = 'block';
+      const corrStatus = document.getElementById('service-corr-status');
+      if (corrStatus) corrStatus.style.display = 'none';
+    }
   } catch(e) {
     toast('সার্ভিস ত্রুটি: ' + e.message, 'err');
+  }
+}
+
+let selectedCorrectionFile = null;
+
+function previewCorrectionFile(input) {
+  if (input.files && input.files[0]) {
+    selectedCorrectionFile = input.files[0];
+    document.getElementById('service-corr-name').textContent = '📄 ' + selectedCorrectionFile.name;
+    document.getElementById('btn-submit-correction').style.display = 'inline-block';
+    const st = document.getElementById('service-corr-status');
+    st.style.display = 'block';
+    st.style.color = '#0284c7';
+    st.textContent = 'কারেক্টেড ফাইল প্রস্তুত। নিচের বাটনে ক্লিক করে AI-কে ফাইন-টিউন করুন।';
+  }
+}
+
+async function submitRLHFCorrection() {
+  if (!lastUploadedServiceFile || !selectedCorrectionFile) {
+    toast('ইনপুট ও কারেক্টেড দুটি ফাইলই প্রয়োজন', 'err');
+    return;
+  }
+  const serviceId = document.getElementById('service-select').value;
+  const btn = document.getElementById('btn-submit-correction');
+  const st = document.getElementById('service-corr-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ AI শিখছে (Fine-tuning)…';
+  st.style.display = 'block';
+  st.style.color = '#d97706';
+  st.textContent = 'স্যালিয়েন্ট প্যাচ এক্সট্রাকশন ও ব্যাকগ্রাউন্ড ফাইন-টিউনিং চলছে…';
+
+  const fd = new FormData();
+  fd.append('input_file', lastUploadedServiceFile);
+  fd.append('corrected_file', selectedCorrectionFile);
+
+  try {
+    const res = await fetch(`/api/feedback-correction?service=${encodeURIComponent(serviceId)}&rating=5`, {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'RLHF সাবমিশন ব্যর্থ');
+    st.style.color = '#10b981';
+    st.textContent = '✔ ' + data.message;
+    toast(`✔ RLHF কারেকশন সম্পন্ন! ${data.patches_256}টি ২৫৬px প্যাচ মেমোরি বাকেটে সংরক্ষিত।`, 'ok');
+    btn.textContent = '✔ সম্পন্ন';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '🚀 AI-কে মানুষের পছন্দ শেখান (Learn & Re-Train)';
+    }, 4000);
+  } catch(e) {
+    st.style.color = '#ef4444';
+    st.textContent = 'ত্রুটি: ' + e.message;
+    toast('RLHF ত্রুটি: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = 'পুনরায় চেষ্টা করুন';
   }
 }
 

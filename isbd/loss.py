@@ -3,7 +3,9 @@ ISBD Pro Loss Engine — Advanced Multi-Objective Loss Functions
 Includes:
 - Differentiable 2D SSIM (Structural Similarity)
 - Sobel Gradient Edge Loss (for sharp outlines, collars, hair edges)
-- Composite Pro Studio Loss (L1 + SSIM + Sobel + MSE)
+- Laplacian 2nd-Order Edge Loss (for razor-sharp boundary details & flyaways)
+- Cosine Hue & Color Constancy Loss (for authentic skin/fabric chromaticity)
+- Composite Pro Studio Loss Suite
 """
 import torch
 import torch.nn as nn
@@ -56,7 +58,6 @@ def sobel_edge_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     Crucial for neck joint, collar borders, clipping paths, and apparel seams.
     """
     device, dtype = pred.device, pred.dtype
-    # Sobel kernels for horizontal (dx) and vertical (dy) gradients
     sobel_x = torch.tensor([[-1.0, 0.0, 1.0],
                             [-2.0, 0.0, 2.0],
                             [-1.0, 0.0, 1.0]], device=device, dtype=dtype).view(1, 1, 3, 3)
@@ -64,7 +65,6 @@ def sobel_edge_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
                             [ 0.0,  0.0,  0.0],
                             [ 1.0,  2.0,  1.0]], device=device, dtype=dtype).view(1, 1, 3, 3)
 
-    # Convert RGB to grayscale brightness for edge extraction: 0.299R + 0.587G + 0.114B
     pred_gray = 0.299 * pred[:, 0:1] + 0.587 * pred[:, 1:2] + 0.114 * pred[:, 2:3]
     target_gray = 0.299 * target[:, 0:1] + 0.587 * target[:, 1:2] + 0.114 * target[:, 2:3]
 
@@ -79,15 +79,52 @@ def sobel_edge_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     return F.l1_loss(pred_grad, target_grad)
 
 
+def laplacian_edge_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    Calculates 2nd-order spatial derivative (Laplacian kernel).
+    Extraordinarily sensitive to fine-grained boundary transitions,
+    hair masking flyaways, and razor-sharp clipping path contours.
+    """
+    device, dtype = pred.device, pred.dtype
+    lap_kernel = torch.tensor([[0.0,  1.0, 0.0],
+                               [1.0, -4.0, 1.0],
+                               [0.0,  1.0, 0.0]], device=device, dtype=dtype).view(1, 1, 3, 3)
+
+    pred_gray = 0.299 * pred[:, 0:1] + 0.587 * pred[:, 1:2] + 0.114 * pred[:, 2:3]
+    target_gray = 0.299 * target[:, 0:1] + 0.587 * target[:, 1:2] + 0.114 * target[:, 2:3]
+
+    pred_lap = F.conv2d(pred_gray, lap_kernel, padding=1)
+    target_lap = F.conv2d(target_gray, lap_kernel, padding=1)
+
+    return F.l1_loss(pred_lap, target_lap)
+
+
+def color_cosine_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    Penalizes angular chromaticity deviation in 3D RGB color space.
+    Ensures that color retouching, jewelry gloss, and recoloring
+    preserve authentic hue angles without washed-out or discolored tints.
+    """
+    eps = 1e-7
+    pred_norm = pred / (torch.norm(pred, dim=1, keepdim=True) + eps)
+    target_norm = target / (torch.norm(target, dim=1, keepdim=True) + eps)
+    cos_sim = (pred_norm * target_norm).sum(dim=1)
+    return torch.clamp(1.0 - cos_sim.mean(), 0.0, 2.0)
+
+
 class ISBDProLoss(nn.Module):
     """
     Composite studio loss function:
-    L = L1 + alpha * SSIM_Loss + beta * Edge_Loss + gamma * MSE
+    L = L1 + alpha * SSIM + beta * Sobel + delta * Laplacian + eta * Color_Cosine + gamma * MSE
     """
-    def __init__(self, ssim_weight: float = 0.25, edge_weight: float = 0.20, mse_weight: float = 0.05):
+    def __init__(self, ssim_weight: float = 0.20, edge_weight: float = 0.15,
+                 laplacian_weight: float = 0.15, color_weight: float = 0.10,
+                 mse_weight: float = 0.05):
         super().__init__()
         self.ssim_weight = ssim_weight
         self.edge_weight = edge_weight
+        self.laplacian_weight = laplacian_weight
+        self.color_weight = color_weight
         self.mse_weight = mse_weight
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -99,6 +136,12 @@ class ISBDProLoss(nn.Module):
 
         if self.edge_weight > 0:
             loss = loss + self.edge_weight * sobel_edge_loss(pred, target)
+
+        if self.laplacian_weight > 0:
+            loss = loss + self.laplacian_weight * laplacian_edge_loss(pred, target)
+
+        if self.color_weight > 0:
+            loss = loss + self.color_weight * color_cosine_loss(pred, target)
 
         if self.mse_weight > 0:
             loss = loss + self.mse_weight * F.mse_loss(pred, target)

@@ -150,7 +150,13 @@ def main():
 
         opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=5000)
-        criterion = ISBDProLoss(ssim_weight=0.25, edge_weight=0.20, mse_weight=0.05)
+        criterion = ISBDProLoss(
+            ssim_weight=0.20,
+            edge_weight=0.15,
+            laplacian_weight=0.15,
+            color_weight=0.10,
+            mse_weight=0.05
+        )
         model.train()
         step, done, losses = start_step, 0, []
         while done < args.steps:

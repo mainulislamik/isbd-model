@@ -424,6 +424,78 @@ async def real_pair_log_api(limit: int = Query(20)):
     }
 
 
+@app.get("/api/bucket-stats")
+async def bucket_stats_api():
+    from isbd.self_learner import get_bucket_stats, get_real_pair_count
+    return {
+        "buckets": get_bucket_stats(),
+        "total_real": get_real_pair_count()
+    }
+
+
+@app.post("/api/feedback-correction")
+async def feedback_correction_api(
+    service: str = Query("custom", description="যে সার্ভিসের জন্য কারেকশন দেওয়া হচ্ছে"),
+    input_file: UploadFile = File(..., description="আসল/ইনপুট ছবি"),
+    corrected_file: UploadFile = File(..., description="এডিটরের হাতে ঠিক করা পারফেক্ট ছবি"),
+    notes: str = Query("", description="এডিটিং নোট বা কমেন্ট"),
+    rating: int = Query(5, ge=1, le=5)
+):
+    """
+    Human-in-the-Loop (RLHF) Correction Loop:
+    Captures true human preference on commercial services,
+    extracts 256px salient patches, stores into service bucket,
+    and triggers an instant micro-fine-tune.
+    """
+    raw_in = await input_file.read()
+    raw_corr = await corrected_file.read()
+    if not raw_in or not raw_corr:
+        raise HTTPException(400, "ইনপুট এবং কারেক্টেড দুটি ছবিই প্রদান করুন")
+    try:
+        img_in = Image.open(io.BytesIO(raw_in)).convert("RGB")
+        img_corr = Image.open(io.BytesIO(raw_corr)).convert("RGB")
+    except Exception:
+        raise HTTPException(400, "ছবি পড়তে ব্যর্থ হয়েছে — সঠিক JPG/PNG/WebP ফাইল দিন")
+
+    from isbd.self_learner import learn_from_real_pair, get_bucket_stats
+    result = learn_from_real_pair(
+        before_pil=img_in,
+        after_pil=img_corr,
+        label=service,
+        augment=8,
+        trigger_finetune=True
+    )
+
+    rlhf_log = DATA / "rlhf_feedback.json"
+    history = []
+    if rlhf_log.exists():
+        try:
+            history = json.loads(rlhf_log.read_text())
+        except Exception:
+            pass
+    history.append({
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "service": service,
+        "rating": rating,
+        "notes": notes,
+        "patches_256": result.get("patches_256", 0),
+        "total_real": result.get("total_real", 0)
+    })
+    if len(history) > 300:
+        history = history[-300:]
+    rlhf_log.write_text(json.dumps(history, ensure_ascii=False, indent=2))
+
+    return {
+        "ok": True,
+        "message": f"🎯 RLHF কারেকশন সফল! '{service}' সার্ভিসের জন্য {result.get('patches_256', 0)}টি ২৫৬ পিক্সেল স্যালিয়েন্ট প্যাচ সংরক্ষণ করা হয়েছে এবং তাৎক্ষণিক মডেল ফাইন-টিউনিং শুরু হয়েছে।",
+        "service": service,
+        "patches_256": result.get("patches_256", 0),
+        "augmented": result.get("augmented", 0),
+        "total_real": result.get("total_real", 0),
+        "buckets": get_bucket_stats()
+    }
+
+
 @app.post("/api/ps-teach")
 async def ps_teach_api(
     image: UploadFile = File(None),
