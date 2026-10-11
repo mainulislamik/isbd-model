@@ -1,3 +1,2 @@
-[ft] 131 real pair(s) | 200 steps | lr 5e-05
-[ft] resume from step 412200 (SmallUNet)
-[ft] BEFORE holdout: L1 0.0440 (id 0.0991) | PSNR 23.84dB (id 16.52dB)
+[ft] 155 real pair(s) | 200 steps | lr 5e-05
+[ft] resume from step 412600 (SmallUNet)

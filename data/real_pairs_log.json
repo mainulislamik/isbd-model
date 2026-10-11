@@ -119,5 +119,29 @@
     "after_px": "300×300",
     "patches_256": 1,
     "total_pairs": 125
+  },
+  {
+    "ts": "2026-10-11 19:21:08",
+    "label": "distill_retouching",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "patches_256": 1,
+    "total_pairs": 133
+  },
+  {
+    "ts": "2026-10-11 19:21:09",
+    "label": "distill_photo_enhancement",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "patches_256": 1,
+    "total_pairs": 141
+  },
+  {
+    "ts": "2026-10-11 19:24:28",
+    "label": "distill_retouching",
+    "before_px": "256×256",
+    "after_px": "256×256",
+    "patches_256": 1,
+    "total_pairs": 149
   }
 ]

@@ -1,0 +1,41 @@
+[
+  {
+    "ok": true,
+    "teacher_name": "CodeFormer-Neural-Retouch",
+    "domain": "retouching",
+    "model_score": 0.97,
+    "consensus_score": 0.9838,
+    "is_gold_consensus": true,
+    "threshold": 0.85,
+    "timestamp": "2026-10-11 19:21:08",
+    "patches_256": 1,
+    "augmented": 8,
+    "total_real": 133
+  },
+  {
+    "ok": true,
+    "teacher_name": "Real-ESRGAN-Compact",
+    "domain": "photo_enhancement",
+    "model_score": 0.92,
+    "consensus_score": 0.9484,
+    "is_gold_consensus": true,
+    "threshold": 0.85,
+    "timestamp": "2026-10-11 19:21:08",
+    "patches_256": 1,
+    "augmented": 8,
+    "total_real": 141
+  },
+  {
+    "ok": true,
+    "teacher_name": "CodeFormer-Neural-Retouch",
+    "domain": "retouching",
+    "model_score": 0.97,
+    "consensus_score": 0.9838,
+    "is_gold_consensus": true,
+    "threshold": 0.8,
+    "timestamp": "2026-10-11 19:24:27",
+    "patches_256": 1,
+    "augmented": 8,
+    "total_real": 149
+  }
+]
