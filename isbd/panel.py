@@ -1025,7 +1025,7 @@ async def infer_image(
     if not raw:
         raise HTTPException(400, "ফাইল পাওয়া যায়নি")
     try:
-        from isbd.model import TinyUNet
+        from isbd.model import TinyUNet, SmallUNet
         from isbd.self_learner import harvest_and_synthesize_pair
         img = Image.open(io.BytesIO(raw)).convert("RGB")
         
@@ -1039,14 +1039,17 @@ async def infer_image(
         small = img.resize((IMG, IMG), Image.Resampling.LANCZOS)
         x = torch.from_numpy(np.asarray(small, dtype=np.float32) / 255.0).permute(2, 0, 1)[None]
 
-        # Model Loading & Dynamic Routing
-        model = TinyUNet()
+        # Model Loading & Dynamic Routing (Adapts automatically to TinyUNet or SmallUNet)
         best_ckpt = CKPT / "best.pt"
         last_ckpt = CKPT / "last.pt"
         ckpt_path = best_ckpt if best_ckpt.exists() else last_ckpt
         if ckpt_path.exists():
-            state = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+            state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+            model_type = state.get("model_type", "small")
+            model = SmallUNet() if model_type == "small" else TinyUNet()
             model.load_state_dict(state["model"])
+        else:
+            model = SmallUNet()
         model.eval()
 
         with torch.no_grad():

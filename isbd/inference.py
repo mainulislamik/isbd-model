@@ -10,7 +10,7 @@ from PIL import Image
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from isbd.model import TinyUNet
+from isbd.model import TinyUNet, SmallUNet
 from isbd.data import IMG_SIZE, make_pair
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,8 +19,9 @@ CKPT = ROOT / "checkpoints"
 
 def restore(img_path: str, out_path: str = "", ckpt: str = ""):
     ckpt = ckpt or str(CKPT / "best.pt")
-    model = TinyUNet()
-    state = torch.load(ckpt, map_location="cpu", weights_only=True)
+    state = torch.load(ckpt, map_location="cpu", weights_only=False)
+    model_type = state.get("model_type", "small")
+    model = SmallUNet() if model_type == "small" else TinyUNet()
     model.load_state_dict(state["model"])
     model.eval()
 
