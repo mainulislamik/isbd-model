@@ -38,6 +38,7 @@ RUN pip install --no-cache-dir \
     albumentations \
     kornia \
     timm \
+    onnxruntime \
     rembg[cli]
 
 # Copy application code (isbd package + templates + model weights)

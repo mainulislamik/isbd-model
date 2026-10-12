@@ -230,6 +230,107 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    var lastAIProposalPath = null;
+    var lastAITaskDomain = "general";
+
+    // ── Open-Source SOTA Tools ──
+    document.getElementById('btn-birefnet').addEventListener('click', function() {
+        log('BiRefNet আল্ট্রা হেয়ার ও ট্রান্সপারেন্ট কাটআউট শুরু...');
+        lastAITaskDomain = "matting";
+        processWithAI('/api/ai/birefnet-matting', new FormData(), '✂️ [SOTA] BiRefNet Hair Cutout', function(d) {
+            if (d && d.image_base64) {
+                lastAIProposalPath = getTempFilePath('isbd_ai_prop_' + Date.now() + '.png');
+                if (fs) fs.writeFileSync(lastAIProposalPath, Buffer.from(d.image_base64, 'base64'));
+            }
+        });
+    });
+
+    document.getElementById('btn-lama-inpaint').addEventListener('click', function() {
+        log('LaMa স্মার্ট ইনপেইন্টার (দাগ ও স্ক্র্যাচ ক্লিন) শুরু...');
+        lastAITaskDomain = "inpaint";
+        processWithAI('/api/ai/smart-inpaint', new FormData(), '🩹 [SOTA] LaMa Inpaint Clean', function(d) {
+            if (d && d.image_base64) {
+                lastAIProposalPath = getTempFilePath('isbd_ai_prop_' + Date.now() + '.png');
+                if (fs) fs.writeFileSync(lastAIProposalPath, Buffer.from(d.image_base64, 'base64'));
+            }
+        });
+    });
+
+    document.getElementById('btn-realesrgan').addEventListener('click', function() {
+        log('Real-ESRGAN 4K টেক্সচার ও সুপার-রেজোলিউশন শুরু...');
+        lastAITaskDomain = "superres";
+        var fd = new FormData();
+        fd.append('scale', '2');
+        processWithAI('/api/ai/realesrgan-superres', fd, '💎 [SOTA] Real-ESRGAN 4K Texture', function(d) {
+            if (d && d.image_base64) {
+                lastAIProposalPath = getTempFilePath('isbd_ai_prop_' + Date.now() + '.png');
+                if (fs) fs.writeFileSync(lastAIProposalPath, Buffer.from(d.image_base64, 'base64'));
+            }
+        });
+    });
+
+    document.getElementById('btn-codeformer').addEventListener('click', function() {
+        log('CodeFormer ফেস রিস্টোরার ও স্কিন পোরস রিকভারি শুরু...');
+        lastAITaskDomain = "retouch";
+        var fd = new FormData();
+        fd.append('smooth_strength', '0.7');
+        processWithAI('/api/ai/codeformer-beauty', fd, '👤 [SOTA] CodeFormer Face Restore', function(d) {
+            if (d && d.image_base64) {
+                lastAIProposalPath = getTempFilePath('isbd_ai_prop_' + Date.now() + '.png');
+                if (fs) fs.writeFileSync(lastAIProposalPath, Buffer.from(d.image_base64, 'base64'));
+            }
+        });
+    });
+
+    // ── 1-Click Human Correction Teaching ──
+    document.getElementById('btn-teach-correction').addEventListener('click', function() {
+        var currentPath = getTempFilePath('isbd_human_final_' + Date.now() + '.png');
+        var curEsc = currentPath.replace(/\\/g, '/');
+
+        log('👨🎨 আপনার ম্যানুয়াল কারেকশন ক্যাপচার করা হচ্ছে...');
+        csInterface.evalScript("captureCurrentSnapshot('" + curEsc + "')", function(res) {
+            if (!res || res.indexOf('OK') === -1) {
+                log('ক্যাপচার ত্রুটি: ' + res);
+                return;
+            }
+
+            var fd = new FormData();
+            var origP = baselinePath;
+            var propP = lastAIProposalPath || baselinePath;
+
+            if (fs) {
+                try {
+                    if (fs.existsSync(origP)) fd.append('original', new Blob([fs.readFileSync(origP)], { type: 'image/png' }), 'orig.png');
+                    if (fs.existsSync(propP)) fd.append('proposal', new Blob([fs.readFileSync(propP)], { type: 'image/png' }), 'prop.png');
+                    if (fs.existsSync(currentPath)) fd.append('human_final', new Blob([fs.readFileSync(currentPath)], { type: 'image/png' }), 'final.png');
+                } catch(e) {
+                    log('ফাইল এরর: ' + e.message);
+                    return;
+                }
+            }
+
+            fd.append('task_domain', lastAITaskDomain);
+            fd.append('designer_id', 'designer_' + (os ? os.hostname() : 'win_pc'));
+
+            log('🎯 হিউম্যান কারেকশন নিউরাল অ্যাডাপ্টারে ট্রেইন করা হচ্ছে (' + lastAITaskDomain + ')...');
+            fetch(getHostUrl() + '/api/ai/teach-correction', { method: 'POST', body: fd })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.ok) {
+                        var imp = data.stats && data.stats.improvement_pct ? (' (উন্নতি: +' + data.stats.improvement_pct + '%)') : '';
+                        log('🎉 অসাধারণ! এআই আপনার এডিট থেকে শিখেছে' + imp);
+                        csInterface.evalScript("showPhotoshopAlert('✅ হিউম্যান লার্নিং সফল!\\nমডেলটি আপনার এডিট অনুকরণ করে অ্যাডাপ্টার আপডেট করেছে" + imp + "')");
+                        updateHarvestStats();
+                    } else {
+                        log('লার্নিং নোট: ' + (data.error || 'ব্যর্থ'));
+                    }
+                })
+                .catch(function(e) {
+                    log('লার্নিং এরর: ' + e.message);
+                });
+        });
+    });
+
     // 6. Autonomous Designer Action Observer & Harvest Engine
     var baselineCaptured = false;
     var baselinePath = getTempFilePath('isbd_baseline_' + Date.now() + '.png');

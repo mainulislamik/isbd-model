@@ -262,8 +262,12 @@ def load_real_pairs():
         try:
             m = json.loads(manifest_p.read_text())
             for item in m.get("samples", []):
-                bf = harv_dir / item.get("before_file", "")
-                af = harv_dir / item.get("after_file", "")
+                bf = harv_dir / "images" / item.get("before_file", "")
+                if not bf.exists():
+                    bf = harv_dir / item.get("before_file", "")
+                af = harv_dir / "images" / item.get("after_file", "")
+                if not af.exists():
+                    af = harv_dir / item.get("after_file", "")
                 if bf.exists() and af.exists():
                     import cv2
                     img_b = cv2.imread(str(bf))

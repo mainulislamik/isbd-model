@@ -21,6 +21,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Optional, Dict, Any, List
 
 import numpy as np
 from PIL import Image
@@ -1507,28 +1508,193 @@ async def api_download_photoshop_extension():
 async def api_harvest_designer_sample(
     before: UploadFile = File(...),
     after: UploadFile = File(...),
+    proposal: Optional[UploadFile] = File(None),
     metadata: str = Form("{}")
 ):
     """Receive live Before/After pair harvested silently from designer's Photoshop."""
     try:
         before_bytes = await before.read()
         after_bytes = await after.read()
+        proposal_bytes = (await proposal.read()) if proposal else None
+
         try:
             meta_dict = json.loads(metadata)
         except Exception:
             meta_dict = {}
-        res = save_designer_sample(before_bytes, after_bytes, meta_dict)
+
+        res = save_designer_sample(
+            before_bytes=before_bytes,
+            after_bytes=after_bytes,
+            proposal_bytes=proposal_bytes,
+            metadata=meta_dict
+        )
         if not res.get("ok"):
             return JSONResponse(status_code=400, content=res)
+
+        title = "AI কারেকশন থেকে হিউম্যান লার্নিং" if proposal_bytes else "নতুন ডিজাইনার ট্রেনিং পেয়ার সংগৃহীত"
         add_notification(
             type="designer_harvest",
-            title="নতুন ডিজাইনার ট্রেনিং পেয়ার সংগৃহীত",
-            message=f"ফটোশপ থেকে নতুন পেয়ার ক্যাপচার্ড: {meta_dict.get('doc_name', 'untitled')} (মোট: {res.get('total_samples', 0)} টি)",
+            title=title,
+            message=f"ফটোশপ থেকে নতুন পেয়ার ক্যাপচার্ড: {meta_dict.get('doc_name', 'untitled')} (ডোমেন: {meta_dict.get('task_domain', 'general')})",
             category="training"
         )
         return res
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+# ── SOTA Open-Source AI Suite & Human Learning Endpoints ─────────────────────
+
+def _pil_to_base64_png(pil_img: Image.Image) -> str:
+    buf = io.BytesIO()
+    pil_img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+@app.post("/api/ai/birefnet-matting")
+async def api_birefnet_matting(image: UploadFile = File(...)):
+    """Ultra-Fine Hair & Apparel Cutout (BiRefNet/RMBG + Guided Human Edge Refiner)."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি প্রদান করুন")
+    try:
+        from isbd.opensource_ai import birefnet_hair_matting, apply_human_residual_boost
+        pil_img = Image.open(io.BytesIO(raw)).convert("RGB")
+        cutout, msg = birefnet_hair_matting(pil_img)
+        cutout = apply_human_residual_boost(pil_img, cutout, domain="matting")
+        b64_str = _pil_to_base64_png(cutout)
+        return JSONResponse({"ok": True, "description": msg, "image_base64": b64_str})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": f"BiRefNet ম্যাটিং ত্রুটি: {str(e)}"})
+
+
+@app.post("/api/ai/smart-inpaint")
+async def api_smart_inpaint(
+    image: UploadFile = File(...),
+    mask: Optional[UploadFile] = File(None),
+    radius: int = Query(5, ge=1, le=30),
+    method: str = Query("smart")
+):
+    """LaMa-Grade Neural Inpainting for Blemishes, Jewelry Scratches, and Unwanted Objects."""
+    raw_img = await image.read()
+    if not raw_img:
+        raise HTTPException(400, "ছবি প্রদান করুন")
+    try:
+        from isbd.opensource_ai import lama_inpaint_object_remover, apply_human_residual_boost
+        img = Image.open(io.BytesIO(raw_img)).convert("RGB")
+        
+        mask_img = None
+        if mask is not None:
+            raw_mask = await mask.read()
+            if raw_mask:
+                mask_img = Image.open(io.BytesIO(raw_mask)).convert("L")
+
+        res_img, msg = lama_inpaint_object_remover(img, mask_img, radius=radius, method=method)
+        res_img = apply_human_residual_boost(img, res_img, domain="inpaint")
+        b64_str = _pil_to_base64_png(res_img)
+        return JSONResponse({"ok": True, "description": msg, "image_base64": b64_str})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": f"স্মার্ট ইনপেইন্ট ত্রুটি: {str(e)}"})
+
+
+@app.post("/api/ai/realesrgan-superres")
+async def api_realesrgan_superres(
+    image: UploadFile = File(...),
+    scale: int = Query(2, ge=2, le=4)
+):
+    """Real-ESRGAN Grade 4K/8K Texture Super-Resolution & Fabric Restorer."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি প্রদান করুন")
+    try:
+        from isbd.opensource_ai import realesrgan_texture_upscaler, apply_human_residual_boost
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        up_img, msg = realesrgan_texture_upscaler(img, scale=scale)
+        up_img = apply_human_residual_boost(img, up_img, domain="superres")
+        b64_str = _pil_to_base64_png(up_img)
+        return JSONResponse({"ok": True, "description": msg, "image_base64": b64_str})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": f"সুপার রেজোলিউশন ত্রুটি: {str(e)}"})
+
+
+@app.post("/api/ai/codeformer-beauty")
+async def api_codeformer_beauty(
+    image: UploadFile = File(...),
+    smooth_strength: float = Query(0.70, ge=0.1, le=1.0)
+):
+    """CodeFormer Grade High-End Portrait Beauty & Dermis Pore Protection."""
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(400, "ছবি প্রদান করুন")
+    try:
+        from isbd.opensource_ai import codeformer_beauty_retouch, apply_human_residual_boost
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        beauty_img, msg = codeformer_beauty_retouch(img, smooth_strength=smooth_strength)
+        beauty_img = apply_human_residual_boost(img, beauty_img, domain="retouch")
+        b64_str = _pil_to_base64_png(beauty_img)
+        return JSONResponse({"ok": True, "description": msg, "image_base64": b64_str})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": f"CodeFormer বিউটি ত্রুটি: {str(e)}"})
+
+
+@app.post("/api/ai/teach-correction")
+async def api_teach_correction(
+    original: UploadFile = File(...),
+    proposal: UploadFile = File(...),
+    human_final: UploadFile = File(...),
+    task_domain: str = Form("general"),
+    domain: Optional[str] = Form(None),
+    doc_name: str = Form("untitled.psd"),
+    designer_id: str = Form("designer_pc")
+):
+    """
+    1-Click Active Human Training Feedback.
+    Captures (Original -> AI Proposal -> Human Correction), immediately trains
+    the Human Residual Adapter on the delta, and records to continuous replay buffer.
+    """
+    try:
+        chosen_domain = domain or task_domain or "general"
+        b_orig = await original.read()
+        b_prop = await proposal.read()
+        b_human = await human_final.read()
+
+        meta = {
+            "task_domain": chosen_domain,
+            "doc_name": doc_name,
+            "designer_id": designer_id,
+            "tools_used": ["human_ai_correction", chosen_domain]
+        }
+
+        res = save_designer_sample(
+            before_bytes=b_orig,
+            after_bytes=b_human,
+            proposal_bytes=b_prop,
+            metadata=meta
+        )
+
+        train_info = res.get("details", {}).get("adapter_train_info") or {}
+
+        add_notification(
+            type="human_training_feedback",
+            title=f"হিউম্যান ফিডব্যাক অ্যাডাপ্টার আপডেট: {chosen_domain}",
+            message=f"ডিজাইনার {designer_id} AI আউটপুট নিখুঁত করেছেন — তাৎক্ষণিক অ্যাডাপ্টার ট্রেনিং সম্পন্ন! (+{train_info.get('improvement_pct', 0)}% উন্নতি)",
+            category="training"
+        )
+        return {
+            "ok": True,
+            "stats": train_info,
+            "sample_id": res.get("sample_id"),
+            "total_samples": res.get("total_samples")
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+@app.get("/api/ai/adapters-status")
+async def api_adapters_status():
+    """List trained task-specific human residual adapters."""
+    from isbd.opensource_ai import get_human_adapters_status
+    return get_human_adapters_status()
 
 
 @app.get("/api/harvest/stats")

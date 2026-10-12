@@ -49,11 +49,13 @@ def save_manifest(m: Dict[str, Any]):
 def save_designer_sample(
     before_bytes: bytes,
     after_bytes: bytes,
+    proposal_bytes: Optional[bytes] = None,
     metadata: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Validate and save a pair of Before (original) and After (designer edited) images.
-    Returns details of saved sample or error.
+    If proposal_bytes (AI proposal) is provided, calculates human correction delta and
+    triggers immediate Human Residual Adapter training.
     """
     ensure_dirs()
 
@@ -78,11 +80,13 @@ def save_designer_sample(
         return {"ok": False, "error": "ছবির রেজোলিউশন অত্যন্ত কম (কমপক্ষে ৬৪ পিক্সেল আবশ্যক)"}
 
     # Verify that designer actually edited the image (not identical)
-    # Check MSE difference
+    # Check difference (allow localized blemish edits as well as full transforms)
     if (h_b, w_b) == (h_a, w_a):
-        diff = np.mean(np.abs(img_before.astype(np.float32) - img_after.astype(np.float32)))
-        if diff < 0.5:
-            return {"ok": False, "error": "ছবিতে কোনো পরিবর্তন লক্ষ্য করা যায়নি (Before ও After অভিন্ন)"}
+        abs_diff = np.abs(img_before.astype(np.float32) - img_after.astype(np.float32))
+        max_diff = float(np.max(abs_diff))
+        sum_diff = float(np.sum(abs_diff))
+        if max_diff < 4.0 or sum_diff < 30.0:
+            return {"ok": False, "error": "ছবিতে কোনো দৃশ্যমান পরিবর্তন লক্ষ্য করা যায়নি (Before ও After অভিন্ন)"}
     else:
         # Resize after to match before for consistent pairing if designer cropped/resized
         img_after = cv2.resize(img_after, (w_b, h_b), interpolation=cv2.INTER_AREA)
@@ -99,6 +103,35 @@ def save_designer_sample(
     cv2.imwrite(str(after_path), img_after)
 
     meta = metadata or {}
+    task_domain = meta.get("task_domain", "general")
+    is_correction = bool(proposal_bytes is not None)
+
+    proposal_filename = None
+    adapter_train_info = None
+
+    if proposal_bytes:
+        np_prop = np.frombuffer(proposal_bytes, np.uint8)
+        img_prop = cv2.imdecode(np_prop, cv2.IMREAD_COLOR)
+        if img_prop is not None:
+            if img_prop.shape[:2] != (h_b, w_b):
+                img_prop = cv2.resize(img_prop, (w_b, h_b), interpolation=cv2.INTER_AREA)
+            proposal_filename = f"{sample_id}_proposal.png"
+            proposal_path = IMAGES_DIR / proposal_filename
+            cv2.imwrite(str(proposal_path), img_prop)
+
+            # Trigger immediate fast adapter learning
+            try:
+                from PIL import Image
+                from isbd.opensource_ai import train_adapter_on_human_pair
+                p_orig = Image.fromarray(cv2.cvtColor(img_before, cv2.COLOR_BGR2RGB))
+                p_human = Image.fromarray(cv2.cvtColor(img_after, cv2.COLOR_BGR2RGB))
+                p_prop = Image.fromarray(cv2.cvtColor(img_prop, cv2.COLOR_BGR2RGB))
+                adapter_train_info = train_adapter_on_human_pair(
+                    p_orig, p_human, p_prop, domain=task_domain, steps=15
+                )
+            except Exception as e:
+                adapter_train_info = {"ok": False, "error": str(e)}
+
     sample_entry = {
         "id": sample_id,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -107,9 +140,13 @@ def save_designer_sample(
         "designer_id": meta.get("designer_id", "designer_pc"),
         "doc_name": meta.get("doc_name", "untitled.psd"),
         "tools_used": meta.get("tools_used", ["retouch", "curves"]),
+        "task_domain": task_domain,
+        "is_correction": is_correction,
         "duration_sec": meta.get("duration_sec", 0),
         "before_file": before_filename,
         "after_file": after_filename,
+        "proposal_file": proposal_filename,
+        "adapter_train_info": adapter_train_info,
         "file_size_kb": round((os.path.getsize(before_path) + os.path.getsize(after_path)) / 1024, 1)
     }
 
@@ -132,8 +169,15 @@ def get_harvester_stats() -> Dict[str, Any]:
     manifest = get_manifest()
     samples = manifest.get("samples", [])
     total_size_mb = 0.0
+    by_task: Dict[str, int] = {}
+    corrections_count = 0
+
     for s in samples:
         total_size_mb += s.get("file_size_kb", 0.0) / 1024.0
+        t = s.get("task_domain", "general")
+        by_task[t] = by_task.get(t, 0) + 1
+        if s.get("is_correction"):
+            corrections_count += 1
 
     today_str = time.strftime("%Y-%m-%d")
     today_count = sum(1 for s in samples if s.get("timestamp", "").startswith(today_str))
@@ -142,6 +186,8 @@ def get_harvester_stats() -> Dict[str, Any]:
         "ok": True,
         "total_samples": len(samples),
         "today_samples": today_count,
+        "corrections_count": corrections_count,
+        "by_task": by_task,
         "total_size_mb": round(total_size_mb, 2),
         "last_updated": manifest.get("last_updated", "—"),
         "recent_samples": samples[-10:][::-1]

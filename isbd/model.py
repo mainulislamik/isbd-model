@@ -143,6 +143,40 @@ class SmallUNet(nn.Module):
 MODEL = SmallUNet  # Default model for new training runs
 
 
+class HumanResidualAdapter(nn.Module):
+    """
+    Lightweight Task-Specific Human Refinement Adapter (~20k params).
+    Learns to bridge the gap between Base Open-Source models and Human Master Retouchers.
+    Inputs:
+      - x_orig: [B, 3, H, W] Original canvas image
+      - y_base: [B, 3, H, W] Base Open-Source / Teacher prediction
+    Outputs:
+      - y_final: [B, 3, H, W] = clamp(y_base + delta * scale, 0.0, 1.0)
+    """
+    def __init__(self, in_ch: int = 6, hidden_ch: int = 32):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(in_ch, hidden_ch, 3, padding=1),
+            nn.SiLU(),
+            nn.Conv2d(hidden_ch, hidden_ch, 3, padding=1),
+            nn.GroupNorm(4, hidden_ch),
+            nn.SiLU(),
+            nn.Conv2d(hidden_ch, hidden_ch, 3, padding=1),
+            nn.SiLU(),
+            nn.Conv2d(hidden_ch, 3, 1),
+            nn.Tanh()
+        )
+        self.scale = nn.Parameter(torch.tensor(0.20))
+
+    def forward(self, x_orig: torch.Tensor, y_base: torch.Tensor) -> torch.Tensor:
+        # Match dimensions if needed
+        if x_orig.shape != y_base.shape:
+            x_orig = nn.functional.interpolate(x_orig, size=y_base.shape[2:], mode="bilinear", align_corners=False)
+        inp = torch.cat([x_orig, y_base], dim=1)
+        delta = self.net(inp) * self.scale
+        return torch.clamp(y_base + delta, 0.0, 1.0)
+
+
 def param_count(m: nn.Module) -> int:
     return sum(p.numel() for p in m.parameters())
 
