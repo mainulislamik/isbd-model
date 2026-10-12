@@ -27,3 +27,4 @@ checkpoints/train.lock
 data/models/
 data/notifications.json
 data/*.zip
+data/harvested_samples/

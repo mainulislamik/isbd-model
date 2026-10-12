@@ -67,6 +67,33 @@
             </button>
         </div>
 
+        <!-- 🤖 Human-in-the-Loop Autonomous Learner -->
+        <div class="box" style="border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.05);">
+            <div class="box-title" style="color: #60a5fa;">
+                <span>🧠 AI লাইভ লার্নিং (Human Observer)</span>
+                <span id="harvest-badge" style="font-size:9.5px; color:#10b981;">সক্রিয়</span>
+            </div>
+            <div style="font-size:10px; color:#9ca3af; margin-bottom:8px; line-height:1.4;">
+                ডিজাইনারের কাজের বিফোর/আফটার প্যাসিভভাবে রেকর্ড করে দূরবর্তী ট্রেইনারকে শেখায়।
+            </div>
+            <div class="check-row" style="margin-bottom:8px;">
+                <input type="checkbox" id="check-autolearn" checked>
+                <label for="check-autolearn" style="color:#e5e7eb; font-weight:600;">স্বয়ংক্রিয় সেভ ট্র্যাকিং অন রাখুন</label>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:10.5px; color:#cbd5e1;">
+                <span>আজকে ক্যাপচার্ড পেয়ার:</span>
+                <b id="harvest-count" style="color:#38bdf8;">0 টি</b>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button id="btn-harvest-sync" class="btn" style="background:#2563eb; flex:2;">
+                    <span>📤</span> এডিট ট্রেনিংয়ে পাঠান
+                </button>
+                <button id="btn-reset-baseline" class="btn secondary" style="flex:1;" title="বর্তমান অবস্থাকে বেসলাইন হিসেবে সেট করুন">
+                    <span>🔄</span> বেসলাইন
+                </button>
+            </div>
+        </div>
+
         <!-- Terminal Log Console -->
         <div class="box">
             <div class="box-title">

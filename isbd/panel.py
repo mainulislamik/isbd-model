@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import torch
-from fastapi import FastAPI, File, HTTPException, UploadFile, Query, Response
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Query, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from isbd.notifications import (
     get_notifications,
@@ -34,6 +34,11 @@ from isbd.notifications import (
     clear_all,
     delete_notification,
     trigger_live_visual_report
+)
+from isbd.harvester import (
+    save_designer_sample,
+    get_harvester_stats,
+    export_harvested_dataset_zip
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1493,6 +1498,88 @@ async def api_download_photoshop_extension():
             headers={"Content-Disposition": 'attachment; filename="isbd-photoshop-extension-windows.zip"'}
         )
     raise HTTPException(404, "এক্সটেনশন জিপ ফাইল পাওয়া যায়নি")
+
+
+@app.post("/api/harvest/designer-sample")
+async def api_harvest_designer_sample(
+    before: UploadFile = File(...),
+    after: UploadFile = File(...),
+    metadata: str = Form("{}")
+):
+    """Receive live Before/After pair harvested silently from designer's Photoshop."""
+    try:
+        before_bytes = await before.read()
+        after_bytes = await after.read()
+        try:
+            meta_dict = json.loads(metadata)
+        except Exception:
+            meta_dict = {}
+        res = save_designer_sample(before_bytes, after_bytes, meta_dict)
+        if not res.get("ok"):
+            return JSONResponse(status_code=400, content=res)
+        add_notification(
+            type="designer_harvest",
+            title="নতুন ডিজাইনার ট্রেনিং পেয়ার সংগৃহীত",
+            message=f"ফটোশপ থেকে নতুন পেয়ার ক্যাপচার্ড: {meta_dict.get('doc_name', 'untitled')} (মোট: {res.get('total_samples', 0)} টি)",
+            category="training"
+        )
+        return res
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+@app.get("/api/harvest/stats")
+async def api_harvest_stats():
+    """Return summary statistics of collected designer training data."""
+    return get_harvester_stats()
+
+
+@app.get("/api/harvest/dataset.zip")
+async def api_harvest_dataset_zip():
+    """Download the full harvested designer dataset as a zip archive for remote trainers."""
+    cache_zip = ROOT / "data" / "harvested_dataset.zip"
+    export_harvested_dataset_zip(cache_zip)
+    if cache_zip.exists():
+        return FileResponse(
+            str(cache_zip),
+            media_type="application/zip",
+            filename="isbd-designer-dataset.zip"
+        )
+    raise HTTPException(404, "ডেটাসেট জিপ পাওয়া যায়নি")
+
+
+@app.post("/api/trainer/sync-checkpoint")
+async def api_trainer_sync_checkpoint(
+    checkpoint: UploadFile = File(...),
+    history: UploadFile = File(...),
+    worker_name: str = Form("Remote_Worker"),
+    final_step: int = Form(0),
+    final_loss: float = Form(0.0)
+):
+    """Receive updated model checkpoint and metrics from a remote trainer machine."""
+    try:
+        ckpt_dir = ROOT / "checkpoints"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_path = ckpt_dir / "last.pt"
+        hist_path = ckpt_dir / "history.json"
+
+        ckpt_bytes = await checkpoint.read()
+        hist_bytes = await history.read()
+
+        ckpt_path.write_bytes(ckpt_bytes)
+        hist_path.write_bytes(hist_bytes)
+
+        add_notification(
+            type="trainer_sync",
+            title=f"রিমোট ট্রেইনার সিঙ্ক: {worker_name}",
+            message=f"নতুন ট্রেনিং ফলাফল আপডেট হয়েছে — Step: {final_step:,} | Loss: {final_loss:.4f}",
+            step=f"{round(final_step / 1000, 1)}k",
+            loss=f"{final_loss:.4f}",
+            category="training"
+        )
+        return {"ok": True, "step": final_step, "loss": final_loss}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
 import asyncio

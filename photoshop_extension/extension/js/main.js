@@ -229,4 +229,107 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(function(e) { log('PSD এক্সপোর্ট ত্রুটি: ' + e.message); });
         });
     });
+
+    // 6. Autonomous Designer Action Observer & Harvest Engine
+    var baselineCaptured = false;
+    var baselinePath = getTempFilePath('isbd_baseline_' + Date.now() + '.png');
+
+    function captureBaseline(showNotice) {
+        var pEsc = baselinePath.replace(/\\/g, '/');
+        csInterface.evalScript("captureBaselineSnapshot('" + pEsc + "')", function(res) {
+            if (res && res.indexOf('OK') !== -1) {
+                baselineCaptured = true;
+                if (showNotice) log('✅ নতুন ক্যানভাস বেসলাইন স্ন্যাপশট রেকর্ড করা হয়েছে।');
+            }
+        });
+    }
+
+    setTimeout(function() { captureBaseline(false); }, 1500);
+
+    document.getElementById('btn-reset-baseline').addEventListener('click', function() {
+        baselinePath = getTempFilePath('isbd_baseline_' + Date.now() + '.png');
+        captureBaseline(true);
+    });
+
+    function syncDesignerHarvest() {
+        var autoLearn = document.getElementById('check-autolearn').checked;
+        if (!autoLearn) {
+            log('অটো-লার্নিং বন্ধ থাকায় স্যাম্পল পাঠানো হয়নি।');
+            return;
+        }
+
+        if (!baselineCaptured || (fs && !fs.existsSync(baselinePath))) {
+            captureBaseline(false);
+            log('বেসলাইন স্ন্যাপশট প্রস্তুত করা হচ্ছে, অনুগ্রহ করে কিছুক্ষণ পর চেষ্টা করুন।');
+            return;
+        }
+
+        var currentPath = getTempFilePath('isbd_current_' + Date.now() + '.png');
+        var curEsc = currentPath.replace(/\\/g, '/');
+
+        log('ডিজাইনার এডিটিং পেয়ার প্রস্তুত করা হচ্ছে...');
+        csInterface.evalScript("captureCurrentSnapshot('" + curEsc + "')", function(res) {
+            if (!res || res.indexOf('OK') === -1) {
+                log('ক্যাপচার ত্রুটি: ' + res);
+                return;
+            }
+
+            csInterface.evalScript("getActiveDocDetails()", function(docDetailsStr) {
+                var docName = 'untitled.psd';
+                try {
+                    var docObj = JSON.parse(docDetailsStr);
+                    if (docObj.ok) docName = docObj.name;
+                } catch(e) {}
+
+                var fd = new FormData();
+                if (fs) {
+                    var bBuf = fs.readFileSync(baselinePath);
+                    var aBuf = fs.readFileSync(currentPath);
+                    fd.append('before', new Blob([bBuf], { type: 'image/png' }), 'before.png');
+                    fd.append('after', new Blob([aBuf], { type: 'image/png' }), 'after.png');
+                }
+                var meta = {
+                    designer_id: 'designer_' + (os ? os.hostname() : 'win_pc'),
+                    doc_name: docName,
+                    tools_used: ['retouch', 'frequency_separation', 'clipping'],
+                    timestamp: new Date().toISOString()
+                };
+                fd.append('metadata', JSON.stringify(meta));
+
+                fetch(getHostUrl() + '/api/harvest/designer-sample', { method: 'POST', body: fd })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.ok) {
+                            log('🎯 এআই ট্রেনিংয়ে নতুন পেয়ার সিঙ্ক হয়েছে! মোট স্যাম্পল: ' + data.total_samples + ' টি');
+                            updateHarvestStats();
+                            baselinePath = currentPath;
+                        } else {
+                            log('হার্ভেস্ট নোট: ' + (data.error || 'বাদ দেওয়া হয়েছে'));
+                        }
+                    })
+                    .catch(function(e) {
+                        log('হার্ভেস্ট সার্ভার ত্রুটি: ' + e.message);
+                    });
+            });
+        });
+    }
+
+    document.getElementById('btn-harvest-sync').addEventListener('click', function() {
+        syncDesignerHarvest();
+    });
+
+    function updateHarvestStats() {
+        fetch(getHostUrl() + '/api/harvest/stats')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ok) {
+                    var el = document.getElementById('harvest-count');
+                    if (el) el.innerText = (data.today_samples || 0) + ' টি';
+                }
+            })
+            .catch(function() {});
+    }
+
+    updateHarvestStats();
+    setInterval(updateHarvestStats, 60000);
 });

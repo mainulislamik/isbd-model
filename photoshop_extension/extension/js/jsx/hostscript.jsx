@@ -85,3 +85,21 @@ function showPhotoshopAlert(msg) {
         return "ERROR";
     }
 }
+
+function captureBaselineSnapshot(outPath) {
+    try {
+        if (app.documents.length === 0) return "ERROR: কোনো সক্রিয় ডকুমেন্ট নেই";
+        return exportActiveDocPNG(outPath);
+    } catch (e) {
+        return "ERROR: " + e.toString();
+    }
+}
+
+function captureCurrentSnapshot(outPath) {
+    try {
+        if (app.documents.length === 0) return "ERROR: কোনো সক্রিয় ডকুমেন্ট নেই";
+        return exportActiveDocPNG(outPath);
+    } catch (e) {
+        return "ERROR: " + e.toString();
+    }
+}
