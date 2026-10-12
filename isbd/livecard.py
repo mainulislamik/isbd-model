@@ -26,20 +26,33 @@ OUT = ROOT / "samples" / "live_card.png"
 def live_state():
     last = {"step": 0, "loss": 0.0, "sps": 0.2}
     try:
+        hist_path = CKPT / "history.json"
+        if hist_path.exists():
+            try:
+                h = json.loads(hist_path.read_text())
+                last["step"] = h.get("total_steps", 0)
+                if h.get("losses"):
+                    last["loss"] = float(h["losses"][-1])
+            except Exception:
+                pass
         out = subprocess.run(
-            ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "30", "-o", "cat"],
-            capture_output=True, text=True, timeout=15,
+            ["docker", "logs", "isbd-trainer", "--tail", "30"],
+            capture_output=True, text=True, timeout=5,
         ).stdout
+        if not out.strip():
+            out = subprocess.run(
+                ["journalctl", "--user", "-u", "isbd-train", "--no-pager", "-n", "30", "-o", "cat"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout
         for line in out.splitlines():
             line = line.strip()
             if line.startswith("step"):
                 try:
                     p = line.replace("|", " ").split()
-                    last = {
-                        "step": int(p[1]),
-                        "loss": float(p[3]),
-                        "sps": float(p[4].replace("s/step", "").replace("s", "")),
-                    }
+                    last["step"] = int(p[1])
+                    last["loss"] = float(p[3])
+                    if len(p) > 4:
+                        last["sps"] = float(p[4].replace("s/step", "").replace("s", ""))
                 except Exception:
                     pass
     except Exception:

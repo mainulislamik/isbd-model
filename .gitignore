@@ -25,3 +25,4 @@ checkpoints/train.lock
 .docker/
 .env
 data/models/
+data/notifications.json

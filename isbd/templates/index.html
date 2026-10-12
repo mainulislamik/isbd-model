@@ -740,6 +740,9 @@ body {
       <button class="ws-btn active" data-tab="tab-dashboard" onclick="switchTab('tab-dashboard')">
         <span class="icon">📊</span> লাইভ ড্যাশবোর্ড
       </button>
+      <button class="ws-btn" data-tab="tab-notifications" onclick="switchTab('tab-notifications')">
+        <span class="icon">🔔</span> নোটিফিকেশন সেন্টার <span id="side-notif-badge" style="background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; margin-left:auto; display:none;">0</span>
+      </button>
       <button class="ws-btn" data-tab="tab-school" onclick="switchTab('tab-school')">
         <span class="icon">🎓</span> Before/After এডিটিং স্কুল
       </button>
@@ -821,6 +824,10 @@ body {
           <span>💻</span>
           <span id="topbar-local-status">Local PC: 0% Load (Cool)</span>
         </div>
+        <button onclick="switchTab('tab-notifications')" class="btn btn-outline" style="padding:7px 15px; font-size:12.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; border-radius:20px; border-color:#c7d2fe; color:#4338ca; background:#eef2ff; position:relative;" title="নোটিফিকেশন ও ২ ঘণ্টার লাইভ রিপোর্ট">
+          🔔 <span>অ্যালার্ট</span>
+          <span id="topbar-notif-badge" style="background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px; display:none;">0</span>
+        </button>
         <button onclick="refreshAllData()" class="btn btn-outline" style="padding:7px 16px; font-size:12.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; border-radius:20px; border-color:#cbd5e1; color:#0f172a; background:#ffffff;" title="সব ডেটা রিফ্রেশ করুন">
           🔄 <span>Refresh</span>
         </button>
@@ -951,13 +958,50 @@ body {
       <span style="font-size:12px; color:#94a3b8;">Waiting for metrics...</span>
     </div>
   </div>
+</div>
 
-  <div style="margin-top: 14px; border-top: 1px dashed #cbd5e1; padding-top: 14px;">
-    <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase;">Live Core Usage</div>
-    <div id="cpu-cores-container" style="display: flex; gap: 6px; flex-wrap: wrap;">
-      <!-- Cores will be injected here -->
-      <span style="font-size:12px; color:#94a3b8;">Waiting for metrics...</span>
+<!-- ─ 2h Live Visual Report & Training Alert Highlight ─ -->
+<div class="panel-box" style="margin-bottom: 24px; padding: 20px 24px; border: 1.5px solid #c7d2fe; background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 22px; background: #e0e7ff; width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">🔔</span>
+      <div>
+        <h2 style="font-size: 15px; margin: 0; font-weight: 800; color: #1e1b4b;">ISBD v1.00 লাইভ ভিজ্যুয়াল রিপোর্ট (২ ঘণ্টার অটো-অ্যালার্ট)</h2>
+        <div style="font-size: 11.5px; color: #4338ca; margin-top: 2px;">মডেলের সর্বশেষ ট্রেইনিং স্টেপ, লস, PSNR শার্পনেস ও আনসিন ইভালুয়েশন প্রমাণ</div>
+      </div>
     </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span id="dash-notif-time" style="font-size: 11.5px; font-weight: 700; color: #4338ca; background: #e0e7ff; padding: 4px 12px; border-radius: 12px;">লোড হচ্ছে...</span>
+      <button onclick="triggerReportUpdate()" class="btn btn-outline" style="padding: 5px 12px; font-size: 11.5px; font-weight: 700; border-color: #a5b4fc; color: #4338ca; background: #ffffff;">
+        🔄 আপডেট
+      </button>
+      <button onclick="switchTab('tab-notifications')" class="btn btn-main" style="padding: 5px 14px; font-size: 11.5px; font-weight: 700;">
+        🔍 বিস্তারিত ভিউ
+      </button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px;">
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px;">
+      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">ট্রেনিং ধাপ (Step)</div>
+      <div id="dash-notif-step" style="font-size: 16px; font-weight: 800; color: #0f172a; margin-top: 2px;">—</div>
+    </div>
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px;">
+      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">বর্তমান লস (Loss)</div>
+      <div id="dash-notif-loss" style="font-size: 16px; font-weight: 800; color: #dc2626; margin-top: 2px;">—</div>
+    </div>
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px;">
+      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">PSNR শার্পনেস</div>
+      <div id="dash-notif-psnr" style="font-size: 16px; font-weight: 800; color: #059669; margin-top: 2px;">—</div>
+    </div>
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px;">
+      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">MSE উন্নতি %</div>
+      <div id="dash-notif-mse" style="font-size: 16px; font-weight: 800; color: #2563eb; margin-top: 2px;">—</div>
+    </div>
+  </div>
+
+  <div id="dash-notif-msg" style="font-size: 12px; color: #334155; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-weight: 500;">
+    ⏳ সর্বশেষ লাইভ ট্রেনিং রিপোর্ট ফেচ করা হচ্ছে...
   </div>
 </div>
 
@@ -1966,6 +2010,84 @@ body {
       </div>
     </div>
 
+    <!-- Tab 12: NOTIFICATION CENTER TAB -->
+    <div id="tab-notifications" class="tab-pane">
+      <div class="panel-header" style="margin-bottom: 20px;">
+        <div>
+          <h2><span class="step-badge">🔔</span> নোটিফিকেশন ও লাইভ ট্রেনিং অ্যালার্ট সেন্টার</h2>
+          <p style="font-size:13px; color:#475569; margin-top:4px;">
+            ISBD v1.00 AI মডেলের প্রতি ২ ঘণ্টার লাইভ ভিজ্যুয়াল রিপোর্ট, ইভালুয়েশন চেকবক্স, PSNR ও সিস্টেম অ্যালার্ট
+          </p>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button onclick="triggerReportUpdate()" id="btn-trigger-report" class="btn btn-main" style="padding:8px 16px; font-size:12.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+            🔄 <span>এখনই লাইভ রিপোর্ট তৈরি করুন</span>
+          </button>
+          <button onclick="markAllNotificationsRead()" class="btn btn-outline" style="padding:8px 14px; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+            ✅ <span>সব পড়া হয়েছে</span>
+          </button>
+          <button onclick="clearAllNotifications()" class="btn btn-outline" style="padding:8px 14px; font-size:12.5px; font-weight:600; color:#dc2626; border-color:#fca5a5; display:inline-flex; align-items:center; gap:6px;">
+            🗑️ <span>ক্লিয়ার করুন</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live 2h Visual Report Highlight Card -->
+      <div class="panel-box" style="margin-bottom: 24px; padding: 22px; border: 2px solid #c7d2fe; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px; background:#e0e7ff; color:#4338ca; width:44px; height:44px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center;">🖼️</span>
+            <div>
+              <h3 style="margin:0; font-size:16px; font-weight:800; color:#1e1b4b;">সর্বশেষ ২ ঘণ্টার লাইভ ভিজ্যুয়াল কার্ড (Visual Proof)</h3>
+              <div style="font-size:12px; color:#4338ca; margin-top:2px;">মডেলের রিয়েল-টাইম degraded photo ফিক্স করার ক্ষমতা (Before ➔ After)</div>
+            </div>
+          </div>
+          <span id="notif-latest-time" style="font-size:12px; font-weight:700; color:#4338ca; background:#e0e7ff; padding:4px 14px; border-radius:12px;">লাইভ</span>
+        </div>
+
+        <!-- Metric Badges Row -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:18px;">
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">বর্তমান ধাপ (Step)</div>
+            <div id="notif-card-step" style="font-size:18px; font-weight:900; color:#0f172a; margin-top:3px;">—</div>
+            <div id="notif-card-eval-step" style="font-size:11px; color:#475569; margin-top:2px;">ইভাল চেকপয়েন্ট: —</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">বর্তমান লস (Loss)</div>
+            <div id="notif-card-loss" style="font-size:18px; font-weight:900; color:#dc2626; margin-top:3px;">—</div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">L1 + MSE কম্পোজিট</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">PSNR (শার্পনেস)</div>
+            <div id="notif-card-psnr" style="font-size:18px; font-weight:900; color:#059669; margin-top:3px;">—</div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">রেফারেন্স: 20.32 dB</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">MSE উন্নতি %</div>
+            <div id="notif-card-mse" style="font-size:18px; font-weight:900; color:#2563eb; margin-top:3px;">—</div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">আইডেন্টিটির তুলনায়</div>
+          </div>
+        </div>
+
+        <!-- Live Visual Card Image View -->
+        <div style="text-align:center; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:12px; padding:16px; box-shadow:0 2px 4px rgba(0,0,0,0.03);">
+          <img id="notif-livecard-img" src="/api/live-card" alt="Live Visual Card" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #e2e8f0; max-height:480px; object-fit:contain;" onerror="this.style.display='none'; document.getElementById('notif-img-fallback').style.display='block';">
+          <div id="notif-img-fallback" style="display:none; padding:30px; color:#64748b; font-size:13px;">কার্ড এখনও জেনারেট হয়নি। উপরের বাটনে ক্লিক করুন।</div>
+        </div>
+      </div>
+
+      <!-- Notification Feed List -->
+      <div class="panel-box" style="padding:22px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">📋 নোটিফিকেশন হিস্ট্রি ফিড</h3>
+          <span id="notif-total-badge" style="font-size:11px; font-weight:700; color:#475569; background:#f1f5f9; padding:4px 12px; border-radius:12px;">০টি নোটিফিকেশন</span>
+        </div>
+        <div id="notif-list-container" style="display:flex; flex-direction:column; gap:12px;">
+          <div style="padding:20px; text-align:center; color:#64748b; font-size:13px;">নোটিফিকেশন লোড হচ্ছে...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1977,6 +2099,7 @@ window.coreHistories = {};
     // --- Navigation Tabs Fix & Topbar Sync ---
     const tabMeta = {
       'tab-dashboard': { title: 'লাইভ ড্যাশবোর্ড ও পারফরম্যান্স ওভারভিউ', sub: 'সার্ভার ও এআই মডেলের ট্রেইনিং স্ট্যাটাস, লস কার্ভ এবং সিস্টেম হেলথ' },
+      'tab-notifications': { title: 'নোটিফিকেশন ও লাইভ ট্রেনিং অ্যালার্ট সেন্টার', sub: 'ISBD v1.00 AI মডেলের প্রতি ২ ঘণ্টার লাইভ ভিজ্যুয়াল রিপোর্ট, ইভালুয়েশন ও সিস্টেম অ্যালার্ট' },
       'tab-school': { title: 'Before/After এডিটিং স্কুল', sub: 'মানুষের করা আসল ফটো এডিটিং আপলোড করে এআই-কে সরাসরি নতুন স্কিল শেখান' },
       'tab-finetune': { title: 'পেয়ার ফাইন-টিউন ল্যাব', sub: 'হাইপারপ্যারামিটার (Steps, LR, Batch) কন্ট্রোল করে ডিপ ফাইন-টিউনিং' },
       'tab-services': { title: '২১টি কমার্শিয়াল স্টুডিও সার্ভিসেস (Suite Pro)', sub: 'ক্লিপিং পাথ, জুয়েলারি শাইনার, ড্রেস রিঙ্কেল, ৩ডি শ্যাডো, ফেস বিউটি ও রিটাচিং' },
@@ -2008,18 +2131,183 @@ window.coreHistories = {};
       if (tabId === 'tab-school' && typeof loadSchoolLog === 'function') {
         loadSchoolLog();
       }
+      if (tabId === 'tab-notifications' && typeof fetchNotifications === 'function') {
+        fetchNotifications();
+      }
     };
 
     window.refreshAllData = function() {
       if (typeof loadSchoolLog === 'function') loadSchoolLog();
       if (typeof fetchTrainingStatus === 'function') fetchTrainingStatus();
       if (typeof updateStats === 'function') updateStats();
+      if (typeof fetchNotifications === 'function') fetchNotifications();
       const tbStatus = document.getElementById('topbar-vps-status');
       if (tbStatus) {
         tbStatus.textContent = '🔄 ডেটা সফলভাবে রিফ্রেশ হয়েছে!';
         setTimeout(() => {
           tbStatus.textContent = '🌐 Picasa VPS: Training Active (Loss 0.0218)';
         }, 2000);
+      }
+    };
+
+    // ── Notifications & 2h Live Training Report Center ──
+    window.fetchNotifications = async function() {
+      try {
+        const res = await fetch('/api/notifications');
+        const data = await res.json();
+        if (!data || !data.ok) return;
+
+        // 1. Update Navigation and Topbar Badges
+        const unread = data.unread_count || 0;
+        const sideBadge = document.getElementById('side-notif-badge');
+        const topBadge = document.getElementById('topbar-notif-badge');
+        if (sideBadge) {
+          sideBadge.textContent = unread;
+          sideBadge.style.display = unread > 0 ? 'inline-block' : 'none';
+        }
+        if (topBadge) {
+          topBadge.textContent = unread;
+          topBadge.style.display = unread > 0 ? 'inline-block' : 'none';
+        }
+
+        const totalBadge = document.getElementById('notif-total-badge');
+        if (totalBadge) totalBadge.textContent = `${data.total_count || 0}টি নোটিফিকেশন`;
+
+        // 2. Render Notifications Feed
+        const notifs = data.notifications || [];
+        const container = document.getElementById('notif-list-container');
+        if (container) {
+          if (notifs.length === 0) {
+            container.innerHTML = '<div style="padding:24px; text-align:center; color:#64748b; font-size:13px;">কোনো নোটিফিকেশন বা অ্যালার্ট নেই।</div>';
+          } else {
+            container.innerHTML = notifs.map(n => {
+              const isUnread = !n.read;
+              const typeBadge = n.type === 'training_report' 
+                ? '<span style="background:#e0e7ff; color:#4338ca; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:10px;">🧠 ২ ঘণ্টার রিপোর্ট</span>'
+                : '<span style="background:#f1f5f9; color:#475569; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:10px;">⚙️ সিস্টেম</span>';
+              
+              const metricsHtml = n.type === 'training_report' ? `
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; font-size:11.5px; font-family:'JetBrains Mono', monospace;">
+                  <span style="background:#f8fafc; border:1px solid #cbd5e1; padding:3px 8px; border-radius:6px; color:#0f172a;"><b>ধাপ:</b> ${n.step || '—'}</span>
+                  <span style="background:#fef2f2; border:1px solid #fecaca; padding:3px 8px; border-radius:6px; color:#dc2626;"><b>লস:</b> ${n.loss || '—'}</span>
+                  <span style="background:#ecfdf5; border:1px solid #a7f3d0; padding:3px 8px; border-radius:6px; color:#059669;"><b>PSNR:</b> ${n.psnr || '—'}</span>
+                  <span style="background:#eff6ff; border:1px solid #bfdbfe; padding:3px 8px; border-radius:6px; color:#2563eb;"><b>MSE উন্নতি:</b> ${n.mse_improve || '—'}</span>
+                </div>
+              ` : '';
+
+              return `
+                <div style="background:${isUnread ? '#f8faff' : '#ffffff'}; border:1px solid ${isUnread ? '#c7d2fe' : '#e2e8f0'}; border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); transition:0.2s;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      ${isUnread ? '<span style="width:8px; height:8px; border-radius:50%; background:#ef4444; display:inline-block;"></span>' : ''}
+                      <span style="font-weight:800; font-size:13.5px; color:#0f172a;">${n.title}</span>
+                      ${typeBadge}
+                    </div>
+                    <span style="font-size:11px; color:#64748b; font-weight:600;">${n.timestamp}</span>
+                  </div>
+                  <div style="font-size:12.5px; color:#334155; line-height:1.6; margin-top:4px;">${n.message}</div>
+                  ${metricsHtml}
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // 3. Update Latest Report Cards in Dashboard & Notification Tab
+        const latestReport = notifs.find(n => n.type === 'training_report') || notifs[0];
+        if (latestReport) {
+          // Dashboard Widget Sync
+          const dStep = document.getElementById('dash-notif-step');
+          const dLoss = document.getElementById('dash-notif-loss');
+          const dPsnr = document.getElementById('dash-notif-psnr');
+          const dMse = document.getElementById('dash-notif-mse');
+          const dTime = document.getElementById('dash-notif-time');
+          const dMsg = document.getElementById('dash-notif-msg');
+          if (dStep) dStep.textContent = latestReport.step || '—';
+          if (dLoss) dLoss.textContent = latestReport.loss || '—';
+          if (dPsnr) dPsnr.textContent = latestReport.psnr || '—';
+          if (dMse) dMse.textContent = latestReport.mse_improve || '—';
+          if (dTime) dTime.textContent = latestReport.timestamp || 'লাইভ';
+          if (dMsg) dMsg.textContent = latestReport.message || '—';
+
+          // Notification Tab Main Highlight Card Sync
+          const nStep = document.getElementById('notif-card-step');
+          const nEval = document.getElementById('notif-card-eval-step');
+          const nLoss = document.getElementById('notif-card-loss');
+          const nPsnr = document.getElementById('notif-card-psnr');
+          const nMse = document.getElementById('notif-card-mse');
+          const nTime = document.getElementById('notif-latest-time');
+          if (nStep) nStep.textContent = latestReport.step || '—';
+          if (nEval) nEval.textContent = `ইভাল চেকপয়েন্ট: ${latestReport.eval_step || '—'}`;
+          if (nLoss) nLoss.textContent = latestReport.loss || '—';
+          if (nPsnr) nPsnr.textContent = latestReport.psnr || '—';
+          if (nMse) nMse.textContent = latestReport.mse_improve || '—';
+          if (nTime) nTime.textContent = latestReport.timestamp || 'লাইভ';
+
+          const cardImg = document.getElementById('notif-livecard-img');
+          if (cardImg && latestReport.image_url) {
+            cardImg.src = latestReport.image_url;
+            cardImg.style.display = 'inline-block';
+            const fallback = document.getElementById('notif-img-fallback');
+            if (fallback) fallback.style.display = 'none';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+      }
+    };
+
+    window.triggerReportUpdate = async function() {
+      const btn = document.getElementById('btn-trigger-report');
+      const origin = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '⏳ <span>রিপোর্ট তৈরি হচ্ছে...</span>';
+        btn.disabled = true;
+      }
+      try {
+        const res = await fetch('/api/notifications/update-tick', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          const cardImg = document.getElementById('notif-livecard-img');
+          if (cardImg) {
+            cardImg.src = '/api/live-card?t=' + Date.now();
+            cardImg.style.display = 'inline-block';
+          }
+          await fetchNotifications();
+          if (btn) btn.innerHTML = '✅ <span>রিপোর্ট সফলভাবে আপডেট হয়েছে!</span>';
+        } else {
+          alert('রিপোর্ট তৈরিতে সমস্যা: ' + (data.detail || 'অজানা ত্রুটি'));
+          if (btn) btn.innerHTML = origin;
+        }
+      } catch (e) {
+        alert('নেটওয়ার্ক ত্রুটি: ' + e);
+        if (btn) btn.innerHTML = origin;
+      } finally {
+        setTimeout(() => {
+          if (btn) {
+            btn.innerHTML = origin;
+            btn.disabled = false;
+          }
+        }, 2000);
+      }
+    };
+
+    window.markAllNotificationsRead = async function() {
+      try {
+        await fetch('/api/notifications/mark-read', { method: 'POST' });
+        await fetchNotifications();
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    window.clearAllNotifications = async function() {
+      if (!confirm('আপনি কি নিশ্চিত যে সব নোটিফিকেশন হিস্ট্রি মুছে ফেলতে চান?')) return;
+      try {
+        await fetch('/api/notifications/clear', { method: 'POST' });
+        await fetchNotifications();
+      } catch (e) {
+        console.error(e);
       }
     };
 
@@ -3221,6 +3509,21 @@ async function poll() {
         btn.style.color = '#dc2626';
       }
     });
+
+    // ── Notifications unread sync ──
+    if (j.notifications_unread !== undefined) {
+      const unread = j.notifications_unread || 0;
+      const sideBadge = document.getElementById('side-notif-badge');
+      const topBadge = document.getElementById('topbar-notif-badge');
+      if (sideBadge) {
+        sideBadge.textContent = unread;
+        sideBadge.style.display = unread > 0 ? 'inline-block' : 'none';
+      }
+      if (topBadge) {
+        topBadge.textContent = unread;
+        topBadge.style.display = unread > 0 ? 'inline-block' : 'none';
+      }
+    }
   } catch(e) {
     console.error('Polling error:', e);
   }
@@ -3252,6 +3555,8 @@ async function toggleContinuousTraining() {
 
 setInterval(poll, 3000);
 poll();
+fetchNotifications();
+setInterval(fetchNotifications, 30000);
 addPairRow();
 
 function toggleSchoolMode(mode) {

@@ -26,7 +26,15 @@ import numpy as np
 from PIL import Image
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query, Response
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
+from isbd.notifications import (
+    get_notifications,
+    add_notification,
+    mark_all_read,
+    clear_all,
+    delete_notification,
+    trigger_live_visual_report
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -1414,6 +1422,71 @@ async def export_psd_api(
         raise HTTPException(500, f"PSD এক্সপোর্ট ত্রুটি: {str(e)}")
 
 
+# ── Notification & Live Training Report Endpoints ────────────────────────────
+@app.get("/api/notifications")
+async def api_get_notifications(limit: int = 50):
+    """Retrieve in-panel notifications & live training reports."""
+    return get_notifications(limit=limit)
+
+
+@app.post("/api/notifications/update-tick")
+async def api_trigger_report_tick():
+    """Trigger an on-demand live visual report card + eval checkpoint tick."""
+    try:
+        report = trigger_live_visual_report()
+        data = get_notifications()
+        return {"ok": True, "report": report, **data}
+    except Exception as e:
+        raise HTTPException(500, f"নোটিফিকেশন রিপোর্ট তৈরিতে ত্রুটি: {str(e)}")
+
+
+@app.post("/api/notifications/mark-read")
+async def api_mark_notifications_read():
+    """Mark all notifications as read."""
+    mark_all_read()
+    return {"ok": True}
+
+
+@app.post("/api/notifications/clear")
+async def api_clear_notifications():
+    """Clear all notification history."""
+    clear_all()
+    return {"ok": True}
+
+
+@app.get("/api/live-card")
+async def api_get_live_card():
+    """Serve the latest 2-hour Live Visual Card image."""
+    card_path = ROOT / "samples" / "live_card.png"
+    if not card_path.exists():
+        try:
+            from isbd.livecard import build
+            build()
+        except Exception:
+            pass
+    if card_path.exists():
+        return FileResponse(str(card_path), media_type="image/png")
+    raise HTTPException(404, "লাইভ কার্ড পাওয়া যায়নি")
+
+
+import asyncio
+
+async def _periodic_report_worker():
+    """Background worker that periodically checks and logs 2-hour visual reports."""
+    await asyncio.sleep(60)
+    while True:
+        try:
+            trigger_live_visual_report()
+        except Exception as e:
+            print(f"[BG REPORT ERROR] {e}")
+        await asyncio.sleep(7200)
+
+
+@app.on_event("startup")
+async def on_startup_handler():
+    asyncio.create_task(_periodic_report_worker())
+
+
 @app.get("/api/status")
 async def status():
     return {
@@ -1426,6 +1499,7 @@ async def status():
         "paused": _is_paused(),
         "telemetry": _get_system_telemetry(),
         "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
+        "notifications_unread": get_notifications().get("unread_count", 0),
     }
 
 
