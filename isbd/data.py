@@ -8,6 +8,7 @@ ISBD v1.00 — Advanced Data Generator & Priority Replay Engine v3
 import os
 import random
 import math
+import json
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter, ImageDraw
@@ -241,7 +242,7 @@ def make_pair(seed: int):
 
 
 def load_real_pairs():
-    """Loads all human real-edited pairs from NPZ storage."""
+    """Loads all human real-edited pairs from NPZ storage and live harvested buffer."""
     real_files = [DATA / "real_pairs.npz", DATA / "pairs.npz"]
     all_x, all_y = [], []
     for p in real_files:
@@ -253,6 +254,32 @@ def load_real_pairs():
                         all_y.append(d["Y"])
             except Exception:
                 pass
+
+    # Seamlessly ingest live harvested designer samples from Photoshop buffer
+    harv_dir = DATA / "harvested_samples"
+    manifest_p = harv_dir / "manifest.json"
+    if manifest_p.exists():
+        try:
+            m = json.loads(manifest_p.read_text())
+            for item in m.get("samples", []):
+                bf = harv_dir / item.get("before_file", "")
+                af = harv_dir / item.get("after_file", "")
+                if bf.exists() and af.exists():
+                    import cv2
+                    img_b = cv2.imread(str(bf))
+                    img_a = cv2.imread(str(af))
+                    if img_b is not None and img_a is not None:
+                        img_b = cv2.cvtColor(img_b, cv2.COLOR_BGR2RGB)
+                        img_a = cv2.cvtColor(img_a, cv2.COLOR_BGR2RGB)
+                        img_b = cv2.resize(img_b, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
+                        img_a = cv2.resize(img_a, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
+                        xb = np.asarray(img_b, dtype=np.float32) / 255.0
+                        ya = np.asarray(img_a, dtype=np.float32) / 255.0
+                        all_x.append(np.expand_dims(xb.transpose(2, 0, 1), 0))
+                        all_y.append(np.expand_dims(ya.transpose(2, 0, 1), 0))
+        except Exception:
+            pass
+
     if all_x:
         return np.concatenate(all_x, axis=0), np.concatenate(all_y, axis=0)
     return None, None
