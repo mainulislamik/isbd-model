@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ISBD Studio AI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="title">
+        <span>⚡</span> ISBD Studio AI
+      </div>
+      <div id="conn-status" class="status-badge">● সংযুক্ত (8077)</div>
+    </div>
+
+    <!-- Endpoint config -->
+    <div class="section-box">
+      <div class="section-title">সার্ভার সংযোগ (Host URL)</div>
+      <input type="text" id="api-url" class="input-text" value="http://127.0.0.1:8077" />
+    </div>
+
+    <!-- Retouch & Face Mesh Section -->
+    <div class="section-box">
+      <div class="section-title">পেশাদার রিটাচিং (Pro Retouching)</div>
+      <div class="setting-row">
+        <label for="dermis-smooth">ত্বক স্মুথিং (Dermis):</label>
+        <input type="range" id="dermis-smooth" min="0" max="100" value="70">
+      </div>
+      <div class="setting-row">
+        <label for="teeth-whiten">দাঁত উজ্জ্বলকরণ (Teeth):</label>
+        <input type="checkbox" id="teeth-whiten" checked>
+      </div>
+      <div class="setting-row">
+        <label for="eye-clarity">চোখের মণি শার্পনেস (Eyes):</label>
+        <input type="checkbox" id="eye-clarity" checked>
+      </div>
+      <button id="btn-mediapipe" class="action-btn">
+        <span>👤</span> MediaPipe ফেস রিটাচ
+      </button>
+      <button id="btn-quick-retouch" class="action-btn secondary">
+        <span>✨</span> ISBD স্টুডিও ওয়ান-ক্লিক এনহ্যান্স
+      </button>
+    </div>
+
+    <!-- Clipping & Matting Section -->
+    <div class="section-box">
+      <div class="section-title">আলফা কাটআউট ও ভেক্টর ক্লিপিং</div>
+      <button id="btn-alpha-matting" class="action-btn">
+        <span>✂️</span> PyMatting আলফা হেয়ার কাটআউট
+      </button>
+      <button id="btn-vector-path" class="action-btn secondary">
+        <span>✒️</span> Bézier পেন-টুল ক্লিপিং পাথ
+      </button>
+      <button id="btn-export-psd" class="action-btn secondary">
+        <span>🎨</span> সম্পূর্ণ লেয়ার্ড .PSD জেনারেট
+      </button>
+    </div>
+
+    <!-- Status & Output Log -->
+    <div class="section-box">
+      <div class="section-title">কনসোল লগ (Status)</div>
+      <div id="log-box" class="status-log">ISBD UXP প্লাগইন প্রস্তুত। একটি ডকুমেন্ট সিলেক্ট করে বাটনে ক্লিক করুন।</div>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

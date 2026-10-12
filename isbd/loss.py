@@ -145,20 +145,82 @@ def feature_cosine_distill_loss(student_feat: torch.Tensor, teacher_feat: torch.
     return torch.clamp(1.0 - cos_sim, 0.0, 2.0)
 
 
+def focal_frequency_loss(pred: torch.Tensor, target: torch.Tensor, alpha: float = 1.0) -> torch.Tensor:
+    """
+    2D Discrete Fourier Transform (DFT) Frequency Loss.
+    Penalizes spectral differences in magnitude and phase domains to conserve
+    high-frequency micro-textures (skin pores, fabric weave, crisp hair edges).
+    """
+    pred_fft = torch.fft.rfft2(pred, norm="ortho")
+    target_fft = torch.fft.rfft2(target, norm="ortho")
+
+    pred_mag = pred_fft.abs()
+    target_mag = target_fft.abs()
+
+    diff_mag = torch.abs(pred_mag - target_mag)
+    # Dynamic frequency matrix weighting
+    with torch.no_grad():
+        denom = diff_mag.max() + 1e-7
+        weight = (diff_mag / denom) ** alpha
+
+    loss_mag = (weight * diff_mag).mean()
+    return loss_mag
+
+
+def cielab_color_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    CIE L*a*b* Perceptual Color Space Loss (Delta E approximation).
+    Calculates perceptual color differences: Lightness (L*) vs Opponent Chrominance (a*, b*).
+    """
+    def _rgb_to_lab(img: torch.Tensor) -> torch.Tensor:
+        # Clamp to [0, 1]
+        img = torch.clamp(img, 0.0, 1.0)
+        r, g, b = img[:, 0:1], img[:, 1:2], img[:, 2:3]
+
+        # sRGB gamma companding to linear
+        def to_lin(c):
+            return torch.where(c > 0.04045, torch.clamp((c + 0.055) / 1.055, min=1e-5) ** 2.4, c / 12.92)
+
+        r_lin, g_lin, b_lin = to_lin(r), to_lin(g), to_lin(b)
+
+        # CIE XYZ (D65 standard illuminant)
+        x = (0.4124564 * r_lin + 0.3575761 * g_lin + 0.1804375 * b_lin) / 0.95047
+        y = (0.2126729 * r_lin + 0.7151522 * g_lin + 0.0721750 * b_lin) / 1.00000
+        z = (0.0193339 * r_lin + 0.1191920 * g_lin + 0.9503041 * b_lin) / 1.08883
+
+        delta = 6.0 / 29.0
+        def f(t):
+            return torch.where(t > (delta ** 3), torch.clamp(t, min=1e-5) ** (1.0 / 3.0), (t / (3.0 * delta ** 2)) + (4.0 / 29.0))
+
+        fx, fy, fz = f(x), f(y), f(z)
+        L = 116.0 * fy - 16.0
+        a = 500.0 * (fx - fy)
+        b = 200.0 * (fy - fz)
+        return torch.cat([L, a, b], dim=1)
+
+    lab_pred = _rgb_to_lab(pred)
+    lab_target = _rgb_to_lab(target)
+    # Normalized by 100 to bring into scale of L1
+    return F.l1_loss(lab_pred, lab_target) / 100.0
+
+
 class ISBDProLoss(nn.Module):
     """
     Composite studio loss function:
-    L = L1 + alpha * SSIM + beta * Sobel + delta * Laplacian + eta * Color_Cosine + gamma * MSE
+    L = L1 + alpha*SSIM + beta*Sobel + delta*Laplacian + eta*Color_Cosine + gamma*MSE + zeta*FFT + theta*CIELAB
     """
     def __init__(self, ssim_weight: float = 0.20, edge_weight: float = 0.15,
                  laplacian_weight: float = 0.15, color_weight: float = 0.10,
-                 mse_weight: float = 0.05):
+                 mse_weight: float = 0.05, fft_weight: float = 0.15,
+                 cielab_weight: float = 0.10):
         super().__init__()
         self.ssim_weight = ssim_weight
         self.edge_weight = edge_weight
         self.laplacian_weight = laplacian_weight
         self.color_weight = color_weight
         self.mse_weight = mse_weight
+        self.fft_weight = fft_weight
+        self.cielab_weight = cielab_weight
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         l1 = F.l1_loss(pred, target)
@@ -178,6 +240,12 @@ class ISBDProLoss(nn.Module):
 
         if self.mse_weight > 0:
             loss = loss + self.mse_weight * F.mse_loss(pred, target)
+
+        if self.fft_weight > 0:
+            loss = loss + self.fft_weight * focal_frequency_loss(pred, target)
+
+        if self.cielab_weight > 0:
+            loss = loss + self.cielab_weight * cielab_color_loss(pred, target)
 
         return loss
 
