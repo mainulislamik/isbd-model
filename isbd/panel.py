@@ -1469,6 +1469,32 @@ async def api_get_live_card():
     raise HTTPException(404, "লাইভ কার্ড পাওয়া যায়নি")
 
 
+@app.get("/api/download/photoshop-extension-zip")
+async def api_download_photoshop_extension():
+    """Download the 1-click Windows installer ZIP for Adobe Photoshop CEP Extension."""
+    import zipfile
+    src_dir = ROOT / "photoshop_extension"
+    zip_path = ROOT / "data" / "isbd-photoshop-extension-windows.zip"
+
+    if src_dir.exists():
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(str(src_dir)):
+                for f in files:
+                    full_p = os.path.join(root, f)
+                    rel_p = os.path.relpath(full_p, str(src_dir))
+                    zf.write(full_p, rel_p)
+
+    if zip_path.exists():
+        return FileResponse(
+            str(zip_path),
+            media_type="application/zip",
+            filename="isbd-photoshop-extension-windows.zip",
+            headers={"Content-Disposition": 'attachment; filename="isbd-photoshop-extension-windows.zip"'}
+        )
+    raise HTTPException(404, "এক্সটেনশন জিপ ফাইল পাওয়া যায়নি")
+
+
 import asyncio
 
 async def _periodic_report_worker():

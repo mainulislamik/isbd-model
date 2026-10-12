@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ISBD Studio AI</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/CSInterface.js"></script>
+</head>
+<body>
+    <div class="panel-wrap">
+        <!-- Header -->
+        <div class="header-bar">
+            <div class="header-brand">
+                <span>⚡</span> ISBD Studio AI
+            </div>
+            <div id="conn-badge" class="conn-pill">● সংযুক্ত (8077)</div>
+        </div>
+
+        <!-- Connection Settings -->
+        <div class="box">
+            <div class="box-title">
+                <span>সার্ভার সংযোগ (Host API)</span>
+                <span id="ping-text" style="font-size:9.5px; color:#10b981;">Online</span>
+            </div>
+            <div class="input-row">
+                <input type="text" id="host-url" class="input-text" value="http://127.0.0.1:8077" />
+            </div>
+        </div>
+
+        <!-- Portrait & Dermis Retouching -->
+        <div class="box">
+            <div class="box-title">👤 ফেস মেশ ও স্কিন রিটাচ (Retouching)</div>
+            <div class="range-row">
+                <label for="range-smooth">ত্বক স্মুথিং:</label>
+                <div>
+                    <input type="range" id="range-smooth" min="10" max="100" value="70" oninput="document.getElementById('val-smooth').innerText = this.value + '%';">
+                    <span id="val-smooth" class="val">70%</span>
+                </div>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="check-teeth" checked>
+                <label for="check-teeth">দাঁত উজ্জ্বলকরণ (Teeth Whitening)</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="check-eye" checked>
+                <label for="check-eye">চোখের মণি শার্পনেস (Eye Pop)</label>
+            </div>
+            <button id="btn-mediapipe" class="btn success">
+                <span>✨</span> MediaPipe 468-pt রিটাচ
+            </button>
+            <button id="btn-quick-retouch" class="btn secondary">
+                <span>⚡</span> স্টুডিও ওয়ান-ক্লিক এনহ্যান্স
+            </button>
+        </div>
+
+        <!-- Clipping, Alpha Matting & Paths -->
+        <div class="box">
+            <div class="box-title">✂️ আলফা ম্যাটিং ও পেন-টুল ক্লিপিং</div>
+            <button id="btn-matting" class="btn">
+                <span>✂️</span> PyMatting আলফা হেয়ার কাটআউট
+            </button>
+            <button id="btn-vector" class="btn secondary">
+                <span>✒️</span> Bézier পেন-টুল ভেক্টর পাথ (.SVG)
+            </button>
+            <button id="btn-psd" class="btn secondary">
+                <span>🎨</span> নন-ডেস্ট্রাক্টিভ .PSD এক্সপোর্ট
+            </button>
+        </div>
+
+        <!-- Terminal Log Console -->
+        <div class="box">
+            <div class="box-title">
+                <span>অ্যাক্টিভিটি লগ (Console)</span>
+                <a href="#" onclick="clearLog(); return false;" style="font-size:9.5px; color:#9ca3af; text-decoration:none;">ক্লিয়ার</a>
+            </div>
+            <div id="log-console" class="log-screen">
+                [ISBD CEP] এক্সটেনশন প্রস্তুত। ফটোশপে একটি ডকুমেন্ট ওপেন করে বাটনে ক্লিক করুন।
+            </div>
+        </div>
+
+        <div class="footer-text">ISBD Studio AI v1.00 • Non-Destructive Suite</div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
