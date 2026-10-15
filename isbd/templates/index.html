@@ -3080,7 +3080,7 @@ async function applyBgRemove() {
   }
   const resDiv = document.getElementById('bg-remove-res');
   if (resDiv) {
-    resDiv.innerHTML = '<div style="text-align:center; padding: 30px; font-weight:600; color:#8b5cf6;"><span class="icon animate-spin">🔄</span> U²-Net AI ব্যাকগ্রাউন্ড রিমুভ করছে... দয়া করে অপেক্ষা করুন!</div>';
+    resDiv.innerHTML = '<div style="text-align:center; padding: 30px; font-weight:600; color:#8b5cf6;"><span class="icon animate-spin">🔄</span> BiRefNet/U²-Net AI ব্যাকগ্রাউন্ড রিমুভ করছে... দয়া করে অপেক্ষা করুন!</div>';
   }
   const formData = new FormData();
   formData.append('image', bgRemoveImg);
@@ -3088,25 +3088,30 @@ async function applyBgRemove() {
   formData.append('model_id', 'isbd_v1');
 
   try {
-    const res = await fetch('/api/service_process', { method: 'POST', body: formData });
+    const res = await fetch('/api/service_process?service_id=background_removal&model_id=isbd_v1', { method: 'POST', body: formData });
     const data = await res.json();
-    if (data.ok && data.image_b64) {
+    const resultImg = data.image_b64 || data.processed_image;
+    if (res.ok && data.ok && resultImg) {
       if (resDiv) {
         resDiv.innerHTML = `
           <div style="background: repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 20px 20px; border-radius:8px; padding:10px; display:inline-block;">
-            <img src="${data.image_b64}" style="max-width:100%; max-height:450px; border-radius:6px; display:block; margin: 0 auto;">
+            <img src="${resultImg}" style="max-width:100%; max-height:450px; border-radius:6px; display:block; margin: 0 auto;">
           </div>
           <div style="margin-top:10px;">
-            <a href="${data.image_b64}" download="transparent_bg.png" class="btn btn-main" style="background:#10b981; text-decoration:none; display:inline-block; padding:8px 18px; font-size:12px;">⬇️ ডাউনলোড ট্রান্সপারেন্ট PNG</a>
+            <a href="${resultImg}" download="transparent_bg.png" class="btn btn-main" style="background:#10b981; text-decoration:none; display:inline-block; padding:8px 18px; font-size:12px;">⬇️ ডাউনলোড ট্রান্সপারেন্ট PNG</a>
           </div>`;
       }
       toast('ম্যাজিক ব্যাকগ্রাউন্ড রিমুভ সম্পন্ন!', 'ok');
     } else {
-      if (resDiv) resDiv.innerHTML = `<span style="color:#ef4444;">ত্রুটি: ${data.detail || data.error}</span>`;
-      toast('রিমুভ করতে ত্রুটি', 'err');
+      let errMsg = data.detail || data.error || 'অজানা ত্রুটি';
+      if (typeof errMsg === 'object') {
+        errMsg = Array.isArray(errMsg) ? (errMsg[0]?.msg || JSON.stringify(errMsg)) : JSON.stringify(errMsg);
+      }
+      if (resDiv) resDiv.innerHTML = `<span style="color:#ef4444; font-weight:600;">ত্রুটি: ${errMsg}</span>`;
+      toast('রিমুভ করতে ত্রুটি: ' + errMsg, 'err');
     }
   } catch(e) {
-    if (resDiv) resDiv.innerHTML = `<span style="color:#ef4444;">নেটওয়ার্ক ত্রুটি: ${e.message}</span>`;
+    if (resDiv) resDiv.innerHTML = `<span style="color:#ef4444; font-weight:600;">নেটওয়ার্ক ত্রুটি: ${e.message}</span>`;
     toast('নেটওয়ার্ক ত্রুটি', 'err');
   }
 }

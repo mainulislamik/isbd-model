@@ -815,35 +815,42 @@ async def smart_studio_api(
 @app.post("/api/service_process")
 async def process_service_api(
     image: UploadFile = File(...),
-    service_id: str = Query(...),
-    model_id: str = Query("isbd_v1", description="Selected AI Model Engine")
+    service_id: Optional[str] = Query(None),
+    model_id: Optional[str] = Query(None),
+    service_id_form: Optional[str] = Form(None, alias="service_id"),
+    model_id_form: Optional[str] = Form(None, alias="model_id")
 ):
-    """Execute any of the 11 Commercial Studio Services on the uploaded photo with chosen AI model."""
+    """Execute any of the Commercial Studio Services on the uploaded photo with chosen AI model."""
     raw = await image.read()
     if not raw:
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
+    
+    # Resolve service_id & model_id from query or form
+    resolved_service_id = service_id or service_id_form or "background_removal"
+    resolved_model_id = model_id or model_id_form or "isbd_v1"
+
     try:
         from isbd.studio_sectors import execute_studio_service
         img = Image.open(io.BytesIO(raw)).convert("RGB")
         
         # 1. Execute Service with Model-Specific Neural Pipeline
-        if service_id in ["image_retouching", "image_enhancement", "color_correction"]:
+        if resolved_service_id in ["image_retouching", "image_enhancement", "color_correction"]:
             from isbd.neural_retoucher import execute_model_specific_retouching
-            out_img, desc, active_name = execute_model_specific_retouching(img, model_id=model_id)
+            out_img, desc, active_name = execute_model_specific_retouching(img, model_id=resolved_model_id)
         else:
             from isbd.studio_sectors import execute_studio_service
-            out_img, desc = execute_studio_service(img, service_id)
-            active_name = model_id
+            out_img, desc = execute_studio_service(img, resolved_service_id)
+            active_name = resolved_model_id
 
         # 2. If an External VLM Model (Gemini / Claude / DeepSeek) is selected, run VLM Engine
         vlm_log = f"Processed with {active_name} Engine."
-        if model_id and model_id != "isbd_v1":
+        if resolved_model_id and resolved_model_id != "isbd_v1":
             try:
                 from isbd.vlm_engine import execute_vision_model
                 vlm_res = execute_vision_model(
                     img,
-                    task_prompt=f"Perform commercial studio post-production service: {service_id}. Return precise visual assessment and retouching guidance.",
-                    model_id=model_id
+                    task_prompt=f"Perform commercial studio post-production service: {resolved_service_id}. Return precise visual assessment and retouching guidance.",
+                    model_id=resolved_model_id
                 )
                 vlm_log = vlm_res.get("log", "")
             except Exception as e:
@@ -857,11 +864,12 @@ async def process_service_api(
 
         return {
             "ok": True,
-            "service_id": service_id,
-            "model_used": model_id,
+            "service_id": resolved_service_id,
+            "model_used": resolved_model_id,
             "description": f"[{active_name}] " + desc,
-            "terminal_log": f"[{time.strftime('%H:%M:%S')}] Service: {service_id}\n[ENGINE] Active Architecture: {active_name}\n[INFERENCE] {vlm_log}\n[STATUS] Rendered output with {active_name} pipeline (Shape: {out_img.size}, Format: {fmt}).",
-            "processed_image": img_b64
+            "terminal_log": f"[{time.strftime('%H:%M:%S')}] Service: {resolved_service_id}\n[ENGINE] Active Architecture: {active_name}\n[INFERENCE] {vlm_log}\n[STATUS] Rendered output with {active_name} pipeline (Shape: {out_img.size}, Format: {fmt}).",
+            "processed_image": img_b64,
+            "image_b64": img_b64
         }
     except Exception as e:
         raise HTTPException(500, f"সার্ভিস প্রসেসিং ত্রুটি: {str(e)}")

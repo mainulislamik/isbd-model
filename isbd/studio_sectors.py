@@ -70,13 +70,17 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
 
     elif service_id == "background_removal":
         try:
-            import rembg
-            out_img = rembg.remove(img)
-            return out_img, "Background Removal (U2Net AI ম্যাজিক রিমুভ সম্পন্ন)"
-        except ImportError:
-            return img, "Background Removal (rembg লাইব্রেরি ইনস্টল করা নেই)"
-        except Exception as e:
-            return img, f"Background Removal (ত্রুটি: {str(e)})"
+            from isbd.opensource_ai import birefnet_hair_matting
+            out_img, desc = birefnet_hair_matting(img)
+            return out_img, f"Background Removal (BiRefNet/U2Net ম্যাজিক রিমুভ সম্পন্ন)"
+        except Exception:
+            try:
+                import rembg
+                s = rembg.new_session("u2netp")
+                out_img = rembg.remove(img, session=s)
+                return out_img, "Background Removal (U2Net AI ম্যাজিক রিমুভ সম্পন্ন)"
+            except Exception as e:
+                return img, f"Background Removal (ত্রুটি: {str(e)})"
 
     elif service_id == "dress_wrinkle_cleaner":
         from isbd.advanced_tools import dress_wrinkle_cleaner
