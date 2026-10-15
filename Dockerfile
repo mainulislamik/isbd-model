@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Python dependencies (pinned to the exact versions the native venv uses)
 RUN pip install --no-cache-dir \
-    torch==2.14.0 --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir \
     fastapi==0.141.1 \
     uvicorn==0.52.4 \

@@ -18,9 +18,16 @@ git -C /home/imon/isbd_model config http.postBuffer 524288000
 
 # Check if Picasa VPS is reachable
 if ssh -q -o ConnectTimeout=5 -o BatchMode=yes picasa exit; then
-    # Sync checkpoints (weights, history, state)
+    # 1. Push local harvested designer samples and adapters to Picasa VPS (for 24/7 continuous trainer)
+    if [ -d "/home/imon/isbd_model/data/harvested_samples" ]; then
+        rsync -avz --update /home/imon/isbd_model/data/harvested_samples/ picasa:/opt/isbd_model/data/harvested_samples/ >/dev/null 2>&1
+    fi
+    if [ -d "/home/imon/isbd_model/checkpoints/adapters" ]; then
+        rsync -avz --update /home/imon/isbd_model/checkpoints/adapters/ picasa:/opt/isbd_model/checkpoints/adapters/ >/dev/null 2>&1
+    fi
+
+    # 2. Sync latest model weights, history, and datasets from Picasa VPS to Local PC
     rsync -avz --update picasa:/opt/isbd_model/checkpoints/ /home/imon/isbd_model/checkpoints/ >/dev/null 2>&1
-    # Sync data (real pairs, ft state)
     rsync -avz --update picasa:/opt/isbd_model/data/ /home/imon/isbd_model/data/ >/dev/null 2>&1
 
     # If new checkpoints or data arrived, commit and push to GitHub
