@@ -433,4 +433,143 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateHarvestStats();
     setInterval(updateHarvestStats, 60000);
+
+    // ── 7. Silent Background Auto-Updater Engine ──
+    function checkAndApplyAutoUpdate(isManual) {
+        var banner = document.getElementById('update-banner');
+        var hostUrl = getHostUrl();
+
+        if (typeof require === 'undefined') {
+            if (isManual && banner) {
+                banner.style.display = 'block';
+                banner.style.color = '#f59e0b';
+                banner.innerText = 'Node.js রানটাইম অফলাইন — ব্রাউজার প্রিভিউ মোড';
+                setTimeout(function() { banner.style.display = 'none'; }, 3000);
+            }
+            return;
+        }
+
+        try {
+            var fs = require('fs');
+            var path = require('path');
+            var extPath = '';
+            if (typeof csInterface !== 'undefined' && typeof SystemPath !== 'undefined') {
+                extPath = csInterface.getSystemPath(SystemPath.EXTENSION);
+            }
+            if (!extPath) {
+                extPath = typeof __dirname !== 'undefined' ? __dirname : '';
+            }
+            if (!extPath) return;
+
+            var versionFile = path.join(extPath, 'version.json');
+            var localInfo = { version: "1.0.0", bundle_hash: "" };
+            if (fs.existsSync(versionFile)) {
+                try {
+                    localInfo = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+                } catch(e) {}
+            }
+
+            if (isManual && banner) {
+                banner.style.display = 'block';
+                banner.style.color = '#3b82f6';
+                banner.innerText = '🔄 সার্ভারে লাইভ আপডেট খোঁজা হচ্ছে...';
+            }
+
+            fetch(hostUrl + '/api/extension/version', { method: 'GET', cache: 'no-cache' })
+                .then(function(res) {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                })
+                .then(function(srv) {
+                    if (!srv.ok || !srv.bundle_hash) return;
+
+                    // Already up to date
+                    if (localInfo.bundle_hash === srv.bundle_hash) {
+                        if (isManual && banner) {
+                            banner.style.display = 'block';
+                            banner.style.color = '#10b981';
+                            banner.innerText = '✓ প্লাগইন সম্পূর্ণ আপ-টু-ডেট (v' + (srv.version || '1.2.0') + ')';
+                            setTimeout(function() { banner.style.display = 'none'; }, 3500);
+                        }
+                        return;
+                    }
+
+                    // Update found on server!
+                    if (banner) {
+                        banner.style.display = 'block';
+                        banner.style.color = '#3b82f6';
+                        banner.innerText = '⚡ সার্ভার থেকে নতুন ফিচার আপডেট হচ্ছে... (' + srv.bundle_hash + ')';
+                    }
+
+                    fetch(hostUrl + '/api/extension/bundle', { method: 'GET', cache: 'no-cache' })
+                        .then(function(bRes) { return bRes.json(); })
+                        .then(function(bundle) {
+                            if (!bundle.ok || !bundle.files) return;
+
+                            var files = bundle.files;
+                            var fileKeys = Object.keys(files);
+                            var updatedCount = 0;
+
+                            fileKeys.forEach(function(relPath) {
+                                try {
+                                    var destPath = path.join(extPath, relPath);
+                                    var dir = path.dirname(destPath);
+                                    if (!fs.existsSync(dir)) {
+                                        fs.mkdirSync(dir, { recursive: true });
+                                    }
+                                    var buf = Buffer.from(files[relPath], 'base64');
+                                    fs.writeFileSync(destPath, buf);
+                                    updatedCount++;
+                                } catch(fErr) {
+                                    console.error('[AutoUpdater] Failed writing ' + relPath, fErr);
+                                }
+                            });
+
+                            var newVersionData = {
+                                version: bundle.version || srv.version || "1.2.0",
+                                bundle_hash: bundle.bundle_hash,
+                                updated_at: new Date().toISOString(),
+                                files_count: updatedCount
+                            };
+                            fs.writeFileSync(versionFile, JSON.stringify(newVersionData, null, 2), 'utf8');
+
+                            if (banner) {
+                                banner.style.color = '#10b981';
+                                banner.innerText = '✨ আপডেট সফল! প্লাগইন স্বয়ংক্রিয় রিলোড হচ্ছে...';
+                            }
+                            log('🚀 ফটোশপ এক্সটেনশন স্বয়ংক্রিয়ভাবে v' + newVersionData.version + '-এ আপডেট হয়েছে!');
+
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 800);
+                        })
+                        .catch(function(bErr) {
+                            console.error('[AutoUpdater] Bundle download failed:', bErr);
+                        });
+                })
+                .catch(function(err) {
+                    if (isManual && banner) {
+                        banner.style.display = 'block';
+                        banner.style.color = '#ef4444';
+                        banner.innerText = 'সার্ভার সংযোগ ব্যর্থ বা অফলাইন';
+                        setTimeout(function() { banner.style.display = 'none'; }, 3500);
+                    }
+                    console.log('[AutoUpdater] Auto-update ping ignored:', err.message);
+                });
+        } catch(err) {
+            console.error('[AutoUpdater] Error in updater:', err);
+        }
+    }
+
+    var btnSync = document.getElementById('btn-sync-update');
+    if (btnSync) {
+        btnSync.addEventListener('click', function() {
+            checkAndApplyAutoUpdate(true);
+        });
+    }
+
+    // Silent check on panel open
+    setTimeout(function() {
+        checkAndApplyAutoUpdate(false);
+    }, 2500);
 });

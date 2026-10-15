@@ -16,15 +16,17 @@
             <div id="conn-badge" class="conn-pill">● সংযুক্ত (8077)</div>
         </div>
 
-        <!-- Connection Settings -->
+        <!-- Connection Settings & Live Auto-Sync -->
         <div class="box">
             <div class="box-title">
                 <span>সার্ভার সংযোগ (Host API)</span>
                 <span id="ping-text" style="font-size:9.5px; color:#10b981;">Online</span>
             </div>
-            <div class="input-row">
-                <input type="text" id="host-url" class="input-text" value="http://127.0.0.1:8077" />
+            <div class="input-row" style="display:flex; gap:6px;">
+                <input type="text" id="host-url" class="input-text" value="http://127.0.0.1:8077" style="flex:1;" />
+                <button id="btn-sync-update" class="btn" style="width:auto; padding:0 8px; font-size:10.5px; background:#3b82f6; white-space:nowrap;" title="সার্ভারের সাথে প্লাগইন সিঙ্ক ও অটো-আপডেট করুন">🔄 সিঙ্ক</button>
             </div>
+            <div id="update-banner" style="display:none; font-size:10px; color:#3b82f6; margin-top:5px; font-weight:600; text-align:center;"></div>
         </div>
 
         <!-- Portrait & Dermis Retouching -->

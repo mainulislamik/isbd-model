@@ -23,6 +23,7 @@ services:
       - ./checkpoints:/app/checkpoints
       - ./data:/app/data
       - ./samples:/app/samples
+      - ./photoshop_extension:/app/photoshop_extension
       # Docker socket + CLI — panel reads trainer logs & controls trainer container
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro

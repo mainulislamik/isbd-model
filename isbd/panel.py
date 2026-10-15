@@ -1512,6 +1512,63 @@ async def api_download_photoshop_extension():
     raise HTTPException(404, "এক্সটেনশন জিপ ফাইল পাওয়া যায়নি")
 
 
+# ── Photoshop CEP Extension Live Auto-Updater Endpoints ──────────────────────
+
+def _get_extension_bundle_info():
+    """Compute bundle hash and gather all files in photoshop_extension/extension."""
+    ext_dir = ROOT / "photoshop_extension" / "extension"
+    if not ext_dir.exists():
+        return "1.2.0", "empty", {}, []
+
+    files_map = {}
+    files_info = []
+    hasher = hashlib.sha256()
+
+    all_files = sorted(list(ext_dir.rglob("*")))
+    for p in all_files:
+        if p.is_file():
+            rel_path = p.relative_to(ext_dir).as_posix()
+            if rel_path.startswith(".") or rel_path.endswith(".tmp") or "version.json" in rel_path:
+                continue
+            data = p.read_bytes()
+            file_hash = hashlib.md5(data).hexdigest()
+            hasher.update(rel_path.encode("utf-8") + b":" + data)
+            files_map[rel_path] = base64.b64encode(data).decode("utf-8")
+            files_info.append({
+                "path": rel_path,
+                "size": len(data),
+                "hash": file_hash
+            })
+
+    bundle_hash = hasher.hexdigest()[:16]
+    return "1.2.0", bundle_hash, files_map, files_info
+
+
+@app.get("/api/extension/version")
+async def api_extension_version():
+    """Return current extension version, bundle hash and file manifest for auto-update checks."""
+    version, bundle_hash, _, files_info = _get_extension_bundle_info()
+    return {
+        "ok": True,
+        "version": version,
+        "bundle_hash": bundle_hash,
+        "total_files": len(files_info),
+        "files": files_info
+    }
+
+
+@app.get("/api/extension/bundle")
+async def api_extension_bundle():
+    """Return complete base64 encoded bundle of the latest extension files for silent auto-update."""
+    version, bundle_hash, files_map, _ = _get_extension_bundle_info()
+    return {
+        "ok": True,
+        "version": version,
+        "bundle_hash": bundle_hash,
+        "files": files_map
+    }
+
+
 @app.post("/api/harvest/designer-sample")
 async def api_harvest_designer_sample(
     before: UploadFile = File(...),
