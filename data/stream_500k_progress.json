@@ -1,9 +1,9 @@
 {
-  "total_samples_trained": 301440,
+  "total_samples_trained": 381824,
   "target_samples": 500000,
-  "current_domain": "ecommerce",
-  "current_loss": 0.003124883435666561,
-  "speed_sps": 134.3588658125925,
-  "elapsed_seconds": 2243.5437972545624,
+  "current_domain": "lighting",
+  "current_loss": 0.02268264340236783,
+  "speed_sps": 134.86988513541397,
+  "elapsed_seconds": 2831.0545353889465,
   "status": "running"
 }
