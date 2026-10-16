@@ -1,9 +1,9 @@
 {
-  "total_samples_trained": 135648,
+  "total_samples_trained": 216032,
   "target_samples": 500000,
-  "current_domain": "retouch",
-  "current_loss": 0.0024637639662250877,
-  "speed_sps": 132.20042790472826,
-  "elapsed_seconds": 1026.0783731937408,
+  "current_domain": "matting",
+  "current_loss": 0.005462577054277063,
+  "speed_sps": 133.36953401504852,
+  "elapsed_seconds": 1619.800215959549,
   "status": "running"
 }
