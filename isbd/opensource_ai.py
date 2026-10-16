@@ -297,10 +297,21 @@ def get_human_adapters_status() -> Dict[str, Any]:
             }
         except Exception:
             adapters[p.stem] = {"size_kb": round(p.stat().st_size / 1024, 1)}
+    progress_info = None
+    prog_file = ROOT / "data" / "stream_500k_progress.json"
+    if prog_file.exists():
+        try:
+            import json
+            with open(prog_file) as f:
+                progress_info = json.load(f)
+        except Exception:
+            pass
+
     return {
         "ok": True,
         "total_adapters": len(adapters),
-        "adapters": adapters
+        "adapters": adapters,
+        "stream_progress": progress_info
     }
 
 
