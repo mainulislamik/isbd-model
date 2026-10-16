@@ -1,9 +1,9 @@
 {
-  "total_samples_trained": 381824,
+  "total_samples_trained": 462208,
   "target_samples": 500000,
-  "current_domain": "lighting",
-  "current_loss": 0.02268264340236783,
-  "speed_sps": 134.86988513541397,
-  "elapsed_seconds": 2831.0545353889465,
+  "current_domain": "inpaint",
+  "current_loss": 0.007118660318665207,
+  "speed_sps": 135.14026251554245,
+  "elapsed_seconds": 3420.2094283103943,
   "status": "running"
 }
