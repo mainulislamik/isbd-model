@@ -777,10 +777,6 @@ body {
       <button class="ws-btn" data-tab="tab-settings" onclick="switchTab('tab-settings')">
         <span class="icon">⚙️</span> কানেক্টেড মডেল ও API কি
       </button>
-      <div class="ws-category" style="margin-top:6px;">☁️ ক্লাউড হাব (Cloud Hub)</div>
-      <button class="ws-btn" data-tab="tab-cloud" onclick="switchTab('tab-cloud')">
-        <span class="icon">🚀</span> GitHub Auto Trainer
-      </button>
 
       <div class="ws-category" style="margin-top:6px;">📦 ফটোশপ ইন্টিগ্রেশন</div>
       <a href="/api/download/photoshop-extension-zip" class="ws-btn" style="text-decoration:none; color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe; font-weight:700;">
@@ -910,16 +906,6 @@ body {
       </div>
       <div class="stat-val" id="v-total-trained" style="color: #065f46; font-size: 20px; font-weight: 800;">1,676 ফটো</div>
       <div class="stat-footer" id="v-total-trained-sub" style="color: #047857; font-weight: 600;">ওয়েব + ফটোশপ + সেলফ-লার্নিং মোট</div>
-    </div>
-
-    <div class="stat-card" id="card-cloud">
-      <div class="stat-top">
-        <span class="stat-title" style="color: #6366f1;">GitHub Cloud Trainer</span>
-        <span class="stat-icon" id="v-cloud-icon">☁️</span>
-      </div>
-      <div class="stat-val" id="v-cloud-status" style="font-size: 16px; color: #4f46e5; margin-top: 6px;">Check...</div>
-      <div class="stat-footer" id="v-cloud-sub">Remote Syncing to GitHub</div>
-      <a id="v-cloud-link" href="#" target="_blank" style="display:none; font-size: 10px; color: #6366f1; text-decoration: underline; margin-top:4px;">View Live Console</a>
     </div>
 
     <div class="stat-card" id="card-lock">
@@ -2163,45 +2149,6 @@ body {
     </div>
 
 
-    <!-- Tab 11: CLOUD HUB TAB -->
-    <div id="tab-cloud" class="tab-pane">
-      <div class="header" style="margin-bottom:20px;">
-        <h2><span class="step-badge">☁️</span> Cloud Neural Expansion Hub</h2>
-        <p style="font-size:13px; color:#475569;">Manage and orchestrate remote AI training resources securely from your dashboard.</p>
-      </div>
-
-      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));">
-        
-        <!-- GitHub Auto Trainer Card -->
-        <div class="stat-card" style="border: 2px solid #e2e8f0; position: relative; padding:20px;">
-          <span style="position: absolute; top: -10px; right: 20px; background: #6366f1; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">FREE CPU</span>
-          <h2 style="margin:0 0 10px 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
-            <span style="font-size:24px;">🤖</span> Continuous Auto-Trainer
-          </h2>
-          <p style="font-size: 13px; color: #64748b; margin-bottom: 20px; line-height: 1.4;">
-            Runs automatically every 6 hours inside GitHub Actions. Uses free CPU resources to continuously adapt the model weights. The neural cache is synced securely via Git back to your studio.
-          </p>
-          
-          <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; border-left: 4px solid #6366f1; margin-bottom: 20px;">
-            <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600;">Live Status Network</div>
-            <div id="v-cloud-page-status" style="font-size: 20px; color: #4338ca; font-weight: 700; margin-top: 5px; display:flex; align-items: center; gap: 8px;">
-              <span class="icon">🔄</span> Checking Status...
-            </div>
-          </div>
-          
-          <div style="display:flex; gap: 10px;">
-            <button onclick="dispatchGitHubAction()" id="btn-force-gh" style="flex:1; background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; transition: 0.2s; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);">
-              ▶ Force Start Sync
-            </button>
-            <a id="v-cloud-page-link" href="#" target="_blank" style="flex:1; text-align: center; background: #e2e8f0; color: #1e293b; text-decoration: none; border-radius: 8px; padding: 12px 20px; font-weight: 600; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center;">
-              View Live Logs
-            </a>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
     <!-- Tab 12: NOTIFICATION CENTER TAB -->
     <div id="tab-notifications" class="tab-pane">
       <div class="panel-header" style="margin-bottom: 20px;">
@@ -2301,8 +2248,7 @@ window.coreHistories = {};
       'tab-magic': { title: 'ম্যাজিক ইরেজার (Inpaint)', sub: 'ছবি থেকে ওয়াটারমার্ক, দাগ বা অনাকাঙ্ক্ষিত অবজেক্ট নিখুঁতভাবে মুছুন' },
       'tab-yolo': { title: 'অবজেক্ট ট্র্যাকিং (YOLOv8)', sub: 'ছবিতে থাকা মানুষ, পোশাক, প্রোডাক্ট এবং সব অবজেক্ট ডিটেকশন' },
       'tab-cv': { title: 'কালার প্যালেট ও ফিল্টার', sub: 'ছবির কালার প্যালেট এক্সট্রাকশন ও প্রোফাইল অ্যানালাইসিস' },
-      'tab-settings': { title: 'কানেক্টেড মডেল ও API কনফিগারেশন', sub: 'API কি এবং কানেক্টেড মডেল সেটিংস' },
-      'tab-cloud': { title: 'GitHub Cloud Auto Trainer', sub: 'ক্লাউড অটো-ট্রেইনার ও রিমোট সিঙ্ক স্ট্যাটাস' }
+      'tab-settings': { title: 'কানেক্টেড মডেল ও API কনফিগারেশন', sub: 'API কি এবং কানেক্টেড মডেল সেটিংস' }
     };
 
     window.switchTab = function(tabId) {
@@ -2512,29 +2458,6 @@ window.coreHistories = {};
       console.log(`[Terminal Log - ${tab}]:`, logText);
     };
 
-
-    window.dispatchGitHubAction = async function() {
-        const btn = document.getElementById("btn-force-gh");
-        const origin = btn.textContent;
-        btn.textContent = "Dispatching...";
-        btn.disabled = true;
-        try {
-            let res = await fetch("/api/cloud/dispatch", {method: "POST"});
-            let data = await res.json();
-            if(data.success) {
-                btn.textContent = "Dispatched Successfully! 🚀";
-                setTimeout(() => { btn.textContent = origin; btn.disabled = false; }, 3000);
-            } else {
-                alert("Failed: " + data.error);
-                btn.textContent = origin;
-                btn.disabled = false;
-            }
-        } catch(e) {
-            alert(e);
-            btn.textContent = origin;
-            btn.disabled = false;
-        }
-    };
 
 window.chartInstances = {};
 const MAX_HISTORY = 40; 
@@ -3691,54 +3614,6 @@ async function poll() {
       if (ram) ram.textContent = (hw.ram_percent != null ? hw.ram_percent : '0.0') + '%';
       if (disk) disk.textContent = (hw.disk_percent != null ? hw.disk_percent : '0.0') + '%';
       if (net) net.textContent = (hw.net_up_kbps || 0) + ' ↑ ' + (hw.net_down_kbps || 0) + ' ↓';
-
-      if (hw.cloud_status) {
-        const cl = hw.cloud_status;
-        const st = document.getElementById('v-cloud-status');
-        const ic = document.getElementById('v-cloud-icon');
-        const lk = document.getElementById('v-cloud-link');
-        const cardCloud = document.getElementById('card-cloud');
-        
-        if (st) {
-          if (cl.status === "in_progress" || cl.status === "queued" || cl.status === "running") {
-            st.textContent = "🚀 Training Active!";
-            st.style.color = "#10b981";
-            if (ic) { ic.textContent = "🔄"; ic.classList.add('animate-spin'); }
-            if (cardCloud) { cardCloud.style.borderColor = "#6ee7b7"; cardCloud.style.background = "#f0fdf4"; }
-          } else if (cl.conclusion === "success") {
-            st.textContent = "✅ Last Run: Success";
-            st.style.color = "#059669";
-            if (ic) { ic.textContent = "☁️"; ic.classList.remove('animate-spin'); }
-            if (cardCloud) { cardCloud.style.background = "#ffffff"; cardCloud.style.borderColor = "#e2e8f0"; }
-          } else {
-            st.textContent = cl.conclusion ? "⏹ " + cl.conclusion : (cl.status || "Idle");
-            st.style.color = "#64748b";
-            if (ic) { ic.textContent = "☁️"; ic.classList.remove('animate-spin'); }
-          }
-        }
-        if (lk && cl.html_url) {
-          lk.style.display = 'block';
-          lk.href = cl.html_url;
-        }
-
-        const st_page = document.getElementById('v-cloud-page-status');
-        const lk_page = document.getElementById('v-cloud-page-link');
-        if (st_page) {
-          if (cl.status === "in_progress" || cl.status === "queued" || cl.status === "running") {
-            st_page.innerHTML = '<span class="icon animate-spin">🔄</span> Active Execution (' + cl.status + ')';
-            st_page.style.color = "#10b981";
-          } else if (cl.conclusion === "success") {
-            st_page.innerHTML = '<span class="icon">✅</span> Idle (Last: Success)';
-            st_page.style.color = "#059669";
-          } else {
-            st_page.innerHTML = '<span class="icon">⏹</span> ' + (cl.conclusion || cl.status || "Idle");
-            st_page.style.color = "#64748b";
-          }
-        }
-        if (lk_page && cl.html_url) {
-          lk_page.href = cl.html_url;
-        }
-      }
 
       // CPU Cores Chart
       const coresContainer = document.getElementById('cpu-cores-container');
