@@ -119,12 +119,40 @@ def _live():
             if line.strip().startswith("step"):
                 p = line.replace("|", " ").split()
                 try:
-                    last = {"step": int(p[1]), "loss": float(p[3])}
+                    s_step = int(p[1])
+                    if s_step > last["step"]:
+                        last = {"step": s_step, "loss": float(p[3])}
                 except Exception:
                     pass
+
+        # Check latest SmallUNet student checkpoint
+        last_ckpt = ROOT / "checkpoints" / "last.pt"
+        if last_ckpt.exists():
+            try:
+                import torch
+                c = torch.load(last_ckpt, map_location="cpu", weights_only=False)
+                c_step = int(c.get("step", 0))
+                if c_step > last["step"]:
+                    last["step"] = c_step
+                    if c.get("loss") is not None:
+                        last["loss"] = float(c.get("loss"))
+            except Exception:
+                pass
+
         return last
     except Exception:
         return last
+
+
+def _get_stream_500k():
+    p = ROOT / "data" / "stream_500k_progress.json"
+    if p.exists():
+        try:
+            with open(p) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
 
 
 def _lock_busy():
@@ -1846,6 +1874,8 @@ async def status():
         "paused": _is_paused(),
         "telemetry": _get_system_telemetry(),
         "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
+        "stream_500k": _get_stream_500k(),
+        "adapters_status": __import__("isbd.opensource_ai", fromlist=["get_human_adapters_status"]).get_human_adapters_status(),
         "notifications_unread": get_notifications().get("unread_count", 0),
     }
 
