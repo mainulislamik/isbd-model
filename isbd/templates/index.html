@@ -885,11 +885,11 @@ body {
     
     <div class="stat-card" id="card-stream" style="border-top: 3px solid #0284c7;">
       <div class="stat-top">
-        <span class="stat-title" style="color: #0284c7; font-weight: 700;">Real Streamed Images</span>
+        <span class="stat-title" style="color: #0284c7; font-weight: 700;">Web Seeds & Augmentations</span>
         <span class="stat-icon">🌐</span>
       </div>
-      <div class="stat-val" id="v-stream-samples" style="color: #0369a1;">500,000</div>
-      <div class="stat-footer" id="v-stream-sub" style="color: #059669; font-weight: 700;">১০০% ইন-মেমোরি ট্রেইন্ড (০ বাইট ডিস্ক)</div>
+      <div class="stat-val" id="v-stream-samples" style="color: #0369a1; font-size: 20px;">12 Seeds / 500K Steps</div>
+      <div class="stat-footer" id="v-stream-sub" style="color: #059669; font-weight: 700;">১২টি রিয়েল ওয়েব সিড • ৫০০,০০০ অগমেন্টেড স্টেপ</div>
     </div>
 
     <div class="stat-card" id="card-cloud">
@@ -918,15 +918,15 @@ body {
       <div>
         <h2 style="font-size: 15px; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
           <span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 13px;">🌐</span> 
-          ইন-মেমোরি রিয়েল ইমেজ স্ট্রিমিং ট্রেইনিং (৫০০,০০০ পেয়ার সম্পূর্ণ)
+          ইন-মেমোরি স্ট্রিমিং অগমেন্টেশন ট্রেইনিং (১২ সিড ইমেজ • ৫০০,০০০ সিন্থেটিক স্টেপ)
         </h2>
         <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-          ইন্টারনেট সোর্স থেকে সরাসরি র্যাম বাফারে স্ট্রিম করে ট্রেইন করা হয়েছে — ডিস্কে ০ বাইট র ইমেজ সেভ নীতি বজায় রাখা হয়েছে।
+          ইন্টারনেট থেকে ১২টি রিয়েল ফটো র্যামে এনে ক্রপিং, ব্লার ও ফিল্টারের মাধ্যমে ৫০০,০০০ টি সিন্থেটিক স্টেপ ট্রেইন করা হয়েছে (ডিস্কে ০ বাইট সেভ)।
         </div>
       </div>
       <div style="display: flex; gap: 8px; align-items: center;">
         <span style="background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; border: 1px solid #86efac;">
-          ✓ ট্রেইনিং স্ট্যাটাস: ১০০% সম্পন্ন
+          ✓ ট্রেইনিং স্ট্যাটাস: ৫০০K স্টেপ সম্পন্ন
         </span>
         <span style="background: #f1f5f9; color: #334155; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;">
           Picasa VPS Synced
@@ -3470,12 +3470,10 @@ async function poll() {
     const streamEl = document.getElementById('v-stream-samples');
     if (streamEl) {
       if (j.stream_500k && j.stream_500k.total_samples_trained != null) {
-        streamEl.textContent = j.stream_500k.total_samples_trained.toLocaleString();
+        streamEl.textContent = '12 Seeds / 500K Steps';
         const sub = document.getElementById('v-stream-sub');
         if (sub) {
-          sub.textContent = j.stream_500k.status === 'completed'
-            ? '১০০% ইন-মেমোরি ট্রেইন্ড (০ বাইট ডিস্ক)'
-            : `${j.stream_500k.current_domain} ট্রেইনিং চলমান…`;
+          sub.textContent = '১২টি রিয়েল ওয়েব সিড • ৫০০,০০০ অগমেন্টেড স্টেপ';
         }
       }
     }
