@@ -155,6 +155,17 @@ def _get_stream_500k():
     return None
 
 
+def _get_stream_real():
+    p = ROOT / "data" / "stream_real_progress.json"
+    if p.exists():
+        try:
+            with open(p) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+
 def _lock_busy():
     import fcntl
     path = ROOT / "checkpoints" / "train.lock"
@@ -1875,6 +1886,7 @@ async def status():
         "telemetry": _get_system_telemetry(),
         "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
         "stream_500k": _get_stream_500k(),
+        "stream_real": _get_stream_real(),
         "adapters_status": __import__("isbd.opensource_ai", fromlist=["get_human_adapters_status"]).get_human_adapters_status(),
         "notifications_unread": get_notifications().get("unread_count", 0),
     }
