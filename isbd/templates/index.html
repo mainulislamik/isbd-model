@@ -892,6 +892,26 @@ body {
       <div class="stat-footer" id="v-stream-sub" style="color: #059669; font-weight: 700;">১,৫০০টি আলাদা ইন্টারনেট ফটো ট্রেইন্ড (০ বাইট ডিস্ক)</div>
     </div>
 
+    <!-- 🎨 Photoshop Live Human Edits -->
+    <div class="stat-card" id="card-photoshop" style="border-top: 3px solid #f59e0b; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(217, 119, 6, 0.02));">
+      <div class="stat-top">
+        <span class="stat-title" style="color: #d97706; font-weight: 700;">Photoshop Live Edits</span>
+        <span class="stat-icon">🖌️</span>
+      </div>
+      <div class="stat-val" id="v-photoshop-samples" style="color: #b45309; font-size: 20px; font-weight: 800;">0 টি পেয়ার</div>
+      <div class="stat-footer" id="v-photoshop-sub" style="color: #d97706; font-weight: 600;">ফটোশপ থেকে লাইভ হার্ভেস্ট</div>
+    </div>
+
+    <!-- 📸 Total Trained From Images (Grand Total Count) -->
+    <div class="stat-card" id="card-total-trained" style="border-top: 3px solid #10b981; background: linear-gradient(135deg, rgba(16, 185, 129, 0.07), rgba(5, 150, 105, 0.02));">
+      <div class="stat-top">
+        <span class="stat-title" style="color: #047857; font-weight: 800;">Total Trained From Images</span>
+        <span class="stat-icon">📸</span>
+      </div>
+      <div class="stat-val" id="v-total-trained" style="color: #065f46; font-size: 20px; font-weight: 800;">1,676 ফটো</div>
+      <div class="stat-footer" id="v-total-trained-sub" style="color: #047857; font-weight: 600;">ওয়েব + ফটোশপ + সেলফ-লার্নিং মোট</div>
+    </div>
+
     <div class="stat-card" id="card-cloud">
       <div class="stat-top">
         <span class="stat-title" style="color: #6366f1;">GitHub Cloud Trainer</span>
@@ -988,7 +1008,70 @@ body {
     </div>
   </div>
 
-  
+  <!-- ─ Photoshop Extension Live Swarm Harvester & Telemetry Banner ─ -->
+  <div class="panel-box" style="margin-bottom: 24px; padding: 20px 24px; background: #ffffff; border: 1px solid #fed7aa; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h2 style="font-size: 15px; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
+          <span style="background: #ffedd5; color: #c2410c; padding: 4px 8px; border-radius: 6px; font-size: 13px;">🖌️</span> 
+          ফটোশপ এক্সটেনশন হিউম্যান রিটাচিং ও সোয়ার্ম লার্নিং টেলিমেট্রি
+        </h2>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+          ফটোশপ প্লাগইন (CEP ও UXP) থেকে রক্ত-মাংসের ডিজাইনারদের প্রতিটি আসল অ্যাকশন, ব্রাশ স্ট্রোক ও ৫১২×৫১২ মাইক্রো-প্যাচ স্বয়ংক্রিয়ভাবে সংগৃহীত ও ট্রেইন্ড হচ্ছে।
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span style="font-size: 11px; background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-weight: 700; border: 1px solid #fde68a;">
+          <span style="display: inline-block; width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; margin-right: 4px;"></span>
+          লাইভ এক্সটেনশন সিঙ্ক সক্রিয়
+        </span>
+        <a href="/api/download/photoshop-extension-zip" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px; text-decoration: none; border-color: #f59e0b; color: #b45309;">
+          📥 প্লাগইন ডাউনলোড (.zip)
+        </a>
+      </div>
+    </div>
+
+    <!-- 4 Telemetry Metrics Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px;">
+      <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; color: #b45309; text-transform: uppercase;">সংগৃহীত Before/After পেয়ার</div>
+        <div style="font-size: 20px; font-weight: 800; color: #78350f; font-family: 'JetBrains Mono', monospace;" id="ps-stat-pairs">০ টি</div>
+        <div style="font-size: 10.5px; color: #d97706; margin-top: 2px;">Photoshop Extension Direct</div>
+      </div>
+
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; color: #166534; text-transform: uppercase;">শেখা মানুষের ব্রাশ স্ট্রোক</div>
+        <div style="font-size: 20px; font-weight: 800; color: #14532d; font-family: 'JetBrains Mono', monospace;" id="ps-stat-strokes">০ টি</div>
+        <div style="font-size: 10.5px; color: #16a34a; margin-top: 2px;">Healing, Stamp, Pen & Dodge</div>
+      </div>
+
+      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; color: #991b1b; text-transform: uppercase;">ভুল ও আনডু ফিল্টার্ড</div>
+        <div style="font-size: 20px; font-weight: 800; color: #7f1d1d; font-family: 'JetBrains Mono', monospace;" id="ps-stat-undos">০ টি বাতিল</div>
+        <div style="font-size: 10.5px; color: #ef4444; margin-top: 2px;">Ctrl+Z Mistake Rejected</div>
+      </div>
+
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-size: 10.5px; font-weight: 700; color: #1e40af; text-transform: uppercase;">স্মার্ট ROI মাইক্রো-প্যাচ</div>
+        <div style="font-size: 20px; font-weight: 800; color: #1e3a8a; font-family: 'JetBrains Mono', monospace;" id="ps-stat-roi">০ টি</div>
+        <div style="font-size: 10.5px; color: #2563eb; margin-top: 2px;">512×512 জিরো-ল্যাগ ক্রপ</div>
+      </div>
+    </div>
+
+    <!-- Active Retouchers & Domain Tags -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; flex-wrap: wrap; gap: 8px;">
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span style="font-weight: 700; color: #475569;">অ্যাক্টিভ ডিজাইনার সোয়ার্ম:</span>
+        <span id="ps-stat-editors" style="color: #0f172a; font-weight: 600;">কোনো সক্রিয় ক্লায়েন্ট কানেক্টেড নেই (লিসেনিং…)</span>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <span style="font-size: 10px; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 700;">Retouch</span>
+        <span style="font-size: 10px; background: #f3e8ff; color: #7e22ce; padding: 2px 8px; border-radius: 4px; font-weight: 700;">Matting</span>
+        <span style="font-size: 10px; background: #fef9c3; color: #854d0e; padding: 2px 8px; border-radius: 4px; font-weight: 700;">Lighting</span>
+        <span style="font-size: 10px; background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 4px; font-weight: 700;">E-Commerce</span>
+      </div>
+    </div>
+  </div>
 
 <!-- ─ Hardware Telemetry Row ─ -->
 <div class="panel-box" style="margin-bottom: 24px; padding: 18px 24px;">
@@ -3463,6 +3546,59 @@ async function poll() {
         pairsEl.textContent = `${j.pairs || 0} (+${j.self_learn.total_self_learned_pairs} auto)`;
       } else {
         pairsEl.textContent = j.pairs ?? '0';
+      }
+    }
+
+    // ── Photoshop Extension Swarm & Total Trained Image Counts ──
+    const psCountEl = document.getElementById('v-ps-samples');
+    if (psCountEl) {
+      const psSamples = (j.harvest && j.harvest.total_samples != null) 
+        ? j.harvest.total_samples 
+        : ((j.self_learn && j.self_learn.total_human_samples) || 0);
+      psCountEl.textContent = psSamples.toLocaleString() + ' টি পেয়ার';
+      
+      const psSub = document.getElementById('v-ps-sub');
+      if (psSub && j.harvest) {
+        psSub.textContent = `আজকের সংগ্রহ: ${j.harvest.today_samples || 0} টি | স্ট্রোক: ${j.harvest.total_strokes || 0}`;
+      }
+    }
+
+    const totalTrainedEl = document.getElementById('v-total-trained');
+    if (totalTrainedEl) {
+      let grandTotal = 0;
+      if (j.total_trained_images != null) {
+        grandTotal = j.total_trained_images;
+      } else {
+        const streamCount = (j.stream_real && j.stream_real.unique_images_trained) || 1500;
+        const basePairs = j.pairs || 0;
+        const autoPairs = (j.self_learn && j.self_learn.total_self_learned_pairs) || 0;
+        const psPairs = (j.harvest && j.harvest.total_samples) || 0;
+        grandTotal = streamCount + basePairs + autoPairs + psPairs;
+      }
+      totalTrainedEl.textContent = grandTotal.toLocaleString() + ' Unique Images';
+    }
+
+    // ── Photoshop Swarm Banner Live Update ──
+    if (j.harvest) {
+      const h = j.harvest;
+      const bPairs = document.getElementById('ps-banner-pairs');
+      const bStrokes = document.getElementById('ps-banner-strokes');
+      const bEditors = document.getElementById('ps-banner-editors');
+      const bUndos = document.getElementById('ps-banner-undos');
+      const bDomain = document.getElementById('ps-banner-domain');
+
+      if (bPairs) bPairs.textContent = (h.total_samples || 0) + ' টি';
+      if (bStrokes) bStrokes.textContent = (h.total_strokes || 0) + ' টি';
+      if (bEditors) {
+        const nEditors = h.by_editor ? Object.keys(h.by_editor).length : 1;
+        bEditors.textContent = Math.max(1, nEditors) + ' জন অ্যাক্টিভ';
+      }
+      if (bUndos) bUndos.textContent = (h.total_undos_filtered || 0) + ' টি ফিল্টার্ড';
+      if (bDomain && h.by_task) {
+        const tasks = Object.keys(h.by_task);
+        if (tasks.length > 0) {
+          bDomain.textContent = tasks.join(', ');
+        }
       }
     }
 

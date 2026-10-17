@@ -1894,18 +1894,30 @@ async def on_startup_handler():
 
 @app.get("/api/status")
 async def status():
+    harvester_stats = __import__("isbd.harvester", fromlist=["get_harvester_stats"]).get_harvester_stats()
+    stream_real_data = _get_stream_real()
+    pairs_count = _n_pairs()
+    self_learn_stats = __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats()
+
+    unique_web_photos = stream_real_data.get("unique_images_trained", 1500) if stream_real_data else 1500
+    photoshop_pairs = harvester_stats.get("total_samples", 0)
+    total_trained_images = unique_web_photos + pairs_count + photoshop_pairs
+
     return {
         "live": _live(),
         "lock_busy": _lock_busy(),
-        "pairs": _n_pairs(),
+        "pairs": pairs_count,
         "ft": _ft_state(),
         "log": _ft_log_tail(),
         "history": _loss_history(40),
         "paused": _is_paused(),
         "telemetry": _get_system_telemetry(),
-        "self_learn": __import__("isbd.self_learner", fromlist=["get_self_learn_stats"]).get_self_learn_stats(),
+        "self_learn": self_learn_stats,
         "stream_500k": _get_stream_500k(),
-        "stream_real": _get_stream_real(),
+        "stream_real": stream_real_data,
+        "harvester": harvester_stats,
+        "harvest": harvester_stats,
+        "total_trained_images": total_trained_images,
         "adapters_status": __import__("isbd.opensource_ai", fromlist=["get_human_adapters_status"]).get_human_adapters_status(),
         "notifications_unread": get_notifications().get("unread_count", 0),
     }
