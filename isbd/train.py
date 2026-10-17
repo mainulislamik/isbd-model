@@ -107,9 +107,21 @@ def main():
                     help="Gradient accumulation steps (effective batch = batch * accum_steps)")
     ap.add_argument("--warm-restart", type=int, default=3000,
                     help="Cosine annealing warm restart period (0=disabled)")
+    ap.add_argument("--threads", type=int, default=0,
+                    help="PyTorch CPU threads (0 = auto from env or cpu cores)")
     args = ap.parse_args()
 
-    torch.set_num_threads(1)
+    num_threads = args.threads
+    if num_threads <= 0:
+        env_threads = os.environ.get("TORCH_NUM_THREADS") or os.environ.get("OMP_NUM_THREADS")
+        if env_threads:
+            try:
+                num_threads = int(env_threads)
+            except ValueError:
+                num_threads = 1
+        else:
+            num_threads = 1
+    torch.set_num_threads(max(1, num_threads))
     torch.manual_seed(7)
     device = "cpu"
 
@@ -187,7 +199,7 @@ def main():
 
     effective_batch = args.batch * args.accum_steps
     print(f"ISBD v1.00 | {args.model} | params {param_count(model):,} | img {IMG_SIZE}px "
-          f"| batch {args.batch}×{args.accum_steps}={effective_batch} | lr {args.lr} | device {device}",
+          f"| batch {args.batch}×{args.accum_steps}={effective_batch} | lr {args.lr} | device {device} | threads {torch.get_num_threads()}",
           flush=True)
 
     ds = torch_dataset(augment_factor=16)(6000)

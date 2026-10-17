@@ -65,31 +65,79 @@ def get_disk_usage():
         return "unknown"
 
 
+def get_resource_policy(args):
+    """
+    Dynamic Weekend / Weekday Resource Policy:
+    Saturday (5) & Sunday (6) -> WEEKEND FULL RESOURCE MODE
+    Monday (0) to Friday (4)   -> WEEKDAY NORMAL MODE
+    Override via FORCE_FULL_RESOURCE=1 or FORCE_WEEKDAY_RESOURCE=1.
+    """
+    now = datetime.now()
+    is_weekend = now.weekday() in [5, 6]
+    if os.environ.get("FORCE_FULL_RESOURCE") == "1":
+        is_weekend = True
+    elif os.environ.get("FORCE_WEEKDAY_RESOURCE") == "1":
+        is_weekend = False
+
+    if is_weekend:
+        avail_cpus = os.cpu_count() or 4
+        # Use 6 threads on 8-vCPU host for full parallel matrix/conv throughput
+        threads = max(2, min(6, avail_cpus - 1))
+        batch = max(args.batch, 64)
+        round_steps = max(args.round_steps, 3000)
+        accum_steps = 1
+        label = f"🚀 WEEKEND FULL RESOURCE MODE ({now.strftime('%A')})"
+    else:
+        threads = 2
+        batch = min(args.batch, 32)
+        round_steps = min(args.round_steps, 1500)
+        accum_steps = 2
+        label = f"🏢 WEEKDAY NORMAL MODE ({now.strftime('%A')})"
+
+    return {
+        "is_weekend": is_weekend,
+        "threads": threads,
+        "batch": batch,
+        "round_steps": round_steps,
+        "accum_steps": accum_steps,
+        "label": label,
+    }
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--round-steps", type=int, default=5000)
-    ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--round-steps", type=int, default=1500)
+    ap.add_argument("--batch", type=int, default=32)
     ap.add_argument("--max-restarts", type=int, default=60)
     ap.add_argument("--model", choices=["tiny", "small"], default="small",
                     help="Model: tiny (117K) or small (500K)")
     ap.add_argument("--accum-steps", type=int, default=2,
                     help="Gradient accumulation steps")
+    ap.add_argument("--threads", type=int, default=0,
+                    help="PyTorch CPU threads (0 = auto via schedule)")
     args = ap.parse_args()
 
     restarts = 0
-    print(f"[continuous] ISBD v1.00 never-stop | model={args.model} | round={args.round_steps} steps | accum={args.accum_steps} | disk={get_disk_usage()}", flush=True)
+    print(f"[continuous] ISBD v1.00 never-stop | model={args.model} | disk={get_disk_usage()}", flush=True)
 
     while restarts < args.max_restarts:
         before = read_step()
         t0 = time.time()
 
+        policy = get_resource_policy(args)
+        if args.threads > 0:
+            policy["threads"] = args.threads
+
+        print(f"[continuous] {policy['label']} | threads={policy['threads']} | batch={policy['batch']} | steps={policy['round_steps']} | accum={policy['accum_steps']}", flush=True)
+
         r = subprocess.run(
             [str(PY), str(TRAIN),
-             "--steps", str(args.round_steps),
-             "--batch", str(args.batch),
+             "--steps", str(policy['round_steps']),
+             "--batch", str(policy['batch']),
              "--model", args.model,
-             "--accum-steps", str(args.accum_steps),
+             "--accum-steps", str(policy['accum_steps']),
+             "--threads", str(policy['threads']),
              "--resume"],  # ALWAYS resume — without this flag every round
                             # restarted from scratch (cost 2 full cloud runs)
             cwd=str(ROOT),
