@@ -111,18 +111,37 @@ def extract_salient_patches(before_pil: Image.Image,
     arr_a = np.asarray(a_rgb.convert("L"), dtype=np.float32)
     diff = np.abs(arr_a - arr_b)
 
+    # Boundary Hard-Negative Mining (Pillar 1) using Sobel edge energy
+    try:
+        import cv2
+        sobel_x = cv2.Sobel(diff, cv2.CV_32F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(diff, cv2.CV_32F, 0, 1, ksize=3)
+        edge_energy = np.sqrt(sobel_x ** 2 + sobel_y ** 2)
+    except Exception:
+        gy, gx = np.gradient(diff)
+        edge_energy = np.sqrt(gx ** 2 + gy ** 2)
+
     # Grid search across the image for candidate patch windows
     step = max(32, patch_size // 2)
     candidates = []
 
     for y in range(0, max(1, h - patch_size + 1), step):
         for x in range(0, max(1, w - patch_size + 1), step):
-            score = float(diff[y:y + patch_size, x:x + patch_size].mean())
+            win_diff = diff[y:y + patch_size, x:x + patch_size]
+            win_edge = edge_energy[y:y + patch_size, x:x + patch_size]
+            mean_delta = float(win_diff.mean())
+            std_delta = float(win_diff.std())
+            edge_delta = float(win_edge.mean())
+            # Hardness Priority: combines overall delta + edge complexity (hair/wrinkles/jewelry)
+            score = (mean_delta * 0.4 + std_delta * 0.6) + 2.5 * edge_delta
             candidates.append((score, x, y))
 
     # Always include bottom/right boundary windows if stepped over
     if (w - patch_size) > 0 and (h - patch_size) > 0:
-        candidates.append((float(diff[-patch_size:, -patch_size:].mean()), w - patch_size, h - patch_size))
+        win_diff = diff[-patch_size:, -patch_size:]
+        win_edge = edge_energy[-patch_size:, -patch_size:]
+        score = (float(win_diff.mean()) * 0.4 + float(win_diff.std()) * 0.6) + 2.5 * float(win_edge.mean())
+        candidates.append((score, w - patch_size, h - patch_size))
 
     # Sort descending by edit intensity
     candidates.sort(key=lambda c: c[0], reverse=True)
@@ -401,17 +420,34 @@ def harvest_and_synthesize_pair(clean_pil_img: Image.Image):
 
 
 def get_self_learn_stats():
+    base_stats = {}
     if STATE_FILE.exists():
         try:
-            return json.loads(STATE_FILE.read_text())
+            base_stats = json.loads(STATE_FILE.read_text())
         except Exception:
             pass
+
     rX, _ = _load_npz(REAL_POOL, img_size=IMG_BASE)
     sX, _ = _load_npz(SELF_POOL, img_size=IMG_BASE)
-    return {
-        "last_harvest"            : None,
+    gX, _ = _load_npz(DATA / "golden_pool.npz", img_size=IMG_BASE)
+
+    try:
+        from isbd.curriculum import CurriculumScheduler
+        curric_info = CurriculumScheduler().get_info()
+    except Exception:
+        curric_info = {"current_level": 1, "level_name": "solid_contrast", "moving_avg_loss": 0.035}
+
+    ewc_active = (DATA / "ewc_anchor.pt").exists()
+
+    result = {
+        "last_harvest"            : base_stats.get("last_harvest", None),
         "total_real_pairs"        : int(len(rX)),
         "total_self_learned_pairs": int(len(sX)),
+        "golden_pairs_count"      : int(len(gX)),
         "bucket_counts"           : get_bucket_stats(),
-        "status"                  : "Ready"
+        "curriculum"              : curric_info,
+        "ewc_anchor_active"       : ewc_active,
+        "ewc_active"              : ewc_active,
+        "status"                  : base_stats.get("status", "Active — Self-Learning v2.0 (Curriculum + PER + EWC)")
     }
+    return result

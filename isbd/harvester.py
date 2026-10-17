@@ -20,6 +20,32 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data" / "harvested_samples"
 IMAGES_DIR = DATA_DIR / "images"
 MANIFEST_PATH = DATA_DIR / "manifest.json"
+DATA = ROOT / "data"
+GOLDEN_POOL = DATA / "golden_pool.npz"
+
+_DEDUP_CACHE = []  # Stores (dhash_str, timestamp)
+_DEDUP_FILTERED_COUNT = 0
+
+
+def _compute_dhash(img_bgr: np.ndarray) -> str:
+    """Compute 64-bit difference perceptual hash (dHash) on downsampled grayscale image."""
+    try:
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (9, 8), interpolation=cv2.INTER_AREA)
+        diff = resized[:, 1:] > resized[:, :-1]
+        bits = 0
+        for val in diff.flatten():
+            bits = (bits << 1) | int(val)
+        return f"{bits:016x}"
+    except Exception:
+        return "0" * 16
+
+
+def _hamming_distance(h1: str, h2: str) -> int:
+    try:
+        return bin(int(h1, 16) ^ int(h2, 16)).count("1")
+    except Exception:
+        return 64
 
 
 def ensure_dirs():
@@ -90,6 +116,25 @@ def save_designer_sample(
     else:
         # Resize after to match before for consistent pairing if designer cropped/resized
         img_after = cv2.resize(img_after, (w_b, h_b), interpolation=cv2.INTER_AREA)
+
+    # Perceptual Deduplication check (Pillar 5)
+    global _DEDUP_CACHE, _DEDUP_FILTERED_COUNT
+    now_ts = time.time()
+    cur_hash = _compute_dhash(img_after)
+    # Evict cache older than 15 minutes (900s)
+    _DEDUP_CACHE = [(h, ts) for h, ts in _DEDUP_CACHE if (now_ts - ts) < 900]
+    for h, ts in _DEDUP_CACHE:
+        if _hamming_distance(cur_hash, h) <= 2:
+            _DEDUP_FILTERED_COUNT += 1
+            return {
+                "ok": True,
+                "duplicate": True,
+                "note": "Perceptual duplicate filtered to conserve GPU memory and prevent overfitting",
+                "sample_id": f"dedup_{int(now_ts)}",
+                "total_samples": get_manifest().get("total_samples", 0),
+                "details": {"filtered": True, "reason": "dhash_match"}
+            }
+    _DEDUP_CACHE.append((cur_hash, now_ts))
 
     sample_id = f"sample_{int(time.time())}_{uuid.uuid4().hex[:8]}"
     before_filename = f"{sample_id}_before.png"
@@ -162,8 +207,23 @@ def save_designer_sample(
         cur_X = np.concatenate([cur_X, x_t[None]], axis=0)
         cur_Y = np.concatenate([cur_Y, y_t[None]], axis=0)
         _save_npz(SELF_POOL, cur_X, cur_Y, cap=5000)
+
+        # Golden Ground-Truth validation (Pillar 2)
+        is_golden = bool(meta.get("is_golden", False)) or float(meta.get("dwell_sec", 0)) >= 30.0
+        dwell_sec = float(meta.get("dwell_sec", 0.0))
+        correction_type = str(meta.get("correction_type", "direct_refine"))
+
+        if is_golden:
+            cur_gX, cur_gY = _load_npz(GOLDEN_POOL, img_size=IMG_BASE)
+            cur_gX = np.concatenate([cur_gX, x_t[None]], axis=0)
+            cur_gY = np.concatenate([cur_gY, y_t[None]], axis=0)
+            _save_npz(GOLDEN_POOL, cur_gX, cur_gY, cap=3000)
     except Exception as pool_err:
-        print(f"[Harvester] self_pool append error: {pool_err}")
+        print(f"[Harvester] pool append error: {pool_err}")
+
+    is_golden = bool(meta.get("is_golden", False)) or float(meta.get("dwell_sec", 0)) >= 30.0
+    dwell_sec = float(meta.get("dwell_sec", 0.0))
+    correction_type = str(meta.get("correction_type", "direct_refine"))
 
     sample_entry = {
         "id": sample_id,
@@ -179,6 +239,10 @@ def save_designer_sample(
         "roi_cropped": roi_cropped,
         "layer_info": layer_info,
         "is_correction": is_correction,
+        "is_golden": is_golden,
+        "dwell_sec": dwell_sec,
+        "correction_type": correction_type,
+        "validation_score": 1.0 if is_golden else 0.75,
         "duration_sec": meta.get("duration_sec", 0),
         "before_file": before_filename,
         "after_file": after_filename,
@@ -234,12 +298,15 @@ def get_harvester_stats() -> Dict[str, Any]:
 
     today_str = time.strftime("%Y-%m-%d")
     today_count = sum(1 for s in samples if s.get("timestamp", "").startswith(today_str))
+    golden_samples = sum(1 for s in samples if s.get("is_golden"))
 
     return {
         "ok": True,
         "total_samples": len(samples),
         "today_samples": today_count,
         "corrections_count": corrections_count,
+        "golden_samples": golden_samples,
+        "dedup_filtered_count": _DEDUP_FILTERED_COUNT,
         "by_task": by_task,
         "by_editor": by_editor,
         "total_strokes": total_strokes,

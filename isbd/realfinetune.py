@@ -22,10 +22,15 @@ from isbd.model import SmallUNet, TinyUNet
 from isbd.data import torch_dataset
 from isbd.loss import ISBDProLoss
 from isbd.export import export_all_formats
+from isbd.ewc import EWC
+from isbd.curriculum import CurriculumScheduler
+from isbd.teacher_student import TeacherStudentDistiller
 
 ROOT = Path(__file__).resolve().parent.parent
 CKPT = ROOT / "checkpoints"
 NPZ = ROOT / "data" / "pairs.npz"
+GOLDEN_NPZ = ROOT / "data" / "golden_pool.npz"
+EWC_ANCHOR = ROOT / "data" / "ewc_anchor.pt"
 LOCK = CKPT / "train.lock"
 HIST = CKPT / "history.json"
 
@@ -142,21 +147,53 @@ def main():
             m = holdout_metrics(model, Xh, Yh)
             print(f"[ft] BEFORE holdout: L1 {m['l1']:.4f} (id {m['idl1']:.4f}) | PSNR {m['psnr']:.2f}dB (id {m['idpsnr']:.2f}dB)", flush=True)
 
-        # ~70% real / 30% synthetic mix with Priority Buffer
-        reps = max(1, int(round(2000 / max(1, len(Xtr)))))
+        # Tri-Balanced Replay: 50% Golden Human Ground Truth, 30% Live Harvest, 20% Hard-Negative
+        reps = max(1, int(round(1500 / max(1, len(Xtr)))))
         real_ds = RealPairs(np.repeat(Xtr, reps, axis=0), np.repeat(Ytr, reps, axis=0))
-        ds = ConcatDataset([real_ds, torch_dataset(real_pair_weight=0.75)(2000)])
+        datasets = [real_ds]
+
+        if GOLDEN_NPZ.exists():
+            try:
+                g_data = np.load(str(GOLDEN_NPZ))
+                gX, gY = g_data["X"], g_data["Y"]
+                if len(gX) > 0:
+                    g_reps = max(1, int(round(1500 / len(gX))))
+                    golden_ds = RealPairs(np.repeat(gX, g_reps, axis=0), np.repeat(gY, g_reps, axis=0))
+                    datasets.append(golden_ds)
+            except Exception as e:
+                print(f"[ft] warning loading golden_pool: {e}", flush=True)
+
+        datasets.append(torch_dataset(real_pair_weight=0.60)(1200))
+        ds = ConcatDataset(datasets)
         dl = DataLoader(ds, batch_size=args.batch, shuffle=True, num_workers=0)
+
+        # Dynamic Curriculum Learning Scheduler (Pillar 6)
+        curriculum = CurriculumScheduler()
+        cw = curriculum.get_stage_weights()
 
         opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=5000)
         criterion = ISBDProLoss(
-            ssim_weight=0.20,
-            edge_weight=0.15,
-            laplacian_weight=0.15,
-            color_weight=0.10,
-            mse_weight=0.05
+            ssim_weight=cw.get("w_ssim", 0.20),
+            edge_weight=cw.get("w_edge", 0.15),
+            laplacian_weight=cw.get("w_laplacian", 0.15),
+            color_weight=cw.get("w_color", 0.10),
+            mse_weight=cw.get("w_mse", 0.05)
         )
+
+        # Elastic Weight Consolidation (Pillar 4) & Teacher-Student Distiller (Pillar 3)
+        ewc = EWC(model, lambda_ewc=60.0)
+        ewc_loaded = ewc.load(EWC_ANCHOR)
+        if not ewc_loaded and len(real_ds) > 0:
+            try:
+                anchor_loader = DataLoader(real_ds, batch_size=min(4, len(real_ds)), shuffle=True)
+                ewc.compute_fisher(anchor_loader, criterion, device="cpu", sample_limit=25)
+                ewc.save(EWC_ANCHOR)
+            except Exception as e_err:
+                print(f"[ft] EWC baseline calculation skipped: {e_err}", flush=True)
+
+        distiller = TeacherStudentDistiller(model, ema_decay=0.995)
+
         model.train()
         step, done, losses = start_step, 0, []
         while done < args.steps:
@@ -164,17 +201,34 @@ def main():
                 if done >= args.steps:
                     break
                 pred = model(x)
-                loss = criterion(pred, y)
+                loss_task = criterion(pred, y)
+
+                # Consistency Regularization (Pillar 3)
+                x_pert, t_pred = distiller.perturb_and_predict(x)
+                s_pert_pred = model(x_pert)
+                loss_cons = distiller.consistency_loss(s_pert_pred, t_pred)
+
+                # EWC Penalty (Pillar 4)
+                loss_ewc = ewc.penalty(model)
+
+                loss = loss_task + 0.20 * loss_cons + loss_ewc
+
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 opt.step()
                 sched.step()
+
+                # EMA Teacher update & Curriculum update
+                distiller.update_teacher(model)
+                curriculum.update(loss_task.item())
+
                 done += 1
                 step += 1
                 losses.append(loss.item())
                 if done % 20 == 0:
-                    print(f"ft step {step} | loss {sum(losses[-20:]) / 20:.4f} | {done}/{args.steps}", flush=True)
+                    c_info = curriculum.get_info()
+                    print(f"ft step {step} | loss {sum(losses[-20:]) / 20:.4f} | Curric Lvl {c_info.get('current_level')} ({c_info.get('level_name')}) | {done}/{args.steps}", flush=True)
 
         avg = sum(losses[-100:]) / max(1, len(losses[-100:]))
         new_best = min(best, avg)

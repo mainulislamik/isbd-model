@@ -7,6 +7,8 @@ data/cache/
 # Runtime state (not source)
 data/pairs.npz
 data/self_pool.npz
+data/golden_pool.npz
+data/ewc_anchor.pt
 data/hashes.json
 data/ft_state.json
 data/self_learn_state.json

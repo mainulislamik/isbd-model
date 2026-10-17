@@ -3543,23 +3543,33 @@ async function poll() {
     const pairsEl = document.getElementById('v-pairs');
     if (pairsEl) {
       if (j.self_learn && j.self_learn.total_self_learned_pairs != null) {
-        pairsEl.textContent = `${j.pairs || 0} (+${j.self_learn.total_self_learned_pairs} auto)`;
+        const goldCount = (j.self_learn.golden_pool_count || (j.harvest && j.harvest.golden_samples) || 0);
+        pairsEl.textContent = `${j.pairs || 0} (+${j.self_learn.total_self_learned_pairs} auto, ${goldCount} gold)`;
       } else {
         pairsEl.textContent = j.pairs ?? '0';
       }
     }
+    const selfSubEl = document.getElementById('v-self-sub');
+    if (selfSubEl && j.self_learn) {
+      const c = j.self_learn.curriculum;
+      const cText = c ? `কারিকুলাম: L${c.current_level} (${c.level_name})` : 'কারিকুলাম L1';
+      const ewcText = j.self_learn.ewc_active ? ' • EWC সক্রিয়' : '';
+      selfSubEl.textContent = `${cText}${ewcText}`;
+    }
 
     // ── Photoshop Extension Swarm & Total Trained Image Counts ──
-    const psCountEl = document.getElementById('v-ps-samples');
+    const psCountEl = document.getElementById('v-photoshop-samples') || document.getElementById('v-ps-samples');
     if (psCountEl) {
       const psSamples = (j.harvest && j.harvest.total_samples != null) 
         ? j.harvest.total_samples 
         : ((j.self_learn && j.self_learn.total_human_samples) || 0);
       psCountEl.textContent = psSamples.toLocaleString() + ' টি পেয়ার';
       
-      const psSub = document.getElementById('v-ps-sub');
+      const psSub = document.getElementById('v-photoshop-sub') || document.getElementById('v-ps-sub');
       if (psSub && j.harvest) {
-        psSub.textContent = `আজকের সংগ্রহ: ${j.harvest.today_samples || 0} টি | স্ট্রোক: ${j.harvest.total_strokes || 0}`;
+        const gold = j.harvest.golden_samples || 0;
+        const dedup = j.harvest.dedup_filtered_count || 0;
+        psSub.textContent = `আজকে: ${j.harvest.today_samples || 0} | 🌟 গোল্ডেন: ${gold} | 🛡️ ফিল্টার্ড: ${dedup}`;
       }
     }
 

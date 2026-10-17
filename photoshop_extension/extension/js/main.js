@@ -341,6 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var currentPrimaryDomain = 'general';
     var lastTelemetryData = null;
     var lastDocName = '';
+    var lastUserEditTimestamp = Date.now();
+    var recentToolsSequence = [];
 
     var toolNamesMap = {
         "spotHealingBrushTool": "স্পট হিলিং ব্রাশ",
@@ -432,10 +434,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         validStrokes += diffStroke;
                         var strokeEl = document.getElementById('telemetry-strokes');
                         if (strokeEl) strokeEl.innerText = validStrokes;
+                        lastUserEditTimestamp = Date.now();
 
-                        // Track tool usage frequency
+                        // Track tool usage frequency & sequence
                         if (t.tool) {
                             currentSessionTools[t.tool] = (currentSessionTools[t.tool] || 0) + 1;
+                            recentToolsSequence.push(t.tool);
+                            if (recentToolsSequence.length > 8) recentToolsSequence.shift();
                         }
                         if (t.domain && t.domain !== 'general') {
                             currentPrimaryDomain = t.domain;
@@ -530,6 +535,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 var toolsList = Object.keys(currentSessionTools);
                 if (toolsList.length === 0) toolsList = [lastTelemetryData ? lastTelemetryData.tool : 'retouch'];
 
+                var nowTs = Date.now();
+                var dwellSec = Math.round((nowTs - (lastUserEditTimestamp || nowTs)) / 1000);
+                var isGolden = (dwellSec >= 30) || (validStrokes >= 5 && undoneStrokes === 0);
+                var hasOpposite = (recentToolsSequence.indexOf('paintbrushTool') !== -1 || recentToolsSequence.indexOf('brushTool') !== -1) &&
+                                  (recentToolsSequence.indexOf('eraserTool') !== -1 || recentToolsSequence.indexOf('historyBrushTool') !== -1);
+                var correctionType = hasOpposite ? 'opposite_tool' : (undoneStrokes > 0 ? 'undone_refined' : 'direct_refine');
+
                 var meta = {
                     designer_id: editorId,
                     doc_name: docName,
@@ -538,6 +550,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     stroke_count: validStrokes,
                     undos_filtered: undoneStrokes,
                     roi_cropped: roiCropped,
+                    is_golden: isGolden,
+                    dwell_sec: dwellSec,
+                    correction_type: correctionType,
                     layer_info: lastTelemetryData ? {
                         name: lastTelemetryData.layerName,
                         opacity: lastTelemetryData.layerOpacity,
@@ -552,8 +567,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.ok) {
-                            var domainBengali = domainNamesMap[meta.domain] || meta.domain;
-                            log('🎯 ' + editorId + ' এর কাজ সিঙ্ক হয়েছে! [' + domainBengali + ' | স্ট্রোক: ' + validStrokes + 'টি, Undo বাদ: ' + undoneStrokes + 'টি] মোট ডাটাবেজ: ' + data.total_samples + ' টি');
+                            if (data.duplicate) {
+                                log('ℹ️ ডুপ্লিকেট প্যাচ ফিল্টার্ড — মেমোরি সুরক্ষায় অটো-স্কিপ করা হয়েছে।');
+                            } else {
+                                var domainBengali = domainNamesMap[meta.domain] || meta.domain;
+                                var goldTag = isGolden ? ' 🌟 [Golden Pair]' : '';
+                                log('🎯 ' + editorId + ' এর কাজ সিঙ্ক হয়েছে!' + goldTag + ' [' + domainBengali + ' | স্ট্রোক: ' + validStrokes + 'টি, Undo বাদ: ' + undoneStrokes + 'টি] মোট ডাটাবেজ: ' + data.total_samples + ' টি');
+                            }
                             updateHarvestStats();
                             baselinePath = currentPath;
                             validStrokes = 0;
