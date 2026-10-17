@@ -1557,7 +1557,15 @@ def _get_extension_bundle_info():
     """Compute bundle hash and gather all files in photoshop_extension/extension."""
     ext_dir = ROOT / "photoshop_extension" / "extension"
     if not ext_dir.exists():
-        return "1.2.0", "empty", {}, []
+        return "1.3.0", "empty", {}, []
+
+    v_file = ext_dir / "version.json"
+    ver_str = "1.3.0"
+    if v_file.exists():
+        try:
+            ver_str = json.loads(v_file.read_text(encoding="utf-8")).get("version", "1.3.0")
+        except Exception:
+            pass
 
     files_map = {}
     files_info = []
@@ -1580,7 +1588,7 @@ def _get_extension_bundle_info():
             })
 
     bundle_hash = hasher.hexdigest()[:16]
-    return "1.2.0", bundle_hash, files_map, files_info
+    return ver_str, bundle_hash, files_map, files_info
 
 
 @app.get("/api/extension/version")
@@ -1639,12 +1647,23 @@ async def api_harvest_designer_sample(
         add_notification(
             type="designer_harvest",
             title=title,
-            message=f"ফটোশপ থেকে নতুন পেয়ার ক্যাপচার্ড: {meta_dict.get('doc_name', 'untitled')} (ডোমেন: {meta_dict.get('task_domain', 'general')})",
+            message=f"ফটোশপ থেকে নতুন পেয়ার ক্যাপচার্ড: {meta_dict.get('doc_name', 'untitled')} (ডোমেন: {meta_dict.get('domain') or meta_dict.get('task_domain', 'general')}, এডিটর: {meta_dict.get('designer_id', 'designer')})",
             category="training"
         )
         return res
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+@app.post("/api/harvest/swarm-telemetry")
+async def api_harvest_swarm_telemetry(
+    before: UploadFile = File(...),
+    after: UploadFile = File(...),
+    proposal: Optional[UploadFile] = File(None),
+    metadata: str = Form("{}")
+):
+    """Receive live multi-editor swarm telemetry, tool actions, and micro-patches."""
+    return await api_harvest_designer_sample(before=before, after=after, proposal=proposal, metadata=metadata)
 
 
 # ── SOTA Open-Source AI Suite & Human Learning Endpoints ─────────────────────

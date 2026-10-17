@@ -103,7 +103,13 @@ def save_designer_sample(
     cv2.imwrite(str(after_path), img_after)
 
     meta = metadata or {}
-    task_domain = meta.get("task_domain", "general")
+    task_domain = meta.get("domain") or meta.get("task_domain", "general")
+    designer_id = meta.get("designer_id") or meta.get("editor_id", "designer_pc")
+    tools_used = meta.get("tools_used", ["retouch", "curves"])
+    stroke_count = int(meta.get("stroke_count", 1))
+    undos_filtered = int(meta.get("undos_filtered", 0))
+    roi_cropped = bool(meta.get("roi_cropped", False))
+    layer_info = meta.get("layer_info", {})
     is_correction = bool(proposal_bytes is not None)
 
     proposal_filename = None
@@ -119,7 +125,7 @@ def save_designer_sample(
             proposal_path = IMAGES_DIR / proposal_filename
             cv2.imwrite(str(proposal_path), img_prop)
 
-            # Trigger immediate fast adapter learning
+            # Trigger immediate fast adapter learning from human correction
             try:
                 from PIL import Image
                 from isbd.opensource_ai import train_adapter_on_human_pair
@@ -131,16 +137,47 @@ def save_designer_sample(
                 )
             except Exception as e:
                 adapter_train_info = {"ok": False, "error": str(e)}
+    else:
+        # Live human edit (without prior AI proposal): train domain adapter directly
+        try:
+            from PIL import Image
+            from isbd.opensource_ai import train_adapter_on_human_pair
+            p_orig = Image.fromarray(cv2.cvtColor(img_before, cv2.COLOR_BGR2RGB))
+            p_human = Image.fromarray(cv2.cvtColor(img_after, cv2.COLOR_BGR2RGB))
+            adapter_train_info = train_adapter_on_human_pair(
+                p_orig, p_human, p_orig, domain=task_domain, steps=10
+            )
+        except Exception as e:
+            adapter_train_info = {"ok": False, "error": str(e)}
+
+    # Auto-append to self_pool.npz for continuous 24/7 UNet backbone learning
+    try:
+        from PIL import Image
+        from isbd.self_learner import _load_npz, _save_npz, _img_to_tensor, SELF_POOL, IMG_BASE
+        p_b = Image.fromarray(cv2.cvtColor(img_before, cv2.COLOR_BGR2RGB))
+        p_a = Image.fromarray(cv2.cvtColor(img_after, cv2.COLOR_BGR2RGB))
+        x_t = _img_to_tensor(p_b, size=IMG_BASE)
+        y_t = _img_to_tensor(p_a, size=IMG_BASE)
+        cur_X, cur_Y = _load_npz(SELF_POOL, img_size=IMG_BASE)
+        cur_X = np.concatenate([cur_X, x_t[None]], axis=0)
+        cur_Y = np.concatenate([cur_Y, y_t[None]], axis=0)
+        _save_npz(SELF_POOL, cur_X, cur_Y, cap=5000)
+    except Exception as pool_err:
+        print(f"[Harvester] self_pool append error: {pool_err}")
 
     sample_entry = {
         "id": sample_id,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "width": w_b,
         "height": h_b,
-        "designer_id": meta.get("designer_id", "designer_pc"),
+        "designer_id": designer_id,
         "doc_name": meta.get("doc_name", "untitled.psd"),
-        "tools_used": meta.get("tools_used", ["retouch", "curves"]),
+        "tools_used": tools_used,
         "task_domain": task_domain,
+        "stroke_count": stroke_count,
+        "undos_filtered": undos_filtered,
+        "roi_cropped": roi_cropped,
+        "layer_info": layer_info,
         "is_correction": is_correction,
         "duration_sec": meta.get("duration_sec", 0),
         "before_file": before_filename,
@@ -165,17 +202,33 @@ def save_designer_sample(
 
 
 def get_harvester_stats() -> Dict[str, Any]:
-    """Return summary statistics of collected designer training data."""
+    """Return summary statistics of collected designer training data across all editors."""
     manifest = get_manifest()
     samples = manifest.get("samples", [])
     total_size_mb = 0.0
     by_task: Dict[str, int] = {}
+    by_editor: Dict[str, Dict[str, int]] = {}
     corrections_count = 0
+    total_strokes = 0
+    total_undos_filtered = 0
+    roi_crops = 0
 
     for s in samples:
         total_size_mb += s.get("file_size_kb", 0.0) / 1024.0
         t = s.get("task_domain", "general")
         by_task[t] = by_task.get(t, 0) + 1
+        
+        ed = s.get("designer_id", "designer_pc")
+        if ed not in by_editor:
+            by_editor[ed] = {"samples": 0, "strokes": 0}
+        by_editor[ed]["samples"] += 1
+        by_editor[ed]["strokes"] += s.get("stroke_count", 1)
+
+        total_strokes += s.get("stroke_count", 1)
+        total_undos_filtered += s.get("undos_filtered", 0)
+        if s.get("roi_cropped"):
+            roi_crops += 1
+
         if s.get("is_correction"):
             corrections_count += 1
 
@@ -188,6 +241,10 @@ def get_harvester_stats() -> Dict[str, Any]:
         "today_samples": today_count,
         "corrections_count": corrections_count,
         "by_task": by_task,
+        "by_editor": by_editor,
+        "total_strokes": total_strokes,
+        "total_undos_filtered": total_undos_filtered,
+        "roi_crops": roi_crops,
         "total_size_mb": round(total_size_mb, 2),
         "last_updated": manifest.get("last_updated", "—"),
         "recent_samples": samples[-10:][::-1]

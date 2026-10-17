@@ -331,16 +331,63 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 6. Autonomous Designer Action Observer & Harvest Engine
+    // ── 6. Autonomous Live Action Observer, ROI Micro-Patcher & Swarm Telemetry Harvester ──
     var baselineCaptured = false;
     var baselinePath = getTempFilePath('isbd_baseline_' + Date.now() + '.png');
+    var lastHistoryIndex = -1;
+    var validStrokes = 0;
+    var undoneStrokes = 0;
+    var currentSessionTools = {};
+    var currentPrimaryDomain = 'general';
+    var lastTelemetryData = null;
+    var lastDocName = '';
+
+    var toolNamesMap = {
+        "spotHealingBrushTool": "স্পট হিলিং ব্রাশ",
+        "healingBrushTool": "হিলিং ব্রাশ",
+        "patchTool": "প্যাচ টুল",
+        "cloneStampTool": "ক্লোন স্ট্যাম্প",
+        "patternStampTool": "প্যাটার্ন স্ট্যাম্প",
+        "paintbrushTool": "পেইন্ট ব্রাশ",
+        "pencilTool": "পেন্সিল টুল",
+        "penTool": "পেন টুল (পাথ/মাস্ক)",
+        "quickSelectTool": "কুইক সিলেকশন",
+        "magicWandTool": "ম্যাজিক ওয়ান্ড",
+        "lassoTool": "ল্যাসো টুল",
+        "polySelTool": "পলিগোনাল ল্যাসো",
+        "magneticLassoTool": "ম্যাগনেটিক ল্যাসো",
+        "dodgeTool": "ডজ টুল (হাইলাইট)",
+        "burnTool": "বার্ন টুল (শ্যাডো)",
+        "spongeTool": "স্পঞ্জ টুল",
+        "blurTool": "ব্লার টুল",
+        "sharpenTool": "শার্পেন টুল",
+        "smudgeTool": "স্মাজ টুল",
+        "cropTool": "ক্রপ টুল",
+        "eraserTool": "ইরেজার",
+        "historyBrushTool": "হিস্ট্রি ব্রাশ"
+    };
+
+    var domainNamesMap = {
+        "retouch": "স্কিন ও ফেস রিটাচ",
+        "matting": "হেয়ার/ফার ক্লিপিং ও মাস্ক",
+        "lighting": "লাইটিং ও টোন ব্যালেন্স",
+        "ecommerce": "ই-কমার্স প্রডাক্ট ও শ্যাডো",
+        "general": "সাধারণ এডিটিং"
+    };
 
     function captureBaseline(showNotice) {
         var pEsc = baselinePath.replace(/\\/g, '/');
         csInterface.evalScript("captureBaselineSnapshot('" + pEsc + "')", function(res) {
             if (res && res.indexOf('OK') !== -1) {
                 baselineCaptured = true;
-                if (showNotice) log('✅ নতুন ক্যানভাস বেসলাইন স্ন্যাপশট রেকর্ড করা হয়েছে।');
+                validStrokes = 0;
+                undoneStrokes = 0;
+                currentSessionTools = {};
+                var strokeEl = document.getElementById('telemetry-strokes');
+                if (strokeEl) strokeEl.innerText = '0';
+                var undoEl = document.getElementById('telemetry-undos');
+                if (undoEl) undoEl.innerText = '0';
+                if (showNotice) log('✅ নতুন ক্যানভাস বেসলাইন রেকর্ড করা হয়েছে।');
             }
         });
     }
@@ -352,26 +399,116 @@ document.addEventListener('DOMContentLoaded', function() {
         captureBaseline(true);
     });
 
-    function syncDesignerHarvest() {
+    // ── Live Telemetry HUD & Action Polling Engine (Every 2.5 seconds) ──
+    function pollEditorTelemetry() {
+        csInterface.evalScript("getLiveEditorTelemetry()", function(res) {
+            if (!res) return;
+            try {
+                var t = JSON.parse(res);
+                if (!t.ok) return;
+
+                lastTelemetryData = t;
+
+                // Document switched? Reset session baseline
+                if (lastDocName && lastDocName !== t.docName) {
+                    lastDocName = t.docName;
+                    baselinePath = getTempFilePath('isbd_baseline_' + Date.now() + '.png');
+                    captureBaseline(false);
+                    return;
+                }
+                lastDocName = t.docName;
+
+                // Detect History Changes: Valid forward stroke vs Undo (Ctrl+Z)
+                if (lastHistoryIndex !== -1 && t.historyIndex !== undefined) {
+                    if (t.historyIndex < lastHistoryIndex) {
+                        // Undo detected! User discarded previous work
+                        var diffUndo = lastHistoryIndex - t.historyIndex;
+                        undoneStrokes += diffUndo;
+                        var undoEl = document.getElementById('telemetry-undos');
+                        if (undoEl) undoEl.innerText = undoneStrokes;
+                    } else if (t.historyIndex > lastHistoryIndex) {
+                        // Valid forward editing stroke/action
+                        var diffStroke = t.historyIndex - lastHistoryIndex;
+                        validStrokes += diffStroke;
+                        var strokeEl = document.getElementById('telemetry-strokes');
+                        if (strokeEl) strokeEl.innerText = validStrokes;
+
+                        // Track tool usage frequency
+                        if (t.tool) {
+                            currentSessionTools[t.tool] = (currentSessionTools[t.tool] || 0) + 1;
+                        }
+                        if (t.domain && t.domain !== 'general') {
+                            currentPrimaryDomain = t.domain;
+                        }
+                    }
+                }
+                lastHistoryIndex = (t.historyIndex !== undefined) ? t.historyIndex : lastHistoryIndex;
+
+                // Update UI elements
+                var toolEl = document.getElementById('telemetry-tool');
+                if (toolEl) {
+                    var friendlyTool = toolNamesMap[t.tool] || t.tool || 'অ্যাক্টিভ';
+                    toolEl.innerText = friendlyTool;
+                }
+
+                var domEl = document.getElementById('telemetry-domain');
+                if (domEl) {
+                    domEl.innerText = domainNamesMap[t.domain] || t.domain;
+                }
+
+                var layerEl = document.getElementById('telemetry-layer-info');
+                if (layerEl) {
+                    var adjText = t.isAdjustment ? ' [Adj]' : '';
+                    layerEl.innerText = (t.layerBlendMode || 'Normal') + ' (' + (t.layerOpacity || 100) + '%)' + adjText;
+                }
+
+                // Passive auto-save sync: If auto-learn enabled and editor committed 5+ quality strokes
+                var autoLearn = document.getElementById('check-autolearn').checked;
+                if (autoLearn && validStrokes >= 8) {
+                    syncDesignerHarvest(true); // background silent harvest
+                }
+
+            } catch (err) {}
+        });
+    }
+
+    setInterval(pollEditorTelemetry, 2500);
+
+    // ── Smart ROI Cropper & Telemetry Harvester ──
+    function syncDesignerHarvest(isAuto) {
         var autoLearn = document.getElementById('check-autolearn').checked;
-        if (!autoLearn) {
-            log('অটো-লার্নিং বন্ধ থাকায় স্যাম্পল পাঠানো হয়নি।');
-            return;
-        }
+        if (!autoLearn && isAuto) return;
 
         if (!baselineCaptured || (fs && !fs.existsSync(baselinePath))) {
             captureBaseline(false);
-            log('বেসলাইন স্ন্যাপশট প্রস্তুত করা হচ্ছে, অনুগ্রহ করে কিছুক্ষণ পর চেষ্টা করুন।');
+            if (!isAuto) log('বেসলাইন স্ন্যাপশট প্রস্তুত করা হচ্ছে, অনুগ্রহ করে কিছুক্ষণ পর চেষ্টা করুন।');
             return;
         }
+
+        var editorTagInput = document.getElementById('input-editor-id');
+        var editorId = (editorTagInput && editorTagInput.value.trim()) ? editorTagInput.value.trim() : ('designer_' + (os ? os.hostname() : 'ps_seat'));
+
+        var roiCropEnabled = document.getElementById('check-roi-crop') ? document.getElementById('check-roi-crop').checked : true;
+        var hasRoiSelection = lastTelemetryData && lastTelemetryData.hasSelection && lastTelemetryData.selectionBounds;
 
         var currentPath = getTempFilePath('isbd_current_' + Date.now() + '.png');
         var curEsc = currentPath.replace(/\\/g, '/');
 
-        log('ডিজাইনার এডিটিং পেয়ার প্রস্তুত করা হচ্ছে...');
-        csInterface.evalScript("captureCurrentSnapshot('" + curEsc + "')", function(res) {
+        if (!isAuto) log('ডিজাইনার এডিটিং পেয়ার প্রস্তুত করা হচ্ছে...');
+
+        // If user has an active selection and ROI crop is checked, harvest exact 512x512 micro-patch
+        var captureScript = "captureCurrentSnapshot('" + curEsc + "')";
+        var roiCropped = false;
+
+        if (roiCropEnabled && hasRoiSelection) {
+            var b = lastTelemetryData.selectionBounds; // [x1, y1, x2, y2]
+            captureScript = "captureROIPatchSnapshot('" + curEsc + "', " + b[0] + ", " + b[1] + ", " + b[2] + ", " + b[3] + ", 512)";
+            roiCropped = true;
+        }
+
+        csInterface.evalScript(captureScript, function(res) {
             if (!res || res.indexOf('OK') === -1) {
-                log('ক্যাপচার ত্রুটি: ' + res);
+                if (!isAuto) log('ক্যাপচার ত্রুটি: ' + res);
                 return;
             }
 
@@ -389,10 +526,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     fd.append('before', new Blob([bBuf], { type: 'image/png' }), 'before.png');
                     fd.append('after', new Blob([aBuf], { type: 'image/png' }), 'after.png');
                 }
+
+                var toolsList = Object.keys(currentSessionTools);
+                if (toolsList.length === 0) toolsList = [lastTelemetryData ? lastTelemetryData.tool : 'retouch'];
+
                 var meta = {
-                    designer_id: 'designer_' + (os ? os.hostname() : 'win_pc'),
+                    designer_id: editorId,
                     doc_name: docName,
-                    tools_used: ['retouch', 'frequency_separation', 'clipping'],
+                    domain: currentPrimaryDomain,
+                    tools_used: toolsList,
+                    stroke_count: validStrokes,
+                    undos_filtered: undoneStrokes,
+                    roi_cropped: roiCropped,
+                    layer_info: lastTelemetryData ? {
+                        name: lastTelemetryData.layerName,
+                        opacity: lastTelemetryData.layerOpacity,
+                        blend_mode: lastTelemetryData.layerBlendMode,
+                        is_adjustment: lastTelemetryData.isAdjustment
+                    } : {},
                     timestamp: new Date().toISOString()
                 };
                 fd.append('metadata', JSON.stringify(meta));
@@ -401,22 +552,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.ok) {
-                            log('🎯 এআই ট্রেনিংয়ে নতুন পেয়ার সিঙ্ক হয়েছে! মোট স্যাম্পল: ' + data.total_samples + ' টি');
+                            var domainBengali = domainNamesMap[meta.domain] || meta.domain;
+                            log('🎯 ' + editorId + ' এর কাজ সিঙ্ক হয়েছে! [' + domainBengali + ' | স্ট্রোক: ' + validStrokes + 'টি, Undo বাদ: ' + undoneStrokes + 'টি] মোট ডাটাবেজ: ' + data.total_samples + ' টি');
                             updateHarvestStats();
                             baselinePath = currentPath;
+                            validStrokes = 0;
+                            undoneStrokes = 0;
+                            currentSessionTools = {};
+                            var sEl = document.getElementById('telemetry-strokes');
+                            if (sEl) sEl.innerText = '0';
+                            var uEl = document.getElementById('telemetry-undos');
+                            if (uEl) uEl.innerText = '0';
                         } else {
-                            log('হার্ভেস্ট নোট: ' + (data.error || 'বাদ দেওয়া হয়েছে'));
+                            if (!isAuto) log('হার্ভেস্ট নোট: ' + (data.error || 'বাদ দেওয়া হয়েছে'));
                         }
                     })
                     .catch(function(e) {
-                        log('হার্ভেস্ট সার্ভার ত্রুটি: ' + e.message);
+                        if (!isAuto) log('হার্ভেস্ট সার্ভার ত্রুটি: ' + e.message);
                     });
             });
         });
     }
 
     document.getElementById('btn-harvest-sync').addEventListener('click', function() {
-        syncDesignerHarvest();
+        syncDesignerHarvest(false);
     });
 
     function updateHarvestStats() {

@@ -243,7 +243,7 @@ def make_pair(seed: int):
 
 def load_real_pairs():
     """Loads all human real-edited pairs from NPZ storage and live harvested buffer."""
-    real_files = [DATA / "real_pairs.npz", DATA / "pairs.npz"]
+    real_files = [DATA / "real_pairs.npz", DATA / "pairs.npz", DATA / "self_pool.npz"]
     all_x, all_y = [], []
     for p in real_files:
         if p.exists():
