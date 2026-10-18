@@ -1,15 +1,14 @@
-[ft] 208 real pair(s) | 200 steps | lr 5e-05
-[ft] resume from step 834000 (SmallUNet)
-[ft] BEFORE holdout: L1 0.0468 (id 0.0802) | PSNR 20.33dB (id 18.23dB)
-ft step 834020 | loss 0.6519 | Curric Lvl 1 (solid_contrast) | 20/200
-ft step 834040 | loss 0.6587 | Curric Lvl 1 (solid_contrast) | 40/200
-ft step 834060 | loss 0.6367 | Curric Lvl 1 (solid_contrast) | 60/200
-ft step 834080 | loss 0.6289 | Curric Lvl 1 (solid_contrast) | 80/200
-ft step 834100 | loss 0.6332 | Curric Lvl 1 (solid_contrast) | 100/200
-ft step 834120 | loss 0.6354 | Curric Lvl 1 (solid_contrast) | 120/200
-ft step 834140 | loss 0.6268 | Curric Lvl 1 (solid_contrast) | 140/200
-ft step 834160 | loss 0.6196 | Curric Lvl 1 (solid_contrast) | 160/200
-ft step 834180 | loss 0.6150 | Curric Lvl 1 (solid_contrast) | 180/200
-ft step 834200 | loss 0.6167 | Curric Lvl 1 (solid_contrast) | 200/200
-[ft] done: step 834000 -> 834200 | avg loss 0.6227
-[ft] AFTER holdout: L1 0.0363 (id 0.0802) | PSNR 24.43dB (id 18.23dB)
+[ft] 226 real pair(s) | 250 steps | lr 5e-05
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায�ft st[ft] 24/7 ট্রেনারের রাউন্ড চল�ft step 835040 | loss 0.6812 | Curric Lvl 1 (solid_contrast) | 40/250
+ft step 835060 | loss 0.6561 | Curric Lvl 1 (solid_contrast) | 60/250
+ft step 835080 | loss 0.6395 | Curric Lvl 1 (solid_contrast) | 80/250
+াউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] lock পাওয়া যায়নি — বাতিল; একটু পরে আবার চেষ্টা করুন

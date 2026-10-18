@@ -25,6 +25,8 @@ DATA          = ROOT / "data"
 DATA.mkdir(exist_ok=True)
 REF_ASSETS_DIR = DATA / "ref_assets"
 REF_ASSETS_DIR.mkdir(exist_ok=True)
+COMPOSITE_ASSETS_DIR = DATA / "composite_assets"
+COMPOSITE_ASSETS_DIR.mkdir(exist_ok=True)
 BUCKETS_DIR   = DATA / "buckets"
 BUCKETS_DIR.mkdir(exist_ok=True)
 
@@ -290,7 +292,7 @@ def analyze_and_store_references(reference_pils: list, pair_id: str) -> list:
     return ref_records
 
 
-def _log_real_pair(label, before_size, after_size, total, patches_count=0, references=None):
+def _log_real_pair(label, before_size, after_size, total, patches_count=0, references=None, mode="1_to_1", multi_info=None):
     """Keep a human-readable journal of every real pair added."""
     log = []
     if REAL_LOG.exists():
@@ -300,6 +302,7 @@ def _log_real_pair(label, before_size, after_size, total, patches_count=0, refer
             pass
     entry = {
         "ts"            : time.strftime("%Y-%m-%d %H:%M:%S"),
+        "mode"          : mode,
         "label"         : label,
         "before_px"     : f"{before_size[0]}×{before_size[1]}",
         "after_px"      : f"{after_size[0]}×{after_size[1]}",
@@ -307,7 +310,8 @@ def _log_real_pair(label, before_size, after_size, total, patches_count=0, refer
         "total_pairs"   : total,
         "has_references": bool(references and len(references) > 0),
         "reference_count": len(references) if references else 0,
-        "references"    : references or []
+        "references"    : references or [],
+        "multi_info"    : multi_info or {}
     }
     log.append(entry)
     if len(log) > 500:
@@ -546,3 +550,307 @@ def get_self_learn_stats():
         "status"                  : base_stats.get("status", "Active — Self-Learning v2.0 (Curriculum + PER + EWC)")
     }
     return result
+
+
+def _augment_pair(src_b: Image.Image, src_a: Image.Image, num: int = 8) -> tuple[np.ndarray, np.ndarray]:
+    """Generate rotation and flip augmented pairs as normalized (N, 3, 64, 64) numpy arrays."""
+    b_small = src_b.convert("RGB").resize((IMG_BASE, IMG_BASE), Image.Resampling.LANCZOS)
+    a_small = src_a.convert("RGB").resize((IMG_BASE, IMG_BASE), Image.Resampling.LANCZOS)
+
+    px = [_img_to_tensor(b_small, size=IMG_BASE)]
+    py = [_img_to_tensor(a_small, size=IMG_BASE)]
+
+    aug_ops = [
+        (Image.Transpose.FLIP_LEFT_RIGHT, Image.Transpose.FLIP_LEFT_RIGHT),
+        (Image.Transpose.FLIP_TOP_BOTTOM, Image.Transpose.FLIP_TOP_BOTTOM),
+        (Image.Transpose.ROTATE_90,       Image.Transpose.ROTATE_90),
+        (Image.Transpose.ROTATE_180,      Image.Transpose.ROTATE_180),
+        (Image.Transpose.ROTATE_270,      Image.Transpose.ROTATE_270),
+        (Image.Transpose.TRANSPOSE,       Image.Transpose.TRANSPOSE),
+        (Image.Transpose.TRANSVERSE,      Image.Transpose.TRANSVERSE),
+    ]
+    for op_b, op_a in aug_ops:
+        if len(px) >= num:
+            break
+        try:
+            ab = b_small.transpose(op_b)
+            aa = a_small.transpose(op_a)
+            px.append(np.asarray(ab, dtype=np.float32).transpose(2, 0, 1) / 255.0)
+            py.append(np.asarray(aa, dtype=np.float32).transpose(2, 0, 1) / 255.0)
+        except Exception:
+            pass
+
+    return np.stack(px, axis=0), np.stack(py, axis=0)
+
+
+def learn_from_multi_bundle(
+    before_pils: list,
+    after_pils: list,
+    label: str = "",
+    augment: int = 8,
+    trigger_finetune: bool = True,
+    reference_pils: list | None = None
+) -> dict:
+    """
+    Unified Ingestion API for Studio Workflows:
+    - 1-to-1: Single Before -> Single After
+    - 1-to-N: 1 Raw Before -> Multiple Deliverables (Clipping, Shadow, Recolor, etc.)
+    - N-to-1: Multiple Raw Befores -> 1 Master Composite (Ghost Mannequin / Neck Joint / Bracketing / Stacking)
+    - N-to-M: Multi-pair Batch Set
+    """
+    nb = len(before_pils)
+    na = len(after_pils)
+    if nb == 0 or na == 0:
+        return {"ok": False, "error": "Before ও After উভয় ছবি প্রয়োজন"}
+
+    # 1. Single pair fallback
+    if nb == 1 and na == 1:
+        res = learn_from_real_pair(
+            before_pils[0], after_pils[0],
+            label=label,
+            augment=augment,
+            trigger_finetune=trigger_finetune,
+            reference_pils=reference_pils
+        )
+        res["mode"] = "1_to_1"
+        return res
+
+    from isbd.vision_detector import detect_multi_pair
+    det = detect_multi_pair(before_pils, after_pils)
+    mode = det.get("mode", "1_to_1")
+    bundle_id = f"bundle_{int(time.time())}_{random.randint(1000, 9999)}"
+    ref_records = analyze_and_store_references(reference_pils, bundle_id) if reference_pils else []
+
+    # 2. Case: 1-to-N Multi-Deliverables
+    if nb == 1 and na > 1:
+        raw_b = before_pils[0]
+        outputs_learned = []
+        all_new_rx = []
+        all_new_ry = []
+        all_patches_b = []
+        all_patches_a = []
+        
+        rX, rY = _load_npz(REAL_POOL, img_size=IMG_BASE)
+        pX, pY = _load_npz(PATCH_POOL, img_size=PATCH_SIZE)
+        
+        b_rgb = raw_b.convert("RGB")
+        b_small = b_rgb.resize((IMG_BASE, IMG_BASE), Image.Resampling.LANCZOS)
+        
+        for idx, out_img in enumerate(after_pils):
+            a_rgb = out_img.convert("RGB")
+            a_small = a_rgb.resize((IMG_BASE, IMG_BASE), Image.Resampling.LANCZOS)
+            
+            detected_out_services = det.get("outputs", [])[idx].get("services", []) if idx < len(det.get("outputs", [])) else []
+            out_label = label if label else (", ".join(detected_out_services) if detected_out_services else "custom")
+            norm_services = _normalize_service_labels(out_label)
+            
+            aug_b, aug_a = _augment_pair(b_small, a_small, num=max(2, augment // max(1, na)))
+            for svc in norm_services:
+                _save_to_service_bucket(svc, aug_b, aug_a)
+                
+            all_new_rx.append(aug_b)
+            all_new_ry.append(aug_a)
+            
+            pb, pa = extract_salient_patches(raw_b, out_img, max_patches=2, patch_size=PATCH_SIZE)
+            all_patches_b.extend(pb)
+            all_patches_a.extend(pa)
+            
+            outputs_learned.append({
+                "index": idx + 1,
+                "services": norm_services,
+                "services_bn": det.get("outputs", [])[idx].get("services_bn", []) if idx < len(det.get("outputs", [])) else [],
+                "patches_extracted": len(pb)
+            })
+
+        cat_rx = np.concatenate(all_new_rx, axis=0)
+        cat_ry = np.concatenate(all_new_ry, axis=0)
+        rX = np.concatenate([rX, cat_rx], axis=0)
+        rY = np.concatenate([rY, cat_ry], axis=0)
+        _save_npz(REAL_POOL, rX, rY, cap=3000)
+        
+        if all_patches_b:
+            pt_b = np.stack([np.asarray(p, dtype=np.float32).transpose(2,0,1)/255.0 for p in all_patches_b], axis=0)
+            pt_a = np.stack([np.asarray(p, dtype=np.float32).transpose(2,0,1)/255.0 for p in all_patches_a], axis=0)
+            pX = np.concatenate([pX, pt_b], axis=0)
+            pY = np.concatenate([pY, pt_a], axis=0)
+            _save_npz(PATCH_POOL, pX, pY, cap=1500)
+            
+            for pb_img, pa_img in zip(all_patches_b, all_patches_a):
+                pb_s = pb_img.resize((IMG_BASE, IMG_BASE), Image.Resampling.BILINEAR)
+                pa_s = pa_img.resize((IMG_BASE, IMG_BASE), Image.Resampling.BILINEAR)
+                bx = np.asarray(pb_s, dtype=np.float32).transpose(2,0,1)/255.0
+                by = np.asarray(pa_s, dtype=np.float32).transpose(2,0,1)/255.0
+                _append_to_main_npz(bx, by)
+
+        for bx, by in zip(cat_rx, cat_ry):
+            _append_to_main_npz(bx, by)
+            
+        total_real = int(len(rX))
+        total_patches = int(len(pX))
+        
+        combined_label = label if label else ", ".join(det.get("detected_services", ["multi_deliverables"]))
+        _log_real_pair(
+            label=combined_label,
+            before_size=raw_b.size,
+            after_size=after_pils[0].size,
+            total=total_real,
+            patches_count=len(all_patches_b),
+            references=ref_records,
+            mode="1_to_n",
+            multi_info={
+                "deliverables_count": na,
+                "outputs": outputs_learned,
+                "summary_bn": det.get("summary_bn", "")
+            }
+        )
+        
+        ft_pid = None
+        if trigger_finetune:
+            ft_pid = _trigger_micro_finetune(steps=250, lr=5e-5)
+            
+        return {
+            "ok": True,
+            "mode": "1_to_n",
+            "mode_title": det.get("mode_title", "মাল্টি-ডেলিভারেবল (1-to-N)"),
+            "deliverables_count": na,
+            "outputs": outputs_learned,
+            "augmented_samples": int(len(cat_rx)),
+            "patches_extracted": len(all_patches_b),
+            "total_real_pairs": total_real,
+            "total_patches_256": total_patches,
+            "detected_services": det.get("detected_services", []),
+            "summary_bn": det.get("summary_bn", ""),
+            "micro_ft_triggered": bool(ft_pid),
+            "micro_ft_pid": ft_pid
+        }
+
+    # 3. Case: N-to-1 Composite Assembly (Neck Joint, HDR Bracketing, Focus Stacking)
+    if nb > 1 and na == 1:
+        primary_b = before_pils[0]
+        master_a = after_pils[0]
+        comp_type = det.get("composite_type", "neck_joint")
+        
+        pair_prefix = f"pair_{int(time.time())}_{random.randint(1000, 9999)}"
+        comp_records = []
+        for c_idx, c_img in enumerate(before_pils[1:]):
+            c_filename = f"{pair_prefix}_comp_{c_idx+1}.jpg"
+            c_save_path = COMPOSITE_ASSETS_DIR / c_filename
+            try:
+                c_img.convert("RGB").save(c_save_path, quality=92)
+                comp_records.append({
+                    "index": c_idx + 2,
+                    "filename": c_filename,
+                    "url": f"/data/composite_assets/{c_filename}",
+                    "role": "Inner Collar / Back Neck" if comp_type == "neck_joint" and c_idx == 0 else f"Component #{c_idx+2}",
+                    "size": f"{c_img.width}×{c_img.height}"
+                })
+            except Exception as e:
+                print(f"[SelfLearner] Warning saving composite asset: {e}")
+
+        rX, rY = _load_npz(REAL_POOL, img_size=IMG_BASE)
+        pX, pY = _load_npz(PATCH_POOL, img_size=PATCH_SIZE)
+        
+        pb_rgb = primary_b.convert("RGB")
+        ma_rgb = master_a.convert("RGB")
+        pb_s = pb_rgb.resize((IMG_BASE, IMG_BASE), Image.Resampling.LANCZOS)
+        ma_s = ma_rgb.resize((IMG_BASE, IMG_BASE), Image.Resampling.LANCZOS)
+        
+        aug_pb, aug_ma = _augment_pair(pb_s, ma_s, num=augment)
+        
+        patches_b, patches_a = extract_salient_patches(primary_b, master_a, max_patches=3, patch_size=PATCH_SIZE)
+        
+        for c_img in before_pils[1:]:
+            cp_b, cp_a = extract_salient_patches(c_img, master_a, max_patches=2, patch_size=PATCH_SIZE)
+            patches_b.extend(cp_b)
+            patches_a.extend(cp_a)
+
+        norm_services = _normalize_service_labels(label or comp_type)
+        if comp_type == "neck_joint":
+            norm_services.extend(["neck_joint", "ghost_mannequin", "clipping_path"])
+        elif comp_type == "hdr_bracket":
+            norm_services.extend(["hdr_fusion", "exposure_balance"])
+        norm_services = list(dict.fromkeys(norm_services))
+        
+        for svc in norm_services:
+            _save_to_service_bucket(svc, aug_pb, aug_ma)
+            
+        rX = np.concatenate([rX, aug_pb], axis=0)
+        rY = np.concatenate([rY, aug_ma], axis=0)
+        _save_npz(REAL_POOL, rX, rY, cap=3000)
+        
+        if patches_b:
+            pt_b = np.stack([np.asarray(p, dtype=np.float32).transpose(2,0,1)/255.0 for p in patches_b], axis=0)
+            pt_a = np.stack([np.asarray(p, dtype=np.float32).transpose(2,0,1)/255.0 for p in patches_a], axis=0)
+            pX = np.concatenate([pX, pt_b], axis=0)
+            pY = np.concatenate([pY, pt_a], axis=0)
+            _save_npz(PATCH_POOL, pX, pY, cap=1500)
+            
+            for pb_img, pa_img in zip(patches_b, patches_a):
+                pb_crop_s = pb_img.resize((IMG_BASE, IMG_BASE), Image.Resampling.BILINEAR)
+                pa_crop_s = pa_img.resize((IMG_BASE, IMG_BASE), Image.Resampling.BILINEAR)
+                bx = np.asarray(pb_crop_s, dtype=np.float32).transpose(2,0,1)/255.0
+                by = np.asarray(pa_crop_s, dtype=np.float32).transpose(2,0,1)/255.0
+                _append_to_main_npz(bx, by)
+
+        for bx, by in zip(aug_pb, aug_ma):
+            _append_to_main_npz(bx, by)
+            
+        total_real = int(len(rX))
+        total_patches = int(len(pX))
+        
+        _log_real_pair(
+            label=", ".join(norm_services),
+            before_size=primary_b.size,
+            after_size=master_a.size,
+            total=total_real,
+            patches_count=len(patches_b),
+            references=ref_records,
+            mode="n_to_1",
+            multi_info={
+                "composite_type": comp_type,
+                "components_count": len(before_pils),
+                "component_assets": comp_records,
+                "summary_bn": det.get("summary_bn", "")
+            }
+        )
+        
+        ft_pid = None
+        if trigger_finetune:
+            ft_pid = _trigger_micro_finetune(steps=250, lr=5e-5)
+            
+        return {
+            "ok": True,
+            "mode": "n_to_1",
+            "mode_title": det.get("mode_title", "কম্পোজিট অ্যাসেম্বলি (N-to-1)"),
+            "composite_type": comp_type,
+            "components_count": len(before_pils),
+            "component_assets": comp_records,
+            "augmented_samples": int(len(aug_pb)),
+            "junction_patches": len(patches_b),
+            "total_real_pairs": total_real,
+            "total_patches_256": total_patches,
+            "detected_services": norm_services,
+            "summary_bn": det.get("summary_bn", ""),
+            "micro_ft_triggered": bool(ft_pid),
+            "micro_ft_pid": ft_pid
+        }
+
+    # 4. Case: N-to-M Batch Set
+    results = []
+    pairs_count = min(nb, na)
+    for i in range(pairs_count):
+        sub_res = learn_from_real_pair(
+            before_pils[i], after_pils[i],
+            label=label,
+            augment=max(2, augment // pairs_count),
+            trigger_finetune=(trigger_finetune and i == pairs_count - 1),
+            reference_pils=reference_pils if i == 0 else None
+        )
+        results.append(sub_res)
+        
+    return {
+        "ok": True,
+        "mode": "n_to_m",
+        "batch_pairs_learned": pairs_count,
+        "results": results
+    }

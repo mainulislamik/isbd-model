@@ -1227,31 +1227,43 @@ body {
         <!-- Before / After upload -->
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
           <div>
-            <label style="font-size:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-              <span>📷</span> আসল ছবি (Before / Raw):
-            </label>
-            <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
-                 style="border:2px dashed #94a3b8; border-radius:10px; padding:22px 12px; text-align:center; cursor:pointer; background:#f8fafc; transition:.2s; font-size:12px; font-weight:600; color:#475569;"
-                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
-              <div style="font-size:26px; margin-bottom:6px;">📁</div>
-              ক্লিক বা ছবি টেনে ড্রপ করুন
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label style="font-size:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px; margin:0;">
+                <span>📷</span> আসল ছবি (Before / Raw):
+              </label>
+              <span id="school-b-count-badge" style="font-size:11px; font-weight:700; color:#0369a1; background:#e0f2fe; padding:2px 8px; border-radius:10px; display:none;">0 Raw</span>
             </div>
-            <input type="file" id="school-before" accept="image/*" style="display:none" onchange="schoolPreview(this,'b')">
-            <img id="school-prev-b" style="display:none; width:100%; margin-top:8px; border-radius:8px; border:1px solid #cbd5e1;">
+            <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
+                 style="border:2px dashed #94a3b8; border-radius:10px; padding:20px 12px; text-align:center; cursor:pointer; background:#f8fafc; transition:.2s; font-size:12px; font-weight:600; color:#475569;"
+                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
+              <div style="font-size:26px; margin-bottom:4px;">📁</div>
+              ক্লিক বা ছবি টেনে ড্রপ করুন
+              <div style="font-size:11px; color:#64748b; font-weight:500; margin-top:2px;">(একক ছবি বা নেক জয়েন্ট/এইচডিআর-এর জন্য একাধিক র ছবি)</div>
+            </div>
+            <input type="file" id="school-before" accept="image/*" multiple style="display:none" onchange="schoolSelectFiles(this,'b')">
+            <div id="school-b-gallery" style="display:none; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap:8px; margin-top:8px;"></div>
           </div>
           <div>
-            <label style="font-size:12px; font-weight:800; color:#3730a3; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-              <span>✨</span> এডিটেড ছবি (After / Target):
-            </label>
-            <div id="school-a-drop" onclick="document.getElementById('school-after').click()"
-                 style="border:2px dashed #4f46e5; border-radius:10px; padding:22px 12px; text-align:center; cursor:pointer; background:#eef2ff; transition:.2s; font-size:12px; font-weight:600; color:#3730a3;"
-                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'after')">
-              <div style="font-size:26px; margin-bottom:6px;">🌟</div>
-              ক্লিক বা ছবি টেনে ড্রপ করুন
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label style="font-size:12px; font-weight:800; color:#3730a3; display:flex; align-items:center; gap:6px; margin:0;">
+                <span>✨</span> এডিটেড ছবি (After / Target):
+              </label>
+              <span id="school-a-count-badge" style="font-size:11px; font-weight:700; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:10px; display:none;">0 Outputs</span>
             </div>
-            <input type="file" id="school-after" accept="image/*" style="display:none" onchange="schoolPreview(this,'a')">
-            <img id="school-prev-a" style="display:none; width:100%; margin-top:8px; border-radius:8px; border:1px solid #cbd5e1;">
+            <div id="school-a-drop" onclick="document.getElementById('school-after').click()"
+                 style="border:2px dashed #4f46e5; border-radius:10px; padding:20px 12px; text-align:center; cursor:pointer; background:#eef2ff; transition:.2s; font-size:12px; font-weight:600; color:#3730a3;"
+                 ondragover="event.preventDefault()" ondrop="schoolDrop(event,'after')">
+              <div style="font-size:26px; margin-bottom:4px;">🌟</div>
+              ক্লিক বা ছবি টেনে ড্রপ করুন
+              <div style="font-size:11px; color:#6366f1; font-weight:500; margin-top:2px;">(১টি মাস্টার ছবি বা একাধিক ডেলিভারেবল: হোয়াইট বিজি, শ্যাডো, ইত্যাদি)</div>
+            </div>
+            <input type="file" id="school-after" accept="image/*" multiple style="display:none" onchange="schoolSelectFiles(this,'a')">
+            <div id="school-a-gallery" style="display:none; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap:8px; margin-top:8px;"></div>
           </div>
+        </div>
+
+        <!-- Workflow Dynamic Mode Indicator Banner -->
+        <div id="school-mode-banner" style="display:none; margin-top:10px; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:600; align-items:center; justify-content:space-between; transition:all .2s ease;">
         </div>
 
         <!-- Reference Assets Dropzone (Single or Multiple Optional Reference Images) -->
@@ -2589,39 +2601,162 @@ function toast(msg, type='ok') {
   setTimeout(() => t.remove(), 4000);
 }
 
-// ─ AI Real Editing School Logic ─
-function schoolPreview(input, slot) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const imgEl = document.getElementById(slot === 'b' ? 'school-prev-b' : 'school-prev-a');
-    imgEl.src = e.target.result;
-    imgEl.style.display = 'block';
-    const dropEl = document.getElementById(slot === 'b' ? 'school-b-drop' : 'school-a-drop');
-    dropEl.innerHTML = `<div style="font-size:18px;">✅</div><div style="font-size:10px;">${file.name}</div>`;
-    checkAndAutoDetectServices();
-  };
-  reader.readAsDataURL(file);
+// ─ AI Real Editing School Logic (Multi-Image 1-to-N & N-to-1 Capable) ─
+window.schoolBeforeFiles = [];
+window.schoolAfterFiles = [];
+
+function schoolSelectFiles(input, slot) {
+  if (!input || !input.files) return;
+  schoolAddFiles(Array.from(input.files), slot);
 }
 
 function schoolDrop(event, slot) {
   event.preventDefault();
-  const file = event.dataTransfer.files[0];
-  if (!file) return;
-  const inputId = slot === 'before' ? 'school-before' : 'school-after';
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  document.getElementById(inputId).files = dt.files;
-  schoolPreview({files: [file]}, slot === 'before' ? 'b' : 'a');
-  setTimeout(checkAndAutoDetectServices, 250);
+  const dt = event.dataTransfer;
+  if (!dt || !dt.files || dt.files.length === 0) return;
+  const targetSlot = slot === 'before' ? 'b' : (slot === 'after' ? 'a' : slot);
+  schoolAddFiles(Array.from(dt.files), targetSlot);
+}
+
+function schoolAddFiles(files, slot) {
+  const targetArr = slot === 'b' ? window.schoolBeforeFiles : window.schoolAfterFiles;
+  files.forEach(f => {
+    if (f.type.startsWith('image/')) {
+      const exists = targetArr.some(existing => existing.name === f.name && existing.size === f.size);
+      if (!exists) targetArr.push(f);
+    }
+  });
+  renderSchoolFiles(slot);
+  updateSchoolModeUI();
+  debounceAutoDetect();
+}
+
+function removeSchoolFile(slot, index) {
+  const targetArr = slot === 'b' ? window.schoolBeforeFiles : window.schoolAfterFiles;
+  if (index >= 0 && index < targetArr.length) {
+    targetArr.splice(index, 1);
+    renderSchoolFiles(slot);
+    updateSchoolModeUI();
+    debounceAutoDetect();
+  }
+}
+
+function renderSchoolFiles(slot) {
+  const isB = slot === 'b';
+  const targetArr = isB ? window.schoolBeforeFiles : window.schoolAfterFiles;
+  const gallery = document.getElementById(isB ? 'school-b-gallery' : 'school-a-gallery');
+  const countBadge = document.getElementById(isB ? 'school-b-count-badge' : 'school-a-count-badge');
+  const dropEl = document.getElementById(isB ? 'school-b-drop' : 'school-a-drop');
+  
+  if (!gallery || !countBadge) return;
+  
+  const count = targetArr.length;
+  if (count === 0) {
+    gallery.style.display = 'none';
+    gallery.innerHTML = '';
+    countBadge.style.display = 'none';
+    if (dropEl) {
+      dropEl.innerHTML = isB 
+        ? `<div style="font-size:26px; margin-bottom:4px;">📁</div>ক্লিক বা ছবি টেনে ড্রপ করুন<div style="font-size:11px; color:#64748b; font-weight:500; margin-top:2px;">(একক ছবি বা নেক জয়েন্ট/এইচডিআর-এর জন্য একাধিক র ছবি)</div>`
+        : `<div style="font-size:26px; margin-bottom:4px;">🌟</div>ক্লিক বা ছবি টেনে ড্রপ করুন<div style="font-size:11px; color:#6366f1; font-weight:500; margin-top:2px;">(১টি মাস্টার ছবি বা একাধিক ডেলিভারেবল: হোয়াইট বিজি, শ্যাডো, ইত্যাদি)</div>`;
+    }
+    return;
+  }
+  
+  countBadge.style.display = 'inline-block';
+  countBadge.textContent = isB ? `${count}টি Raw ইমেজ` : `${count}টি Output`;
+  if (dropEl) {
+    dropEl.innerHTML = `<div style="font-size:18px;">✅ ${count}টি ছবি যুক্ত</div><div style="font-size:10.5px; color:#059669; font-weight:600;">+ আরও ছবি যোগ করতে ক্লিক বা ড্রপ করুন</div>`;
+  }
+  
+  gallery.style.display = 'grid';
+  gallery.innerHTML = '';
+  
+  targetArr.forEach((file, idx) => {
+    const card = document.createElement('div');
+    const isPrimary = isB && idx === 0;
+    card.style.cssText = `position:relative; background:#ffffff; border:${isPrimary ? '2px solid #f59e0b' : '1px solid #cbd5e1'}; border-radius:6px; padding:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); display:flex; flex-direction:column; align-items:center;`;
+    
+    const img = document.createElement('img');
+    img.style.cssText = 'width:100%; height:75px; object-fit:cover; border-radius:4px; background:#f1f5f9;';
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; };
+    reader.readAsDataURL(file);
+    
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:10px; color:#475569; width:100%; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:4px; text-align:center; font-weight:600;';
+    label.title = file.name;
+    
+    let badgeText = `#${idx+1}`;
+    if (isB) {
+      badgeText = idx === 0 ? '⭐ Primary' : `🧩 Comp #${idx+1}`;
+    } else {
+      badgeText = `🎯 Out #${idx+1}`;
+    }
+    label.textContent = `${badgeText} ${file.name}`;
+    
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; background:#ef4444; color:#ffffff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3); font-weight:bold;';
+    delBtn.innerHTML = '✕';
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeSchoolFile(slot, idx);
+    };
+    
+    card.appendChild(delBtn);
+    card.appendChild(img);
+    card.appendChild(label);
+    gallery.appendChild(card);
+  });
+}
+
+function updateSchoolModeUI() {
+  const nb = window.schoolBeforeFiles.length;
+  const na = window.schoolAfterFiles.length;
+  const banner = document.getElementById('school-mode-banner');
+  if (!banner) return;
+  
+  if (nb === 0 && na === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+  
+  banner.style.display = 'flex';
+  if (nb <= 1 && na <= 1) {
+    banner.style.background = '#f1f5f9';
+    banner.style.border = '1px solid #cbd5e1';
+    banner.style.color = '#334155';
+    banner.innerHTML = `<span>📌 <strong>স্ট্যান্ডার্ড সিঙ্গেল পেয়ার মোড</strong> (১টি র ➡️ ১টি এডিটেড ছবি)</span><span style="font-size:11px; color:#64748b;">${nb} Before / ${na} After</span>`;
+  } else if (nb === 1 && na > 1) {
+    banner.style.background = '#ecfdf5';
+    banner.style.border = '1px solid #6ee7b7';
+    banner.style.color = '#065f46';
+    banner.innerHTML = `<span>🟢 <strong>মাল্টি-ডেলিভারেবল মোড (1-to-N)</strong>: ১টি র ছবি থেকে ${na}টি পৃথক আউটপুট ডেলিভারেবল (Clipping, Shadow, Recolor)</span><span style="font-weight:700; color:#047857;">${na} Deliverables</span>`;
+  } else if (nb > 1 && na === 1) {
+    banner.style.background = '#eff6ff';
+    banner.style.border = '1px solid #93c5fd';
+    banner.style.color = '#1e40af';
+    banner.innerHTML = `<span>🔵 <strong>কম্পোজিট অ্যাসেম্বলি মোড (N-to-1)</strong>: ${nb}টি র ছবি (বডি + নেক/কলার বা এক্সপোজার) কম্বাইন করে ১টি মাস্টার ছবি</span><span style="font-weight:700; color:#1d4ed8;">Composite Assembly</span>`;
+  } else {
+    banner.style.background = '#faf5ff';
+    banner.style.border = '1px solid #d8b4fe';
+    banner.style.color = '#6b21a8';
+    banner.innerHTML = `<span>🟣 <strong>ব্যাচ বান্ডেল মোড (N-to-M)</strong>: ${nb}টি র এবং ${na}টি এডিটেড ছবি একসাথে প্রসেস হবে</span><span style="font-weight:700; color:#7e22ce;">Batch Bundle</span>`;
+  }
+}
+
+let _detectTimer = null;
+function debounceAutoDetect() {
+  if (_detectTimer) clearTimeout(_detectTimer);
+  _detectTimer = setTimeout(checkAndAutoDetectServices, 350);
 }
 
 let _isDetectingServices = false;
 async function checkAndAutoDetectServices() {
-  const fileB = document.getElementById('school-before').files[0];
-  const fileA = document.getElementById('school-after').files[0];
-  if (!fileB || !fileA) return;
+  const nb = window.schoolBeforeFiles.length;
+  const na = window.schoolAfterFiles.length;
+  if (nb === 0 || na === 0) return;
   if (_isDetectingServices) return;
 
   _isDetectingServices = true;
@@ -2629,15 +2764,15 @@ async function checkAndAutoDetectServices() {
   const badge  = document.getElementById('school-auto-badge');
   if (banner) {
     banner.style.display = 'block';
-    banner.innerHTML = '⚡ <em>AI ইমেজ ডেল্টা বিশ্লেষণ করে কাজের ধরন সনাক্ত করছে…</em>';
+    banner.innerHTML = '⚡ <em>AI ইমেজ ডেল্টা ও কম্পোজিট বিশ্লেষণ করে কাজের ধরন সনাক্ত করছে…</em>';
     banner.style.background = '#f0fdf4';
     banner.style.borderColor = '#86efac';
     banner.style.color = '#166534';
   }
 
   const fd = new FormData();
-  fd.append('before', fileB);
-  fd.append('after', fileA);
+  window.schoolBeforeFiles.forEach(f => fd.append('before', f));
+  window.schoolAfterFiles.forEach(f => fd.append('after', f));
 
   try {
     const res = await fetch('/api/auto-detect-services', { method: 'POST', body: fd });
@@ -2680,7 +2815,15 @@ async function checkAndAutoDetectServices() {
       if (badge) badge.style.display = 'inline-block';
       if (banner) {
         banner.style.display = 'block';
-        banner.innerHTML = `🤖 <strong>AI স্বয়ংক্রিয়ভাবে সনাক্ত করেছে:</strong> ${data.summary_bn} <span style="font-size:10px; color:#047857; margin-left:8px;">(সব অপশন স্বয়ংক্রিয় চেক হয়েছে)</span>`;
+        let extraInfo = '';
+        if (data.mode === '1_to_n' && data.outputs) {
+          extraInfo = `<div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:4px;">` +
+            data.outputs.map(o => `<span style="background:#ffffff; border:1px solid #86efac; border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; color:#166534;">#${o.index}: ${(o.services_bn||[]).join(', ')}</span>`).join('') +
+            `</div>`;
+        } else if (data.mode === 'n_to_1' && data.composite_type) {
+          extraInfo = `<div style="margin-top:4px; font-size:11px; color:#1e40af;"><strong>কম্পোজিট ধরণ:</strong> ${data.summary_bn}</div>`;
+        }
+        banner.innerHTML = `🤖 <strong>AI স্বয়ংক্রিয়ভাবে সনাক্ত করেছে:</strong> ${data.summary_bn} <span style="font-size:10px; color:#047857; margin-left:8px;">(সব অপশন স্বয়ংক্রিয় চেক হয়েছে)</span> ${extraInfo}`;
       }
       toast('🤖 AI কাজের ধরন সনাক্ত করে অপশনগুলো স্বয়ংক্রিয় চেক করেছে!', 'ok');
     }
@@ -2778,9 +2921,9 @@ function renderSchoolRefGallery() {
 }
 
 async function submitSchoolPair() {
-  const fileB = document.getElementById('school-before').files[0];
-  const fileA = document.getElementById('school-after').files[0];
-  if (!fileB || !fileA) { toast('Before ও After দুটি ছবিই দিন!', 'warn'); return; }
+  const nb = window.schoolBeforeFiles.length;
+  const na = window.schoolAfterFiles.length;
+  if (nb === 0 || na === 0) { toast('Before ও After উভয় ছবিই দিন!', 'warn'); return; }
 
   const label  = document.getElementById('school-label').value;
   const augment= document.getElementById('school-aug').value;
@@ -2792,8 +2935,8 @@ async function submitSchoolPair() {
   statusEl.innerHTML = '<span style="color:#059669;">⏳ AI শিখছে — পেয়ার ও ক্লায়েন্ট নির্দেশনা প্রসেস হচ্ছে…</span>';
 
   const fd = new FormData();
-  fd.append('before', fileB);
-  fd.append('after',  fileA);
+  window.schoolBeforeFiles.forEach(f => fd.append('before', f));
+  window.schoolAfterFiles.forEach(f => fd.append('after', f));
   if (instructionFile) {
     fd.append('instruction_file', instructionFile);
   }
@@ -2813,6 +2956,21 @@ async function submitSchoolPair() {
     const res  = await fetch(`/api/learn-pair?${queryParams.toString()}`, { method:'POST', body:fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'ত্রুটি');
+
+    let modeHtml = '';
+    if (data.mode === '1_to_n') {
+      modeHtml = `
+        <div style="background:#ecfdf5; border:1px solid #6ee7b7; padding:8px 10px; border-radius:6px; margin-top:8px; font-size:11.5px; color:#065f46;">
+          <div style="font-weight:700;">🟢 মাল্টি-ডেলিভারেবল লার্নিং সফল (${data.deliverables_count || na} Outputs):</div>
+          <div style="font-size:11px; margin-top:2px;">${data.summary_bn || ''}</div>
+        </div>`;
+    } else if (data.mode === 'n_to_1') {
+      modeHtml = `
+        <div style="background:#eff6ff; border:1px solid #93c5fd; padding:8px 10px; border-radius:6px; margin-top:8px; font-size:11.5px; color:#1e40af;">
+          <div style="font-weight:700;">🔵 কম্পোজিট অ্যাসেম্বলি লার্নিং সফল (${data.components_count || nb} Components):</div>
+          <div style="font-size:11px; margin-top:2px;">${data.summary_bn || ''} | সিমলেস জংশন প্যাচ: <strong>${data.junction_patches || 0}</strong></div>
+        </div>`;
+    }
 
     const insights = data.learning_insights;
     let insightsHtml = '';
@@ -2865,13 +3023,19 @@ async function submitSchoolPair() {
         🔁 Pool Size: <strong style="color:#0284c7;">${data.total_pool}</strong> &nbsp;|&nbsp;
         ⚡ Micro Fine-tune PID: <strong style="color:#d97706;">${data.finetune_pid || 'background'}</strong>
       </div>
+      ${modeHtml}
       ${refHtml}
       ${insightsHtml}
       ${instructionHtml}`;
 
     toast('🎓 AI নতুন এডিটিং শিখছে!', 'ok');
+    window.schoolBeforeFiles = [];
+    window.schoolAfterFiles = [];
     window.schoolRefFiles = [];
+    renderSchoolFiles('b');
+    renderSchoolFiles('a');
     renderSchoolRefGallery();
+    updateSchoolModeUI();
     loadSchoolLog();
   } catch(e) {
     statusEl.innerHTML = `<span style="color:#dc2626;">❌ ত্রুটি: ${e.message}</span>`;
@@ -2894,12 +3058,22 @@ async function loadSchoolLog() {
     if (!data.log || data.log.length === 0) {
       wrap.innerHTML = '<div style="color:#64748b; text-align:center; padding:30px 15px; font-weight:500;">এখনো কোনো রিয়েল পেয়ার শেখানো হয়নি।<br><span style="font-size:11px; color:#94a3b8;">বামে প্রথম আসল ও এডিটেড ছবি আপলোড করুন!</span></div>';
     } else {
-      wrap.innerHTML = [...data.log].reverse().map(r => `
+      wrap.innerHTML = [...data.log].reverse().map(r => {
+        let modeBadge = '';
+        if (r.mode === '1_to_n') {
+          const delCount = (r.multi_info && r.multi_info.deliverables_count) ? r.multi_info.deliverables_count : '';
+          modeBadge = `<span style="background:#ecfdf5; color:#065f46; border:1px solid #6ee7b7; padding:2px 6px; border-radius:4px; font-size:9.5px; font-weight:700;">🟢 1-to-N (${delCount} Outputs)</span>`;
+        } else if (r.mode === 'n_to_1') {
+          const compType = (r.multi_info && r.multi_info.composite_type) ? r.multi_info.composite_type : 'Composite';
+          modeBadge = `<span style="background:#eff6ff; color:#1e40af; border:1px solid #93c5fd; padding:2px 6px; border-radius:4px; font-size:9.5px; font-weight:700;">🔵 N-to-1 (${compType})</span>`;
+        }
+        return `
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:4px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="display:flex; align-items:center; gap:6px;">
               <span style="color:#10b981; font-size:14px; font-weight:800;">✓</span>
               <strong style="color:#0f172a; font-size:12px; font-weight:700;">${r.label}</strong>
+              ${modeBadge}
             </div>
             <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:600;">
               ${r.before_px}→${r.after_px}
@@ -2910,7 +3084,8 @@ async function loadSchoolLog() {
             <span>🕒 ${r.ts}</span>
             <span style="font-weight:700; color:#4f46e5;">Pool: ${r.total_pairs} pairs</span>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
     document.getElementById('school-total-badge').textContent =
       `🎓 মোট Real Pair Learning: ${data.total_real} পেয়ার সম্পন্ন`;

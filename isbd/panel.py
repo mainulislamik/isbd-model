@@ -309,34 +309,43 @@ async def train(
 
 @app.post("/api/auto-detect-services")
 async def auto_detect_services_api(
-    before: UploadFile = File(...),
-    after:  UploadFile = File(...)
+    before: List[UploadFile] = File(...),
+    after:  List[UploadFile] = File(...)
 ):
     """
     Intelligent Computer Vision Delta Inspector API.
-    Compares Before and After photos to detect editing services with confidence scores.
+    Supports Single Pair, 1-to-N Deliverables, and N-to-1 Composite Assembly.
     """
-    raw_b = await before.read()
-    raw_a = await after.read()
-    if not raw_b or not raw_a:
-        raise HTTPException(400, "Before ও After দুটি ছবিই দিন")
-    if len(raw_b) > MAX_FILE or len(raw_a) > MAX_FILE:
-        raise HTTPException(413, "ছবি 25MB-এর বেশি")
-    try:
-        img_b = Image.open(io.BytesIO(raw_b))
-        img_a = Image.open(io.BytesIO(raw_a))
-    except Exception:
-        raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+    imgs_b = []
+    for f in (before if isinstance(before, list) else [before]):
+        raw = await f.read()
+        if raw and len(raw) <= MAX_FILE:
+            try:
+                imgs_b.append(Image.open(io.BytesIO(raw)))
+            except Exception:
+                pass
 
-    from isbd.vision_detector import detect_editing_services
-    detection = detect_editing_services(img_b, img_a)
+    imgs_a = []
+    for f in (after if isinstance(after, list) else [after]):
+        raw = await f.read()
+        if raw and len(raw) <= MAX_FILE:
+            try:
+                imgs_a.append(Image.open(io.BytesIO(raw)))
+            except Exception:
+                pass
+
+    if not imgs_b or not imgs_a:
+        raise HTTPException(400, "Before ও After ছবি সঠিকভাবে আপলোড করুন")
+
+    from isbd.vision_detector import detect_multi_pair
+    detection = detect_multi_pair(imgs_b, imgs_a)
     return detection
 
 
 @app.post("/api/learn-pair")
 async def learn_from_real_pair_api(
-    before: UploadFile = File(...),
-    after:  UploadFile = File(...),
+    before: List[UploadFile] = File(...),
+    after:  List[UploadFile] = File(...),
     references: List[UploadFile] = File(default=[]),
     instruction_file: UploadFile = File(None),
     instruction_text: str = Query("", description="ক্লায়েন্টের সরাসরি টেক্সট নির্দেশনা"),
@@ -344,28 +353,37 @@ async def learn_from_real_pair_api(
     augment: int = Query(8, ge=1, le=16),
 ):
     """
-    AI Real Pair Learning API with Client Instruction & Reference Image Support.
-    Accepts:
-    - Before & After Images
-    - Single or Multiple Reference Images (Color swatch, Neck joint label, Shadow moodboard)
-    - Client Instruction Text or Document (PDF, Word DOCX, TXT, MD, JPG/PNG markup)
+    AI Studio Ingestion API supporting:
+    - 1-to-1: Single Before -> Single After
+    - 1-to-N: 1 Raw Before -> Multiple Deliverables
+    - N-to-1: Multiple Raw Befores -> 1 Master Composite (Ghost Mannequin / Neck Joint / Bracketing)
+    - Client Instructions & Reference Swatches
     """
-    raw_b = await before.read()
-    raw_a = await after.read()
-    if not raw_b or not raw_a:
-        raise HTTPException(400, "Before ও After দুটি ছবিই দিন")
-    if len(raw_b) > MAX_FILE or len(raw_a) > MAX_FILE:
-        raise HTTPException(413, "ছবি 25MB-এর বেশি")
-    try:
-        img_b = Image.open(io.BytesIO(raw_b))
-        img_a = Image.open(io.BytesIO(raw_a))
-    except Exception:
-        raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+    imgs_b = []
+    for f in (before if isinstance(before, list) else [before]):
+        raw = await f.read()
+        if raw and len(raw) <= MAX_FILE:
+            try:
+                imgs_b.append(Image.open(io.BytesIO(raw)))
+            except Exception:
+                pass
+
+    imgs_a = []
+    for f in (after if isinstance(after, list) else [after]):
+        raw = await f.read()
+        if raw and len(raw) <= MAX_FILE:
+            try:
+                imgs_a.append(Image.open(io.BytesIO(raw)))
+            except Exception:
+                pass
+
+    if not imgs_b or not imgs_a:
+        raise HTTPException(400, "Before ও After উভয় ছবি দিন — JPG/PNG/WebP")
 
     # Read reference images (if provided)
     ref_pils = []
     if references:
-        for r_file in references:
+        for r_file in (references if isinstance(references, list) else [references]):
             if r_file and getattr(r_file, "filename", None):
                 raw_ref = await r_file.read()
                 if raw_ref and len(raw_ref) <= MAX_FILE:
@@ -405,15 +423,18 @@ async def learn_from_real_pair_api(
         except Exception as e:
             extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[{fname} Attached]"
 
-    from isbd.self_learner import learn_from_real_pair
-    result = learn_from_real_pair(
-        before_pil=img_b,
-        after_pil=img_a,
+    from isbd.self_learner import learn_from_multi_bundle
+    result = learn_from_multi_bundle(
+        before_pils=imgs_b,
+        after_pils=imgs_a,
         label=label or "client_directed",
         augment=augment,
         trigger_finetune=True,
         reference_pils=ref_pils,
     )
+
+    img_b = imgs_b[0]
+    img_a = imgs_a[0]
 
     # Compute detailed AI Learning Insight & Analysis (Bilingual: English & Bangla)
     diff_stats = {}
@@ -495,13 +516,19 @@ async def learn_from_real_pair_api(
     except Exception as e:
         pass
 
+    aug_count = result.get("augmented", result.get("augmented_samples", 0))
+    tot_real  = result.get("total_real", result.get("total_real_pairs", 0))
+    tot_pool  = result.get("total_pool", tot_real)
+    ft_pid    = result.get("finetune_pid", result.get("micro_ft_pid", "background"))
+
     return {
         "ok"           : True,
-        "message"      : f"✅ AI শিখছে! '{label or 'untagged'}' পেয়ার থেকে {result['augmented']}টি অগমেন্টেড স্যাম্পল তৈরি হয়েছে এবং মাইক্রো ফাইন-টিউন শুরু হয়েছে।",
-        "augmented"    : result["augmented"],
-        "total_real"   : result["total_real"],
-        "total_pool"   : result["total_pool"],
-        "finetune_pid" : result["finetune_pid"],
+        "message"      : f"✅ AI শিখছে! '{label or 'untagged'}' পেয়ার থেকে {aug_count}টি অগমেন্টেড স্যাম্পল তৈরি হয়েছে এবং মাইক্রো ফাইন-টিউন শুরু হয়েছে।",
+        "mode"         : result.get("mode", "1_to_1"),
+        "augmented"    : aug_count,
+        "total_real"   : tot_real,
+        "total_pool"   : tot_pool,
+        "finetune_pid" : ft_pid,
         "diff_stats"   : diff_stats,
         "heatmap_preview": heatmap_preview,
         "learning_insights": learning_insights,
@@ -510,6 +537,10 @@ async def learn_from_real_pair_api(
         "has_references": result.get("has_references", False),
         "reference_count": result.get("reference_count", 0),
         "references": result.get("references", []),
+        "summary_bn": result.get("summary_bn", ""),
+        "deliverables_count": result.get("deliverables_count", len(imgs_a)),
+        "components_count": result.get("components_count", len(imgs_b)),
+        "junction_patches": result.get("junction_patches", result.get("patches_extracted", 0)),
     }
 
 
@@ -520,6 +551,15 @@ async def serve_ref_asset_api(filename: str):
     if ref_file.exists() and ref_file.is_file():
         return FileResponse(str(ref_file))
     raise HTTPException(404, "রেফারেন্স ফাইল পাওয়া যায়নি")
+
+
+@app.api_route("/data/composite_assets/{filename}", methods=["GET", "HEAD"])
+async def serve_composite_asset_api(filename: str):
+    """Serve uploaded composite raw assets securely."""
+    comp_file = DATA / "composite_assets" / filename
+    if comp_file.exists() and comp_file.is_file():
+        return FileResponse(str(comp_file))
+    raise HTTPException(404, "কম্পোজিট অ্যাসেট পাওয়া যায়নি")
 
 
 @app.get("/api/real-pair-log")

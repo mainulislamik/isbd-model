@@ -292,3 +292,171 @@ def detect_editing_services(before_img: Image.Image, after_img: Image.Image) -> 
         "summary_bn": summary_bn,
         "details": details
     }
+
+
+def detect_multi_pair(
+    before_images: List[Image.Image],
+    after_images: List[Image.Image]
+) -> Dict[str, Any]:
+    """
+    Advanced Multi-Image Vision Inspector for:
+    1. Single Pair: 1 Before -> 1 After (1-to-1)
+    2. Multi-Deliverables: 1 Before -> N Afters (1-to-N)
+    3. Composite Assembly: N Befores -> 1 After (N-to-1: Ghost Mannequin / Neck Joint, HDR, Focus Stack)
+    4. Multi-Batch: N Befores -> M Afters (N-to-M)
+    """
+    nb = len(before_images)
+    na = len(after_images)
+
+    if nb == 0 or na == 0:
+        return {
+            "mode": "invalid",
+            "detected_services": [],
+            "summary_bn": "⚠️ কোনো ছবি পাওয়া যায়নি",
+            "outputs": [],
+            "components": []
+        }
+
+    # Case 1: Standard 1-to-1 Single Pair
+    if nb == 1 and na == 1:
+        res = detect_editing_services(before_images[0], after_images[0])
+        res["mode"] = "1_to_1"
+        res["mode_title"] = "সিঙ্গেল পেয়ার (Single Pair)"
+        res["before_count"] = 1
+        res["after_count"] = 1
+        return res
+
+    # Case 2: 1-to-N (1 Before -> Multiple Deliverables)
+    if nb == 1 and na > 1:
+        outputs = []
+        all_services = []
+        max_scores: Dict[str, float] = {}
+
+        for i, img_a in enumerate(after_images):
+            det = detect_editing_services(before_images[0], img_a)
+            out_services = det.get("detected_services", [])
+            for s in out_services:
+                if s not in all_services:
+                    all_services.append(s)
+                conf = det.get("confidence", {}).get(s, 0.75)
+                max_scores[s] = max(max_scores.get(s, 0.0), conf)
+            
+            bn_names = [str(SERVICE_DISPLAY_NAMES_BN.get(s, s) or s) for s in out_services]
+            outputs.append({
+                "index": i + 1,
+                "services": out_services,
+                "services_bn": bn_names,
+                "primary_service": det.get("primary_service", "retouching"),
+                "summary_bn": f"আউটপুট #{i+1}: " + (", ".join(bn_names[:3]) if bn_names else "বেসিক রিটাচিং"),
+                "confidence": det.get("confidence", {})
+            })
+
+        out_summaries = [f"আউটপুট #{o['index']} ({', '.join(o['services_bn'][:2])})" for o in outputs[:3]]
+        if len(outputs) > 3:
+            out_summaries.append(f"আরও {len(outputs)-3}টি…")
+        summary_bn = f"⚡ ১টি র ছবি থেকে {na}টি ডেলিভারেবল আউটপুট শনাক্ত হয়েছে: " + " | ".join(out_summaries)
+
+        return {
+            "mode": "1_to_n",
+            "mode_title": f"মাল্টি-ডেলিভারেবল বান্ডেল (১টি র ➡️ {na}টি আউটপুট)",
+            "before_count": 1,
+            "after_count": na,
+            "detected_services": all_services,
+            "primary_service": all_services[0] if all_services else "retouching",
+            "confidence": {k: round(v, 2) for k, v in max_scores.items()},
+            "summary_bn": summary_bn,
+            "outputs": outputs
+        }
+
+    # Case 3: N-to-1 (Multiple Befores -> 1 Master Output: Composite Assembly)
+    if nb > 1 and na == 1:
+        primary_b = before_images[0]
+        master_a = after_images[0]
+        base_det = detect_editing_services(primary_b, master_a)
+        
+        # Analyze relations between before images to detect composite type
+        # Check 1: Are dimensions identical across all befores?
+        sizes = [b.size for b in before_images]
+        same_sizes = all(s == sizes[0] for s in sizes)
+
+        # Check luminance differences to identify HDR / Exposure Bracketing
+        means = []
+        for b in before_images:
+            arr = np.asarray(b.convert("L"), dtype=np.float32)
+            means.append(float(arr.mean()))
+        mean_diff = max(means) - min(means)
+
+        composite_type = "multi_composite"
+        composite_type_bn = "মাল্টি-শট কম্পোজিট অ্যাসেম্বলি"
+
+        if same_sizes and mean_diff > 35:
+            composite_type = "hdr_bracket"
+            composite_type_bn = "এইচডিআর / এক্সপোজার ব্র্যাকেটিং ফিউশন"
+            if "exposure_balance" not in base_det["detected_services"]:
+                base_det["detected_services"].insert(0, "exposure_balance")
+        else:
+            # Check for Ghost Mannequin / Neck Joint:
+            # Typically component is inner collar/tag or neck cutout
+            # Or base edit has clipping_path and hollow neck
+            if "clipping_path" in base_det["detected_services"] or "image_masking" in base_det["detected_services"]:
+                composite_type = "neck_joint"
+                composite_type_bn = "ঘোস্ট ম্যানিকুইন / নেক জয়েন্ট কম্পোজিট"
+                if "neck_joint" not in base_det["detected_services"]:
+                    base_det["detected_services"].insert(0, "neck_joint")
+            else:
+                composite_type = "neck_joint"
+                composite_type_bn = "ঘোস্ট ম্যানিকুইন / নেক জয়েন্ট কম্পোজিট"
+                if "neck_joint" not in base_det["detected_services"]:
+                    base_det["detected_services"].append("neck_joint")
+
+        components = []
+        for i, b in enumerate(before_images):
+            if i == 0:
+                role = "⭐ Primary Canvas (প্রধান বডি / বেস র)"
+            else:
+                role = "🧩 কলার / ইনার নেক কম্পোনেন্ট" if composite_type == "neck_joint" else f"🧩 কম্পোনেন্ট স্লাইস #{i+1}"
+            components.append({
+                "index": i + 1,
+                "role": role,
+                "size": f"{b.width}x{b.height}",
+                "mean_luminance": round(means[i], 1)
+            })
+
+        summary_bn = f"⚡ {nb}টি র ছবি থেকে ১টি মাস্টার কম্পোজিট শনাক্ত হয়েছে: {composite_type_bn}"
+        return {
+            "mode": "n_to_1",
+            "mode_title": f"কম্পোজিট অ্যাসেম্বলি ({nb}টি র ➡️ ১টি মাস্টার আউটপুট)",
+            "composite_type": composite_type,
+            "composite_type_bn": composite_type_bn,
+            "before_count": nb,
+            "after_count": 1,
+            "primary_index": 0,
+            "components": components,
+            "detected_services": base_det["detected_services"],
+            "primary_service": base_det["detected_services"][0] if base_det["detected_services"] else "neck_joint",
+            "confidence": base_det["confidence"],
+            "summary_bn": summary_bn,
+            "details": base_det.get("details", {})
+        }
+
+    # Case 4: N-to-M (Batch Multi-Set)
+    all_svcs = []
+    max_scores = {}
+    for i in range(min(nb, na)):
+        d = detect_editing_services(before_images[i], after_images[i])
+        for s in d.get("detected_services", []):
+            if s not in all_svcs:
+                all_svcs.append(s)
+            max_scores[s] = max(max_scores.get(s, 0.0), d.get("confidence", {}).get(s, 0.75))
+
+    return {
+        "mode": "n_to_m",
+        "mode_title": f"মাল্টি-পেয়ার ব্যাচ বান্ডেল ({nb}টি র ➡️ {na}টি আউটপুট)",
+        "before_count": nb,
+        "after_count": na,
+        "detected_services": all_svcs if all_svcs else ["retouching", "enhancement"],
+        "primary_service": all_svcs[0] if all_svcs else "retouching",
+        "confidence": {k: round(v, 2) for k, v in max_scores.items()},
+        "summary_bn": f"⚡ {nb}টি র এবং {na}টি আউটপুট পেয়ার শনাক্ত হয়েছে"
+    }
+

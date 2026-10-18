@@ -177,6 +177,43 @@ class HumanResidualAdapter(nn.Module):
         return torch.clamp(y_base + delta, 0.0, 1.0)
 
 
+class CompositeFusionModule(nn.Module):
+    """
+    Multi-Input Composite Fusion Module for N-to-1 workflows (e.g. Neck Joint / Bracketing / Focus Stacking).
+    Takes Primary Canvas [B, 3, H, W] and Auxiliary Component [B, 3, H, W],
+    extracts shared Siamese features, and blends them seamlessly.
+    """
+    def __init__(self, channels: int = 32):
+        super().__init__()
+        self.conv_pri = nn.Sequential(
+            nn.Conv2d(3, channels, 3, padding=1),
+            nn.SiLU(),
+            nn.Conv2d(channels, channels, 3, padding=1),
+        )
+        self.conv_aux = nn.Sequential(
+            nn.Conv2d(3, channels, 3, padding=1),
+            nn.SiLU(),
+            nn.Conv2d(channels, channels, 3, padding=1),
+        )
+        self.gate = nn.Sequential(
+            nn.Conv2d(channels * 2, channels, 1),
+            nn.Sigmoid()
+        )
+        self.out_conv = nn.Sequential(
+            nn.Conv2d(channels, 3, 3, padding=1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, primary: torch.Tensor, aux: torch.Tensor) -> torch.Tensor:
+        if primary.shape != aux.shape:
+            aux = nn.functional.interpolate(aux, size=primary.shape[2:], mode="bilinear", align_corners=False)
+        f_p = self.conv_pri(primary)
+        f_a = self.conv_aux(aux)
+        g = self.gate(torch.cat([f_p, f_a], dim=1))
+        f_fused = f_p * (1.0 - g) + f_a * g
+        return self.out_conv(f_fused)
+
+
 def param_count(m: nn.Module) -> int:
     return sum(p.numel() for p in m.parameters())
 
