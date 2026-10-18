@@ -159,5 +159,13 @@
     "after_px": "256×256",
     "patches_256": 1,
     "total_pairs": 165
+  },
+  {
+    "ts": "2026-10-18 14:59:36",
+    "label": "clipping_path",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 173
   }
 ]

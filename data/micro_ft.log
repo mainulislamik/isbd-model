@@ -1,2 +1,4 @@
-[ft] 171 real pair(s) | 200 steps | lr 5e-05
-[ft] resume from step 412900 (SmallUNet)
+[ft] 184 real pair(s) | 200 steps | lr 5e-05
+[ft] resume from step 828500 (SmallUNet)
+[ft] BEFORE holdout: L1 0.0405 (id 0.0963) | PSNR 23.81dB (id 16.93dB)
+ft step 828520 | loss 0.6363 | Curric Lvl 1 (solid_contrast) | 20/200

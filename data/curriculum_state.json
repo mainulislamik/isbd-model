@@ -1,0 +1,21 @@
+{
+  "current_level": 1,
+  "stage_info": {
+    "name": "solid_contrast",
+    "title": "Level 1: Coarse Boundary & Solid Contrast",
+    "description": "Background extraction, clipping paths, and high-contrast silhouettes",
+    "target_loss": 0.038,
+    "weights": {
+      "l1": 1.0,
+      "ssim": 0.5,
+      "edge": 0.3,
+      "color": 0.2
+    },
+    "min_steps": 60
+  },
+  "total_steps": 32,
+  "level_steps": 32,
+  "loss_ema": 0.06858,
+  "updated_at": "2026-10-18 15:00:04",
+  "history": []
+}
