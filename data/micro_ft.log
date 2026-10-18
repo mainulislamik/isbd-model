@@ -1,4 +1,27 @@
-[ft] 184 real pair(s) | 200 steps | lr 5e-05
-[ft] resume from step 828500 (SmallUNet)
-[ft] BEFORE holdout: L1 0.0405 (id 0.0963) | PSNR 23.81dB (id 16.93dB)
-ft step 828520 | loss 0.6363 | Curric Lvl 1 (solid_contrast) | 20/200
+[ft] 192 real pair(s) | 200 steps | lr 5e-05
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছft step 828640 | loss 0.6351 | Curric Lvl 1 (solid_[ft] 24/7 ট্র�ft step 828660 | loss 0.6012 | Curric Lvl 1 (solid_contrast) | 160/200
+ft step 828680 | loss 0.6168 | Curric Lvl 1 (solid_contrast) | 180/200
+ft step 828700 | loss 0.6039 | Curric Lvl 1 (solid_contrast) | 200/200
+[ft] done: step 828500 -> 828700 | avg loss 0.6169
+[ft] AFTER holdout: L1 0.0418 (id 0.0963) | PSNR 24.00dB (id 16.93dB)
+] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] 24/7 ট্রেনারের রাউন্ড চলছে — lock-এর অপেক্ষায়…
+[ft] resume from step 828700 (SmallUNet)
+[ft] BEFORE holdout: L1 0.0606 (id 0.1036) | PSNR 19.59dB (id 16.38dB)
+ft step 828720 | loss 0.6114 | Curric Lvl 1 (solid_contrast) | 20/200
+ft step 828740 | loss 0.5917 | Curric Lvl 1 (solid_contrast) | 40/200
+ft step 828760 | loss 0.5867 | Curric Lvl 1 (solid_contrast) | 60/200
+ft step 828780 | loss 0.5787 | Curric Lvl 1 (solid_contrast) | 80/200
+ft step 828800 | loss 0.5843 | Curric Lvl 1 (solid_contrast) | 100/200
+ft step 828820 | loss 0.5768 | Curric Lvl 1 (solid_contrast) | 120/200
+ft step 828840 | loss 0.5709 | Curric Lvl 1 (solid_contrast) | 140/200
+ft step 828860 | loss 0.5717 | Curric Lvl 1 (solid_contrast) | 160/200
+ft step 828880 | loss 0.5633 | Curric Lvl 1 (solid_contrast) | 180/200
+ft step 828900 | loss 0.5731 | Curric Lvl 1 (solid_contrast) | 200/200
+[ft] done: step 828700 -> 828900 | avg loss 0.5711
+[ft] AFTER holdout: L1 0.0557 (id 0.1036) | PSNR 20.55dB (id 16.38dB)

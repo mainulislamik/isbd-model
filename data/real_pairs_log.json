@@ -167,5 +167,13 @@
     "after_px": "1800×2700",
     "patches_256": 4,
     "total_pairs": 173
+  },
+  {
+    "ts": "2026-10-18 15:00:51",
+    "label": "clipping_path, retouching",
+    "before_px": "3000×2000",
+    "after_px": "1280×853",
+    "patches_256": 4,
+    "total_pairs": 181
   }
 ]
