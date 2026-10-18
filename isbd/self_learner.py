@@ -23,6 +23,8 @@ from PIL import Image
 ROOT          = Path(__file__).resolve().parent.parent
 DATA          = ROOT / "data"
 DATA.mkdir(exist_ok=True)
+REF_ASSETS_DIR = DATA / "ref_assets"
+REF_ASSETS_DIR.mkdir(exist_ok=True)
 BUCKETS_DIR   = DATA / "buckets"
 BUCKETS_DIR.mkdir(exist_ok=True)
 
@@ -233,7 +235,62 @@ def _record_state(total_real, total_synthetic, note=""):
     STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
 
 
-def _log_real_pair(label, before_size, after_size, total, patches_count=0):
+def analyze_and_store_references(reference_pils: list, pair_id: str) -> list:
+    """Store reference assets on disk and classify their design guidance role."""
+    if not reference_pils:
+        return []
+    
+    REF_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    ref_records = []
+    
+    role_translations = {
+        "color_match": "কালার সোয়াচ / Color Match",
+        "garment_part": "নেক / গার্মেন্টস পার্ট",
+        "shadow_sample": "শ্যাডো স্যাম্পল",
+        "mood_guide": "মুড / স্টাইল গাইড"
+    }
+
+    for idx, ref_img in enumerate(reference_pils):
+        if not isinstance(ref_img, Image.Image):
+            continue
+        try:
+            rgb_ref = ref_img.convert("RGB")
+            filename = f"{pair_id}_ref_{idx+1}.jpg"
+            save_path = REF_ASSETS_DIR / filename
+            rgb_ref.save(save_path, format="JPEG", quality=90)
+
+            w, h = rgb_ref.size
+            arr = np.asarray(rgb_ref, dtype=np.float32)
+            std_color = float(arr.std(axis=(0, 1)).mean())
+            
+            # Simple, robust role heuristic
+            if min(w, h) < 250 or std_color < 18.0:
+                role = "color_match"
+            elif (w / max(1, h) > 1.8 or h / max(1, w) > 1.8) and std_color > 30.0:
+                role = "garment_part"
+            elif arr.mean() > 220 and std_color > 15.0:
+                role = "shadow_sample"
+            else:
+                role = "mood_guide"
+
+            ref_records.append({
+                "index": idx + 1,
+                "filename": filename,
+                "path": str(save_path),
+                "url": f"/data/ref_assets/{filename}",
+                "role": role,
+                "role_bn": role_translations.get(role, "রেফারেন্স গাইড"),
+                "width": w,
+                "height": h,
+                "std_color": round(std_color, 2)
+            })
+        except Exception as e:
+            print(f"[SelfLearner] Error processing reference image {idx+1}: {e}")
+
+    return ref_records
+
+
+def _log_real_pair(label, before_size, after_size, total, patches_count=0, references=None):
     """Keep a human-readable journal of every real pair added."""
     log = []
     if REAL_LOG.exists():
@@ -241,14 +298,18 @@ def _log_real_pair(label, before_size, after_size, total, patches_count=0):
             log = json.loads(REAL_LOG.read_text())
         except Exception:
             pass
-    log.append({
+    entry = {
         "ts"            : time.strftime("%Y-%m-%d %H:%M:%S"),
         "label"         : label,
         "before_px"     : f"{before_size[0]}×{before_size[1]}",
         "after_px"      : f"{after_size[0]}×{after_size[1]}",
         "patches_256"   : patches_count,
-        "total_pairs"   : total
-    })
+        "total_pairs"   : total,
+        "has_references": bool(references and len(references) > 0),
+        "reference_count": len(references) if references else 0,
+        "references"    : references or []
+    }
+    log.append(entry)
     if len(log) > 500:
         log = log[-500:]
     REAL_LOG.write_text(json.dumps(log, ensure_ascii=False, indent=2))
@@ -260,7 +321,8 @@ def learn_from_real_pair(before_pil: Image.Image,
                          after_pil:  Image.Image,
                          label:      str = "",
                          augment:    int = 8,
-                         trigger_finetune: bool = True) -> dict:
+                         trigger_finetune: bool = True,
+                         reference_pils: list | None = None) -> dict:
     """
     AUTONOMOUS MULTI-SCALE REAL PAIR LEARNING
     - Extracts global 64×64 thumbnail representation
@@ -362,9 +424,12 @@ def learn_from_real_pair(before_pil: Image.Image,
     total_real = int(len(rX))
     total_synth = int(len(sX))
 
-    _log_real_pair(label or service_key, before_pil.size, after_pil.size, total_real, patches_count=len(p_b_list))
+    pair_id = f"pair_{int(time.time())}_{random.randint(1000, 9999)}"
+    ref_meta = analyze_and_store_references(reference_pils, pair_id) if reference_pils else []
+
+    _log_real_pair(label or service_key, before_pil.size, after_pil.size, total_real, patches_count=len(p_b_list), references=ref_meta)
     _record_state(total_real, total_synth,
-                  note=f"Learned real pair '{service_key}': +{len(aug_x)} samples, {len(p_b_list)} 256px salient patches")
+                  note=f"Learned real pair '{service_key}': +{len(aug_x)} samples, {len(p_b_list)} 256px salient patches, {len(ref_meta)} refs")
 
     # 8. Micro fine-tune so model learns right now with composite studio loss
     ft_pid = None
@@ -384,7 +449,10 @@ def learn_from_real_pair(before_pil: Image.Image,
         "total_pool"   : total_synth,
         "finetune_pid" : ft_pid,
         "buckets"      : get_bucket_stats(),
-        "detected"     : detected_info
+        "detected"     : detected_info,
+        "has_references": bool(ref_meta),
+        "reference_count": len(ref_meta),
+        "references"   : ref_meta
     }
 
 

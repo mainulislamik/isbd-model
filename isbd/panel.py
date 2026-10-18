@@ -337,15 +337,17 @@ async def auto_detect_services_api(
 async def learn_from_real_pair_api(
     before: UploadFile = File(...),
     after:  UploadFile = File(...),
+    references: List[UploadFile] = File(default=[]),
     instruction_file: UploadFile = File(None),
     instruction_text: str = Query("", description="ক্লায়েন্টের সরাসরি টেক্সট নির্দেশনা"),
     label:  str = Query("", description="ট্যাগ — যেমন retouching, color_correction"),
     augment: int = Query(8, ge=1, le=16),
 ):
     """
-    AI Real Pair Learning API with Client Instruction Parser.
+    AI Real Pair Learning API with Client Instruction & Reference Image Support.
     Accepts:
     - Before & After Images
+    - Single or Multiple Reference Images (Color swatch, Neck joint label, Shadow moodboard)
     - Client Instruction Text or Document (PDF, Word DOCX, TXT, MD, JPG/PNG markup)
     """
     raw_b = await before.read()
@@ -359,6 +361,19 @@ async def learn_from_real_pair_api(
         img_a = Image.open(io.BytesIO(raw_a))
     except Exception:
         raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+
+    # Read reference images (if provided)
+    ref_pils = []
+    if references:
+        for r_file in references:
+            if r_file and getattr(r_file, "filename", None):
+                raw_ref = await r_file.read()
+                if raw_ref and len(raw_ref) <= MAX_FILE:
+                    try:
+                        r_img = Image.open(io.BytesIO(raw_ref))
+                        ref_pils.append(r_img)
+                    except Exception as e:
+                        print(f"[Panel] Error reading reference image: {e}")
 
     # Parse client instruction from File / Text
     extracted_instruction = instruction_text.strip() if instruction_text else ""
@@ -397,6 +412,7 @@ async def learn_from_real_pair_api(
         label=label or "client_directed",
         augment=augment,
         trigger_finetune=True,
+        reference_pils=ref_pils,
     )
 
     # Compute detailed AI Learning Insight & Analysis (Bilingual: English & Bangla)
@@ -490,8 +506,20 @@ async def learn_from_real_pair_api(
         "heatmap_preview": heatmap_preview,
         "learning_insights": learning_insights,
         "client_instruction": extracted_instruction[:500] if extracted_instruction else None,
-        "instruction_source": client_brief_filename or ("Direct Text Note" if instruction_text else None)
+        "instruction_source": client_brief_filename or ("Direct Text Note" if instruction_text else None),
+        "has_references": result.get("has_references", False),
+        "reference_count": result.get("reference_count", 0),
+        "references": result.get("references", []),
     }
+
+
+@app.api_route("/data/ref_assets/{filename}", methods=["GET", "HEAD"])
+async def serve_ref_asset_api(filename: str):
+    """Serve uploaded reference assets securely."""
+    ref_file = DATA / "ref_assets" / filename
+    if ref_file.exists() and ref_file.is_file():
+        return FileResponse(str(ref_file))
+    raise HTTPException(404, "রেফারেন্স ফাইল পাওয়া যায়নি")
 
 
 @app.get("/api/real-pair-log")

@@ -1225,15 +1225,15 @@ body {
         <!-- Mode 1: Single Pair Upload Container -->
         <div id="school-single-container">
         <!-- Before / After upload -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
           <div>
-            <label style="font-size:12px; font-weight:800; color:#065f46; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-              <span>📷</span> আসল ছবি (Before / Input):
+            <label style="font-size:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <span>📷</span> আসল ছবি (Before / Raw):
             </label>
             <div id="school-b-drop" onclick="document.getElementById('school-before').click()"
-                 style="border:2px dashed #059669; border-radius:10px; padding:22px 12px; text-align:center; cursor:pointer; background:#f0fdf4; transition:.2s; font-size:12px; font-weight:600; color:#166534;"
+                 style="border:2px dashed #94a3b8; border-radius:10px; padding:22px 12px; text-align:center; cursor:pointer; background:#f8fafc; transition:.2s; font-size:12px; font-weight:600; color:#475569;"
                  ondragover="event.preventDefault()" ondrop="schoolDrop(event,'before')">
-              <div style="font-size:26px; margin-bottom:6px;">🖼️</div>
+              <div style="font-size:26px; margin-bottom:6px;">📁</div>
               ক্লিক বা ছবি টেনে ড্রপ করুন
             </div>
             <input type="file" id="school-before" accept="image/*" style="display:none" onchange="schoolPreview(this,'b')">
@@ -1251,6 +1251,33 @@ body {
             </div>
             <input type="file" id="school-after" accept="image/*" style="display:none" onchange="schoolPreview(this,'a')">
             <img id="school-prev-a" style="display:none; width:100%; margin-top:8px; border-radius:8px; border:1px solid #cbd5e1;">
+          </div>
+        </div>
+
+        <!-- Reference Assets Dropzone (Single or Multiple Optional Reference Images) -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="font-size:12px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px; margin:0;">
+              <span>📎</span> রেফারেন্স ইমেজ (Reference Assets) — <span style="font-weight:600; color:#6366f1;">(ঐচ্ছিক / Optional - একক বা একাধিক)</span>:
+            </label>
+            <span id="school-ref-count-badge" style="font-size:11px; font-weight:700; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:10px; display:none;">
+              0 Files
+            </span>
+          </div>
+          <div style="font-size:11px; color:#64748b; margin-bottom:8px;">
+            ক্লায়েন্টের দেওয়া কালার সোয়াচ, নেক জয়েন্ট ইনসাইড শট, ড্রপ শ্যাডো মুডবোর্ড বা ব্যাকগ্রাউন্ড রেফারেন্স একসাথে ড্রপ করুন।
+          </div>
+
+          <div id="school-ref-drop" onclick="document.getElementById('school-ref-input').click()"
+               style="border:2px dashed #cbd5e1; border-radius:8px; padding:14px; text-align:center; cursor:pointer; background:#ffffff; transition:.2s; font-size:12px; font-weight:600; color:#475569;"
+               ondragover="event.preventDefault()" ondrop="schoolRefDrop(event)">
+            <div style="font-size:20px; margin-bottom:2px;">🎨 📁 👔</div>
+            <span>ক্লিক করে একাধিক রেফারেন্স ছবি নির্বাচন করুন বা একসাথে ড্র্যাগ করে ফেলুন</span>
+          </div>
+          <input type="file" id="school-ref-input" accept="image/*" multiple style="display:none" onchange="schoolRefSelect(this.files)">
+
+          <!-- Reference Thumbnails Gallery Strip -->
+          <div id="school-ref-gallery" style="display:none; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:10px; margin-top:10px;">
           </div>
         </div>
 
@@ -2664,6 +2691,92 @@ async function checkAndAutoDetectServices() {
   }
 }
 
+// ─ Multi-Reference Asset Management ─
+window.schoolRefFiles = [];
+
+function schoolRefDrop(event) {
+  event.preventDefault();
+  if (event.dataTransfer && event.dataTransfer.files) {
+    schoolRefAddFiles(event.dataTransfer.files);
+  }
+}
+
+function schoolRefSelect(files) {
+  if (files) {
+    schoolRefAddFiles(files);
+  }
+}
+
+function schoolRefAddFiles(files) {
+  if (!files || files.length === 0) return;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (f.type.startsWith('image/')) {
+      const exists = window.schoolRefFiles.some(existing => existing.name === f.name && existing.size === f.size);
+      if (!exists) {
+        window.schoolRefFiles.push(f);
+      }
+    }
+  }
+  renderSchoolRefGallery();
+}
+
+function removeSchoolRef(index) {
+  if (index >= 0 && index < window.schoolRefFiles.length) {
+    window.schoolRefFiles.splice(index, 1);
+    renderSchoolRefGallery();
+  }
+}
+
+function renderSchoolRefGallery() {
+  const gallery = document.getElementById('school-ref-gallery');
+  const countBadge = document.getElementById('school-ref-count-badge');
+  if (!gallery || !countBadge) return;
+
+  const count = window.schoolRefFiles.length;
+  if (count === 0) {
+    gallery.style.display = 'none';
+    gallery.innerHTML = '';
+    countBadge.style.display = 'none';
+    return;
+  }
+
+  countBadge.style.display = 'inline-block';
+  countBadge.textContent = `${count}টি রেফারেন্স যুক্ত`;
+  gallery.style.display = 'grid';
+  gallery.innerHTML = '';
+
+  window.schoolRefFiles.forEach((file, idx) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'position:relative; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); display:flex; flex-direction:column; align-items:center;';
+
+    const img = document.createElement('img');
+    img.style.cssText = 'width:100%; height:75px; object-fit:cover; border-radius:4px; background:#f1f5f9;';
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; };
+    reader.readAsDataURL(file);
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:10px; color:#475569; width:100%; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:4px; text-align:center; font-weight:600;';
+    label.title = file.name;
+    label.textContent = `#${idx+1} ${file.name}`;
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; background:#ef4444; color:#ffffff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3); font-weight:bold;';
+    delBtn.innerHTML = '✕';
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeSchoolRef(idx);
+    };
+
+    card.appendChild(delBtn);
+    card.appendChild(img);
+    card.appendChild(label);
+    gallery.appendChild(card);
+  });
+}
+
 async function submitSchoolPair() {
   const fileB = document.getElementById('school-before').files[0];
   const fileA = document.getElementById('school-after').files[0];
@@ -2683,6 +2796,11 @@ async function submitSchoolPair() {
   fd.append('after',  fileA);
   if (instructionFile) {
     fd.append('instruction_file', instructionFile);
+  }
+  if (window.schoolRefFiles && window.schoolRefFiles.length > 0) {
+    window.schoolRefFiles.forEach(rf => {
+      fd.append('references', rf);
+    });
   }
 
   try {
@@ -2725,6 +2843,21 @@ async function submitSchoolPair() {
         </div>`;
     }
 
+    let refHtml = '';
+    if (data.has_references && data.reference_count > 0) {
+      refHtml = `
+        <div style="background:rgba(217,119,6,0.08); border:1px solid rgba(217,119,6,0.3); padding:8px 10px; border-radius:6px; margin-top:8px; font-size:11px;">
+          <div style="font-weight:700; color:#b45309; margin-bottom:4px;">📎 ${data.reference_count}টি রেফারেন্স অ্যাসেট সংযুক্ত ও স্টোর হয়েছে:</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${(data.references || []).map(rf => `
+              <span style="background:#ffffff; border:1px solid #fde68a; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:600; font-size:10.5px;">
+                #${rf.index} ${rf.role_bn || rf.role} (${rf.width}×${rf.height})
+              </span>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+
     statusEl.innerHTML = `
       <div style="color:#059669; font-weight:700; margin-bottom:6px;">✅ ${data.message}</div>
       <div style="color:var(--tx-muted);">
@@ -2732,10 +2865,13 @@ async function submitSchoolPair() {
         🔁 Pool Size: <strong style="color:#0284c7;">${data.total_pool}</strong> &nbsp;|&nbsp;
         ⚡ Micro Fine-tune PID: <strong style="color:#d97706;">${data.finetune_pid || 'background'}</strong>
       </div>
+      ${refHtml}
       ${insightsHtml}
       ${instructionHtml}`;
 
     toast('🎓 AI নতুন এডিটিং শিখছে!', 'ok');
+    window.schoolRefFiles = [];
+    renderSchoolRefGallery();
     loadSchoolLog();
   } catch(e) {
     statusEl.innerHTML = `<span style="color:#dc2626;">❌ ত্রুটি: ${e.message}</span>`;
@@ -2765,7 +2901,10 @@ async function loadSchoolLog() {
               <span style="color:#10b981; font-size:14px; font-weight:800;">✓</span>
               <strong style="color:#0f172a; font-size:12px; font-weight:700;">${r.label}</strong>
             </div>
-            <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:600;">${r.before_px}→${r.after_px}</span>
+            <span style="font-size:10px; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:600;">
+              ${r.before_px}→${r.after_px}
+              ${r.has_references ? ` &nbsp;<span style="color:#b45309; font-weight:700;">📎 ${r.reference_count} Ref</span>` : ''}
+            </span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748b; margin-top:2px;">
             <span>🕒 ${r.ts}</span>
