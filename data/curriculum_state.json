@@ -13,9 +13,9 @@
     },
     "min_steps": 60
   },
-  "total_steps": 452,
-  "level_steps": 452,
-  "loss_ema": 0.07943,
-  "updated_at": "2026-10-18 17:03:58",
+  "total_steps": 652,
+  "level_steps": 652,
+  "loss_ema": 0.08874,
+  "updated_at": "2026-10-18 17:37:34",
   "history": []
 }

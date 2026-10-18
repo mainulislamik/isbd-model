@@ -175,5 +175,28 @@
     "after_px": "1280×853",
     "patches_256": 4,
     "total_pairs": 181
+  },
+  {
+    "ts": "2026-10-18 17:34:35",
+    "label": "clipping_path, retouching, wrinkle_cleaner, color_correction, exposure_balance, enhancement",
+    "before_px": "2572×3000",
+    "after_px": "2572×3000",
+    "patches_256": 4,
+    "total_pairs": 189,
+    "has_references": true,
+    "reference_count": 1,
+    "references": [
+      {
+        "index": 1,
+        "filename": "pair_1792344875_7393_ref_1.jpg",
+        "path": "/app/data/ref_assets/pair_1792344875_7393_ref_1.jpg",
+        "url": "/data/ref_assets/pair_1792344875_7393_ref_1.jpg",
+        "role": "shadow_sample",
+        "role_bn": "শ্যাডো স্যাম্পল",
+        "width": 2572,
+        "height": 3000,
+        "std_color": 47.27
+      }
+    ]
   }
 ]
