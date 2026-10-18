@@ -1256,24 +1256,36 @@ body {
 
         <!-- Multi-Select Editing Type Chips / Checkboxes -->
         <div>
-          <label style="font-size:12px; font-weight:800; color:#0f172a; display:block; margin-bottom:8px;">
-            🎨 এডিটিং টাইপ (Editing Services) — <span style="font-weight:500; color:#64748b;">একসাথে একাধিক অপশন সিলেক্ট করতে পারেন:</span>
-          </label>
-          <div id="school-labels-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; margin-bottom:4px;">
-            <label class="chip-label"><input type="checkbox" name="school-service" value="clipping_path" onchange="updateSelectedLabels()"> ✂️ Clipping Path</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="multi_clipping" onchange="updateSelectedLabels()"> 🎨 Multi Clipping</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="retouching" checked onchange="updateSelectedLabels()"> ✨ Retouching</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="color_correction" onchange="updateSelectedLabels()"> 🌈 Color Fix</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="shadow_making" onchange="updateSelectedLabels()"> 👥 Shadow Making</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="neck_joint" onchange="updateSelectedLabels()"> 👔 Neck Joint</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="image_masking" onchange="updateSelectedLabels()"> 🎭 Hair Masking</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="reflection" onchange="updateSelectedLabels()"> 🪞 Reflection</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="enhancement" onchange="updateSelectedLabels()"> 🔮 Enhancement</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="manipulation" onchange="updateSelectedLabels()"> 🌌 Manipulation</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="vector_tracing" onchange="updateSelectedLabels()"> 📐 Raster-Vector</label>
-            <label class="chip-label"><input type="checkbox" name="school-service" value="client_custom" onchange="updateSelectedLabels()"> 📝 Client Custom</label>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="font-size:12px; font-weight:800; color:#0f172a; display:block;">
+              🎨 এডিটিং সার্ভিসেস (Editing Services) — <span style="font-weight:500; color:#64748b;">ছবি ড্রপ করলেই AI নিজে চেক করবে:</span>
+            </label>
+            <span id="school-auto-badge" style="display:none; font-size:11px; font-weight:700; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px;">
+              ⚡ Auto-Detected
+            </span>
           </div>
-          <input type="hidden" id="school-label" value="retouching">
+          <div id="school-auto-banner" style="display:none; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:11.5px; color:#166534;">
+          </div>
+          <div id="school-labels-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap:6px; margin-bottom:4px;">
+            <label class="chip-label" id="chip-clipping_path"><input type="checkbox" name="school-service" value="clipping_path" onchange="updateSelectedLabels()"> ✂️ Clipping Path</label>
+            <label class="chip-label" id="chip-multi_clipping"><input type="checkbox" name="school-service" value="multi_clipping" onchange="updateSelectedLabels()"> 🎨 Multi Clipping</label>
+            <label class="chip-label" id="chip-image_masking"><input type="checkbox" name="school-service" value="image_masking" onchange="updateSelectedLabels()"> 🎭 Hair Masking</label>
+            <label class="chip-label" id="chip-ghost_mannequin"><input type="checkbox" name="school-service" value="ghost_mannequin" onchange="updateSelectedLabels()"> 👻 Ghost Mannequin</label>
+            <label class="chip-label" id="chip-neck_joint"><input type="checkbox" name="school-service" value="neck_joint" onchange="updateSelectedLabels()"> 👔 Neck Joint</label>
+            <label class="chip-label" id="chip-retouching"><input type="checkbox" name="school-service" value="retouching" onchange="updateSelectedLabels()"> ✨ Retouching</label>
+            <label class="chip-label" id="chip-wrinkle_cleaner"><input type="checkbox" name="school-service" value="wrinkle_cleaner" onchange="updateSelectedLabels()"> 👔 Wrinkle Removal</label>
+            <label class="chip-label" id="chip-jewelry_shiner"><input type="checkbox" name="school-service" value="jewelry_shiner" onchange="updateSelectedLabels()"> 💎 Jewelry Retouch</label>
+            <label class="chip-label" id="chip-shadow_making"><input type="checkbox" name="school-service" value="shadow_making" onchange="updateSelectedLabels()"> 👥 Shadow Making</label>
+            <label class="chip-label" id="chip-reflection"><input type="checkbox" name="school-service" value="reflection" onchange="updateSelectedLabels()"> 🪞 Reflection</label>
+            <label class="chip-label" id="chip-color_correction"><input type="checkbox" name="school-service" value="color_correction" onchange="updateSelectedLabels()"> 🌈 Color Fix</label>
+            <label class="chip-label" id="chip-exposure_balance"><input type="checkbox" name="school-service" value="exposure_balance" onchange="updateSelectedLabels()"> ☀️ Exposure / Light</label>
+            <label class="chip-label" id="chip-inpaint"><input type="checkbox" name="school-service" value="inpaint" onchange="updateSelectedLabels()"> 🧹 Object/Dust Removal</label>
+            <label class="chip-label" id="chip-enhancement"><input type="checkbox" name="school-service" value="enhancement" onchange="updateSelectedLabels()"> 🔮 Enhancement</label>
+            <label class="chip-label" id="chip-manipulation"><input type="checkbox" name="school-service" value="manipulation" onchange="updateSelectedLabels()"> 🌌 Manipulation</label>
+            <label class="chip-label" id="chip-vector_tracing"><input type="checkbox" name="school-service" value="vector_tracing" onchange="updateSelectedLabels()"> 📐 Raster-Vector</label>
+            <label class="chip-label" id="chip-client_custom"><input type="checkbox" name="school-service" value="client_custom" onchange="updateSelectedLabels()"> 📝 Client Custom</label>
+          </div>
+          <input type="hidden" id="school-label" value="">
         </div>
 
         <!-- 📑 OPTIONAL: Client Instruction Box (Text / PDF / Word / Image) -->
@@ -2561,6 +2573,7 @@ function schoolPreview(input, slot) {
     imgEl.style.display = 'block';
     const dropEl = document.getElementById(slot === 'b' ? 'school-b-drop' : 'school-a-drop');
     dropEl.innerHTML = `<div style="font-size:18px;">✅</div><div style="font-size:10px;">${file.name}</div>`;
+    checkAndAutoDetectServices();
   };
   reader.readAsDataURL(file);
 }
@@ -2574,6 +2587,81 @@ function schoolDrop(event, slot) {
   dt.items.add(file);
   document.getElementById(inputId).files = dt.files;
   schoolPreview({files: [file]}, slot === 'before' ? 'b' : 'a');
+  setTimeout(checkAndAutoDetectServices, 250);
+}
+
+let _isDetectingServices = false;
+async function checkAndAutoDetectServices() {
+  const fileB = document.getElementById('school-before').files[0];
+  const fileA = document.getElementById('school-after').files[0];
+  if (!fileB || !fileA) return;
+  if (_isDetectingServices) return;
+
+  _isDetectingServices = true;
+  const banner = document.getElementById('school-auto-banner');
+  const badge  = document.getElementById('school-auto-badge');
+  if (banner) {
+    banner.style.display = 'block';
+    banner.innerHTML = '⚡ <em>AI ইমেজ ডেল্টা বিশ্লেষণ করে কাজের ধরন সনাক্ত করছে…</em>';
+    banner.style.background = '#f0fdf4';
+    banner.style.borderColor = '#86efac';
+    banner.style.color = '#166534';
+  }
+
+  const fd = new FormData();
+  fd.append('before', fileB);
+  fd.append('after', fileA);
+
+  try {
+    const res = await fetch('/api/auto-detect-services', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data && data.detected_services && data.detected_services.length > 0) {
+      const detected = data.detected_services;
+      
+      // Reset all chips first
+      document.querySelectorAll('input[name="school-service"]').forEach(cb => {
+        cb.checked = false;
+        const parent = cb.closest('.chip-label');
+        if (parent) {
+          parent.style.border = '';
+          parent.style.background = '';
+          parent.style.boxShadow = '';
+        }
+      });
+
+      // Check detected ones
+      detected.forEach(svc => {
+        let targetSvc = svc;
+        if (svc === 'hair_masking') targetSvc = 'image_masking';
+        if (svc === 'color_fix') targetSvc = 'color_correction';
+        if (svc === 'raster_to_vector') targetSvc = 'vector_tracing';
+
+        const cb = document.querySelector(`input[name="school-service"][value="${targetSvc}"]`);
+        if (cb) {
+          cb.checked = true;
+          const parent = cb.closest('.chip-label');
+          if (parent) {
+            parent.style.border = '2px solid #059669';
+            parent.style.background = '#ecfdf5';
+            parent.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.25)';
+          }
+        }
+      });
+
+      updateSelectedLabels();
+
+      if (badge) badge.style.display = 'inline-block';
+      if (banner) {
+        banner.style.display = 'block';
+        banner.innerHTML = `🤖 <strong>AI স্বয়ংক্রিয়ভাবে সনাক্ত করেছে:</strong> ${data.summary_bn} <span style="font-size:10px; color:#047857; margin-left:8px;">(সব অপশন স্বয়ংক্রিয় চেক হয়েছে)</span>`;
+      }
+      toast('🤖 AI কাজের ধরন সনাক্ত করে অপশনগুলো স্বয়ংক্রিয় চেক করেছে!', 'ok');
+    }
+  } catch(err) {
+    console.warn("Auto-detect failed:", err);
+  } finally {
+    _isDetectingServices = false;
+  }
 }
 
 async function submitSchoolPair() {
@@ -2659,7 +2747,7 @@ function updateSelectedLabels() {
   const checkboxes = document.querySelectorAll('input[name="school-service"]:checked');
   const values = Array.from(checkboxes).map(cb => cb.value);
   const hiddenInput = document.getElementById('school-label');
-  hiddenInput.value = values.length > 0 ? values.join(', ') : 'general_editing';
+  hiddenInput.value = values.length > 0 ? values.join(', ') : 'auto';
 }
 
 async function loadSchoolLog() {

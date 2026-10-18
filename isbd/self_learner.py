@@ -175,16 +175,28 @@ def extract_salient_patches(before_pil: Image.Image,
 
 # ── BUCKETED EXPERIENCE MANAGEMENT ─────────────────────────────────────────────
 
-def _normalize_service_label(raw_label: str) -> str:
-    """Normalize free-form tag or comma-separated list into standard service identifier."""
+def _normalize_service_labels(raw_label: str) -> list:
+    """Normalize free-form tags or comma-separated list into standard service identifiers."""
     if not raw_label:
-        return "custom"
-    clean = raw_label.lower().replace("-", "_").replace(" ", "_").strip()
-    first = clean.split(",")[0].strip()
-    for svc in COMMERCIAL_SERVICES:
-        if svc in first or first in svc:
-            return svc
-    return first or "custom"
+        return ["custom"]
+    clean = raw_label.lower().replace("-", "_").strip()
+    parts = [p.strip().replace(" ", "_") for p in clean.split(",") if p.strip()]
+    found = []
+    for p in parts:
+        matched = False
+        for svc in COMMERCIAL_SERVICES:
+            if svc in p or p in svc:
+                found.append(svc)
+                matched = True
+                break
+        if not matched and p:
+            found.append(p)
+    return list(dict.fromkeys(found)) or ["custom"]
+
+
+def _normalize_service_label(raw_label: str) -> str:
+    labels = _normalize_service_labels(raw_label)
+    return labels[0] if labels else "custom"
 
 
 def _save_to_service_bucket(service_name: str, x_tensors: np.ndarray, y_tensors: np.ndarray):
@@ -256,7 +268,19 @@ def learn_from_real_pair(before_pil: Image.Image,
     - Stores into dedicated 21-service bucket memory
     - Kicks off instant micro fine-tune with composite studio loss
     """
-    service_key = _normalize_service_label(label)
+    detected_info = None
+    if not label or label.strip().lower() == "auto":
+        try:
+            from isbd.vision_detector import detect_editing_services
+            detected_info = detect_editing_services(before_pil, after_pil)
+            service_keys = detected_info.get("detected_services", ["custom"])
+            label = ", ".join(service_keys)
+        except Exception:
+            service_keys = ["custom"]
+    else:
+        service_keys = _normalize_service_labels(label)
+
+    service_key = service_keys[0] if service_keys else "custom"
 
     # 1. Macro global representation
     x_base = _img_to_tensor(before_pil, size=IMG_BASE)
@@ -321,8 +345,9 @@ def learn_from_real_pair(before_pil: Image.Image,
     rY = np.concatenate([rY, aug_y], axis=0)
     _save_npz(REAL_POOL, rX, rY, cap=8000)
 
-    # 5. Save into service-specific memory bucket
-    _save_to_service_bucket(service_key, aug_x, aug_y)
+    # 5. Save into service-specific memory bucket(s)
+    for sk in service_keys:
+        _save_to_service_bucket(sk, aug_x, aug_y)
 
     # 6. Append to shared pairs.npz for the 24/7 continuous trainer
     for xv, yv in zip(aug_x, aug_y):
@@ -351,13 +376,15 @@ def learn_from_real_pair(before_pil: Image.Image,
 
     return {
         "ok"           : True,
-        "label"        : service_key,
+        "label"        : ", ".join(service_keys),
+        "primary_label": service_key,
         "augmented"    : len(aug_x),
         "patches_256"  : len(p_b_list),
         "total_real"   : total_real,
         "total_pool"   : total_synth,
         "finetune_pid" : ft_pid,
-        "buckets"      : get_bucket_stats()
+        "buckets"      : get_bucket_stats(),
+        "detected"     : detected_info
     }
 
 

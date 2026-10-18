@@ -307,6 +307,32 @@ async def train(
     return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
 
 
+@app.post("/api/auto-detect-services")
+async def auto_detect_services_api(
+    before: UploadFile = File(...),
+    after:  UploadFile = File(...)
+):
+    """
+    Intelligent Computer Vision Delta Inspector API.
+    Compares Before and After photos to detect editing services with confidence scores.
+    """
+    raw_b = await before.read()
+    raw_a = await after.read()
+    if not raw_b or not raw_a:
+        raise HTTPException(400, "Before ও After দুটি ছবিই দিন")
+    if len(raw_b) > MAX_FILE or len(raw_a) > MAX_FILE:
+        raise HTTPException(413, "ছবি 25MB-এর বেশি")
+    try:
+        img_b = Image.open(io.BytesIO(raw_b))
+        img_a = Image.open(io.BytesIO(raw_a))
+    except Exception:
+        raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+
+    from isbd.vision_detector import detect_editing_services
+    detection = detect_editing_services(img_b, img_a)
+    return detection
+
+
 @app.post("/api/learn-pair")
 async def learn_from_real_pair_api(
     before: UploadFile = File(...),
@@ -329,8 +355,8 @@ async def learn_from_real_pair_api(
     if len(raw_b) > MAX_FILE or len(raw_a) > MAX_FILE:
         raise HTTPException(413, "ছবি 25MB-এর বেশি")
     try:
-        img_b = Image.open(io.BytesIO(raw_b)).convert("RGB")
-        img_a = Image.open(io.BytesIO(raw_a)).convert("RGB")
+        img_b = Image.open(io.BytesIO(raw_b))
+        img_a = Image.open(io.BytesIO(raw_a))
     except Exception:
         raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
 
