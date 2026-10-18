@@ -307,6 +307,60 @@ async def train(
     return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
 
 
+def safe_load_image(raw_bytes: bytes) -> Image.Image:
+    """
+    Safely load any photography studio format (TIF, TIFF, PSD, CMYK, 16-bit, RGBA, WebP, JPEG, RAW).
+    Ensures pixel data is fully loaded in memory and cleanly converted to RGB/RGBA.
+    """
+    img = Image.open(io.BytesIO(raw_bytes))
+    img.load()
+    if img.mode in ("I;16", "I;16L", "I;16B", "I", "F"):
+        arr = np.array(img)
+        if img.mode == "F":
+            arr = np.clip(arr * 255.0, 0, 255).astype(np.uint8)
+        else:
+            arr = np.clip(arr / 256.0, 0, 255).astype(np.uint8)
+        img = Image.fromarray(arr).convert("RGB")
+    elif img.mode == "CMYK":
+        img = img.convert("RGB")
+    elif img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        img = img.convert("RGBA")
+    elif img.mode != "RGB":
+        img = img.convert("RGB")
+    return img
+
+
+@app.post("/api/preview-thumbnail")
+async def preview_thumbnail_api(file: UploadFile = File(...)):
+    """
+    High-speed server-side thumbnail generator for photography formats that web browsers
+    cannot render natively in HTML <img> tags (TIFF, TIF, PSD, CMYK, 16-bit, RAW, etc.).
+    Returns a web-friendly JPEG image directly.
+    """
+    try:
+        raw_bytes = await file.read()
+        if not raw_bytes:
+            raise HTTPException(400, "ফাইল খালি")
+            
+        pil_img = safe_load_image(raw_bytes)
+        
+        # If RGBA, blend over white background for clean preview
+        if pil_img.mode == "RGBA":
+            bg = Image.new("RGBA", pil_img.size, (255, 255, 255, 255))
+            pil_img = Image.alpha_composite(bg, pil_img).convert("RGB")
+        elif pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+            
+        pil_img.thumbnail((256, 256), Image.Resampling.BILINEAR)
+        out_buf = io.BytesIO()
+        pil_img.save(out_buf, format="JPEG", quality=85)
+        out_buf.seek(0)
+        return Response(content=out_buf.getvalue(), media_type="image/jpeg")
+    except Exception as e:
+        print(f"[Panel] Thumbnail preview error for {file.filename}: {e}")
+        raise HTTPException(400, f"প্রিভিউ তৈরি করা সম্ভব হয়নি: {e}")
+
+
 @app.post("/api/auto-detect-services")
 async def auto_detect_services_api(
     before: List[UploadFile] = File(...),
@@ -315,24 +369,25 @@ async def auto_detect_services_api(
     """
     Intelligent Computer Vision Delta Inspector API.
     Supports Single Pair, 1-to-N Deliverables, and N-to-1 Composite Assembly.
+    Handles TIF, TIFF, PSD, CMYK, 16-bit, and all photography formats.
     """
     imgs_b = []
     for f in (before if isinstance(before, list) else [before]):
         raw = await f.read()
         if raw and len(raw) <= MAX_FILE:
             try:
-                imgs_b.append(Image.open(io.BytesIO(raw)))
-            except Exception:
-                pass
+                imgs_b.append(safe_load_image(raw))
+            except Exception as e:
+                print(f"[Panel] Warning reading before image {getattr(f, 'filename', '')}: {e}")
 
     imgs_a = []
     for f in (after if isinstance(after, list) else [after]):
         raw = await f.read()
         if raw and len(raw) <= MAX_FILE:
             try:
-                imgs_a.append(Image.open(io.BytesIO(raw)))
-            except Exception:
-                pass
+                imgs_a.append(safe_load_image(raw))
+            except Exception as e:
+                print(f"[Panel] Warning reading after image {getattr(f, 'filename', '')}: {e}")
 
     if not imgs_b or not imgs_a:
         raise HTTPException(400, "Before ও After ছবি সঠিকভাবে আপলোড করুন")
@@ -357,6 +412,7 @@ async def learn_from_real_pair_api(
     - 1-to-1: Single Before -> Single After
     - 1-to-N: 1 Raw Before -> Multiple Deliverables
     - N-to-1: Multiple Raw Befores -> 1 Master Composite (Ghost Mannequin / Neck Joint / Bracketing)
+    - Full Format Support: TIF, TIFF, PSD, CMYK, 16-bit, RAW, WebP, PNG, JPG
     - Client Instructions & Reference Swatches
     """
     imgs_b = []
@@ -364,21 +420,21 @@ async def learn_from_real_pair_api(
         raw = await f.read()
         if raw and len(raw) <= MAX_FILE:
             try:
-                imgs_b.append(Image.open(io.BytesIO(raw)))
-            except Exception:
-                pass
+                imgs_b.append(safe_load_image(raw))
+            except Exception as e:
+                print(f"[Panel] Warning reading before image {getattr(f, 'filename', '')}: {e}")
 
     imgs_a = []
     for f in (after if isinstance(after, list) else [after]):
         raw = await f.read()
         if raw and len(raw) <= MAX_FILE:
             try:
-                imgs_a.append(Image.open(io.BytesIO(raw)))
-            except Exception:
-                pass
+                imgs_a.append(safe_load_image(raw))
+            except Exception as e:
+                print(f"[Panel] Warning reading after image {getattr(f, 'filename', '')}: {e}")
 
     if not imgs_b or not imgs_a:
-        raise HTTPException(400, "Before ও After উভয় ছবি দিন — JPG/PNG/WebP")
+        raise HTTPException(400, "Before ও After উভয় ছবি দিন — TIF/TIFF/PSD/JPG/PNG/WebP")
 
     # Read reference images (if provided)
     ref_pils = []
@@ -388,7 +444,7 @@ async def learn_from_real_pair_api(
                 raw_ref = await r_file.read()
                 if raw_ref and len(raw_ref) <= MAX_FILE:
                     try:
-                        r_img = Image.open(io.BytesIO(raw_ref))
+                        r_img = safe_load_image(raw_ref)
                         ref_pils.append(r_img)
                     except Exception as e:
                         print(f"[Panel] Error reading reference image: {e}")

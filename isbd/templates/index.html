@@ -1240,7 +1240,7 @@ body {
               ক্লিক বা ছবি টেনে ড্রপ করুন
               <div style="font-size:11px; color:#64748b; font-weight:500; margin-top:2px;">(একক ছবি বা নেক জয়েন্ট/এইচডিআর-এর জন্য একাধিক র ছবি)</div>
             </div>
-            <input type="file" id="school-before" accept="image/*" multiple style="display:none" onchange="schoolSelectFiles(this,'b')">
+            <input type="file" id="school-before" accept="image/*,.tif,.tiff,.psd,.psb,.webp,.png,.jpg,.jpeg,.bmp,.gif" multiple style="display:none" onchange="schoolSelectFiles(this,'b')">
             <div id="school-b-gallery" style="display:none; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap:8px; margin-top:8px;"></div>
           </div>
           <div>
@@ -1257,7 +1257,7 @@ body {
               ক্লিক বা ছবি টেনে ড্রপ করুন
               <div style="font-size:11px; color:#6366f1; font-weight:500; margin-top:2px;">(১টি মাস্টার ছবি বা একাধিক ডেলিভারেবল: হোয়াইট বিজি, শ্যাডো, ইত্যাদি)</div>
             </div>
-            <input type="file" id="school-after" accept="image/*" multiple style="display:none" onchange="schoolSelectFiles(this,'a')">
+            <input type="file" id="school-after" accept="image/*,.tif,.tiff,.psd,.psb,.webp,.png,.jpg,.jpeg,.bmp,.gif" multiple style="display:none" onchange="schoolSelectFiles(this,'a')">
             <div id="school-a-gallery" style="display:none; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap:8px; margin-top:8px;"></div>
           </div>
         </div>
@@ -1286,7 +1286,7 @@ body {
             <div style="font-size:20px; margin-bottom:2px;">🎨 📁 👔</div>
             <span>ক্লিক করে একাধিক রেফারেন্স ছবি নির্বাচন করুন বা একসাথে ড্র্যাগ করে ফেলুন</span>
           </div>
-          <input type="file" id="school-ref-input" accept="image/*" multiple style="display:none" onchange="schoolRefSelect(this.files)">
+          <input type="file" id="school-ref-input" accept="image/*,.tif,.tiff,.psd,.psb,.webp,.png,.jpg,.jpeg,.bmp,.gif" multiple style="display:none" onchange="schoolRefSelect(this.files)">
 
           <!-- Reference Thumbnails Gallery Strip -->
           <div id="school-ref-gallery" style="display:none; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:10px; margin-top:10px;">
@@ -2605,6 +2605,94 @@ function toast(msg, type='ok') {
 window.schoolBeforeFiles = [];
 window.schoolAfterFiles = [];
 
+function isImageSupported(f) {
+  if (!f) return false;
+  if (f.type && f.type.startsWith('image/')) return true;
+  return /\.(tif|tiff|psd|psb|webp|png|jpe?g|bmp|gif|raw|cr2|nef|arw|dng)$/i.test(f.name || '');
+}
+
+function isBrowserNativeImage(f) {
+  const ext = (f.name || '').split('.').pop().toLowerCase();
+  const nativeExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'];
+  if (['tif', 'tiff', 'psd', 'psb', 'raw', 'cr2', 'nef', 'arw', 'dng'].includes(ext)) {
+    return false;
+  }
+  return nativeExts.includes(ext);
+}
+
+function loadThumbnailToImg(file, imgElement, containerCard) {
+  if (file._previewUrl) {
+    imgElement.src = file._previewUrl;
+    imgElement.style.display = 'block';
+    return;
+  }
+
+  const ext = ((file.name || '').split('.').pop() || 'IMG').toUpperCase();
+
+  if (isBrowserNativeImage(file)) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      file._previewUrl = e.target.result;
+      imgElement.src = file._previewUrl;
+      imgElement.style.display = 'block';
+    };
+    reader.onerror = () => requestServerThumbnail(file, imgElement, containerCard);
+    reader.readAsDataURL(file);
+  } else {
+    requestServerThumbnail(file, imgElement, containerCard);
+  }
+
+  imgElement.onerror = () => {
+    if (!file._triedServer) {
+      file._triedServer = true;
+      requestServerThumbnail(file, imgElement, containerCard);
+    } else {
+      imgElement.style.display = 'none';
+      if (!containerCard.querySelector('.fmt-badge-placeholder')) {
+        const ph = document.createElement('div');
+        ph.className = 'fmt-badge-placeholder';
+        ph.style.cssText = 'width:100%; height:75px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f1f5f9; border-radius:4px; font-weight:700; color:#475569;';
+        ph.innerHTML = `<div style="font-size:22px;">🖼️</div><div style="font-size:11px; color:#0369a1;">${ext}</div>`;
+        containerCard.insertBefore(ph, imgElement);
+      }
+    }
+  };
+}
+
+function requestServerThumbnail(file, imgElement, containerCard) {
+  const ext = ((file.name || '').split('.').pop() || 'IMG').toUpperCase();
+  imgElement.style.display = 'none';
+  
+  let loader = containerCard.querySelector('.thumb-loader');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.className = 'thumb-loader';
+    loader.style.cssText = 'width:100%; height:75px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:4px; font-size:10px; color:#0369a1; font-weight:600; text-align:center; padding:2px;';
+    loader.innerHTML = `<div style="font-size:14px; animation:spin 1s linear infinite;">🔄</div><div style="margin-top:2px; font-size:10px; color:#475569;">${ext} প্রসেসিং...</div>`;
+    containerCard.insertBefore(loader, imgElement);
+  }
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fetch('/api/preview-thumbnail', { method: 'POST', body: fd })
+    .then(res => {
+      if (!res.ok) throw new Error('Preview generation failed');
+      return res.blob();
+    })
+    .then(blob => {
+      file._previewUrl = URL.createObjectURL(blob);
+      imgElement.src = file._previewUrl;
+      imgElement.style.display = 'block';
+      if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+    })
+    .catch(err => {
+      console.warn('Server preview error:', err);
+      if (loader && loader.parentNode) {
+        loader.innerHTML = `<div style="font-size:18px;">📸</div><div style="font-size:10.5px; color:#0284c7; font-weight:700;">${ext}</div><div style="font-size:9px; color:#10b981; font-weight:600;">✓ প্রস্তুত</div>`;
+      }
+    });
+}
+
 function schoolSelectFiles(input, slot) {
   if (!input || !input.files) return;
   schoolAddFiles(Array.from(input.files), slot);
@@ -2621,7 +2709,7 @@ function schoolDrop(event, slot) {
 function schoolAddFiles(files, slot) {
   const targetArr = slot === 'b' ? window.schoolBeforeFiles : window.schoolAfterFiles;
   files.forEach(f => {
-    if (f.type.startsWith('image/')) {
+    if (isImageSupported(f)) {
       const exists = targetArr.some(existing => existing.name === f.name && existing.size === f.size);
       if (!exists) targetArr.push(f);
     }
@@ -2677,11 +2765,21 @@ function renderSchoolFiles(slot) {
     const isPrimary = isB && idx === 0;
     card.style.cssText = `position:relative; background:#ffffff; border:${isPrimary ? '2px solid #f59e0b' : '1px solid #cbd5e1'}; border-radius:6px; padding:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); display:flex; flex-direction:column; align-items:center;`;
     
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; background:#ef4444; color:#ffffff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3); font-weight:bold; z-index:2;';
+    delBtn.innerHTML = '✕';
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeSchoolFile(slot, idx);
+    };
+    card.appendChild(delBtn);
+
     const img = document.createElement('img');
-    img.style.cssText = 'width:100%; height:75px; object-fit:cover; border-radius:4px; background:#f1f5f9;';
-    const reader = new FileReader();
-    reader.onload = e => { img.src = e.target.result; };
-    reader.readAsDataURL(file);
+    img.style.cssText = 'width:100%; height:75px; object-fit:cover; border-radius:4px; background:#f1f5f9; display:block;';
+    card.appendChild(img);
+
+    loadThumbnailToImg(file, img, card);
     
     const label = document.createElement('div');
     label.style.cssText = 'font-size:10px; color:#475569; width:100%; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:4px; text-align:center; font-weight:600;';
@@ -2695,17 +2793,6 @@ function renderSchoolFiles(slot) {
     }
     label.textContent = `${badgeText} ${file.name}`;
     
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; background:#ef4444; color:#ffffff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3); font-weight:bold;';
-    delBtn.innerHTML = '✕';
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      removeSchoolFile(slot, idx);
-    };
-    
-    card.appendChild(delBtn);
-    card.appendChild(img);
     card.appendChild(label);
     gallery.appendChild(card);
   });
@@ -2854,7 +2941,7 @@ function schoolRefAddFiles(files) {
   if (!files || files.length === 0) return;
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    if (f.type.startsWith('image/')) {
+    if (isImageSupported(f)) {
       const exists = window.schoolRefFiles.some(existing => existing.name === f.name && existing.size === f.size);
       if (!exists) {
         window.schoolRefFiles.push(f);
@@ -2893,28 +2980,27 @@ function renderSchoolRefGallery() {
     const card = document.createElement('div');
     card.style.cssText = 'position:relative; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); display:flex; flex-direction:column; align-items:center;';
 
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; background:#ef4444; color:#ffffff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3); font-weight:bold; z-index:2;';
+    delBtn.innerHTML = '✕';
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeSchoolRef(idx);
+    };
+    card.appendChild(delBtn);
+
     const img = document.createElement('img');
-    img.style.cssText = 'width:100%; height:75px; object-fit:cover; border-radius:4px; background:#f1f5f9;';
-    const reader = new FileReader();
-    reader.onload = e => { img.src = e.target.result; };
-    reader.readAsDataURL(file);
+    img.style.cssText = 'width:100%; height:75px; object-fit:cover; border-radius:4px; background:#f1f5f9; display:block;';
+    card.appendChild(img);
+
+    loadThumbnailToImg(file, img, card);
 
     const label = document.createElement('div');
     label.style.cssText = 'font-size:10px; color:#475569; width:100%; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; margin-top:4px; text-align:center; font-weight:600;';
     label.title = file.name;
     label.textContent = `#${idx+1} ${file.name}`;
 
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.style.cssText = 'position:absolute; top:-6px; right:-6px; background:#ef4444; color:#ffffff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3); font-weight:bold;';
-    delBtn.innerHTML = '✕';
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      removeSchoolRef(idx);
-    };
-
-    card.appendChild(delBtn);
-    card.appendChild(img);
     card.appendChild(label);
     gallery.appendChild(card);
   });
