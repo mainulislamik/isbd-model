@@ -2,3 +2,16 @@
 [ft] resume from step 836300 (SmallUNet)
 [ft] BEFORE holdout: L1 0.0797 (id 0.0985) | PSNR 16.30dB (id 15.67dB)
 ft step 836320 | loss 0.6880 | Curric Lvl 1 (solid_contrast) | 20/250
+ft step 836340 | loss 0.6655 | Curric Lvl 1 (solid_contrast) | 40/250
+ft step 836360 | loss 0.6472 | Curric Lvl 1 (solid_contrast) | 60/250
+ft step 836380 | loss 0.6486 | Curric Lvl 1 (solid_contrast) | 80/250
+ft step 836400 | loss 0.6472 | Curric Lvl 1 (solid_contrast) | 100/250
+ft step 836420 | loss 0.6359 | Curric Lvl 1 (solid_contrast) | 120/250
+ft step 836440 | loss 0.6320 | Curric Lvl 1 (solid_contrast) | 140/250
+ft step 836460 | loss 0.6366 | Curric Lvl 1 (solid_contrast) | 160/250
+ft step 836480 | loss 0.6347 | Curric Lvl 1 (solid_contrast) | 180/250
+ft step 836500 | loss 0.6428 | Curric Lvl 1 (solid_contrast) | 200/250
+ft step 836520 | loss 0.6173 | Curric Lvl 1 (solid_contrast) | 220/250
+ft step 836540 | loss 0.6084 | Curric Lvl 1 (solid_contrast) | 240/250
+[ft] done: step 836300 -> 836550 | avg loss 0.6274
+[ft] AFTER holdout: L1 0.0521 (id 0.0985) | PSNR 19.32dB (id 15.67dB)
