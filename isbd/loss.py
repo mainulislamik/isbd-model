@@ -312,3 +312,36 @@ class ISBDFrequencySeparationLoss(nn.Module):
 
         return (self.low_weight * loss_low) + (self.high_weight * (loss_high_l1 + 0.5 * loss_high_cos))
 
+
+class ISBDMattingTrimapLoss(nn.Module):
+    """
+    Trimap & Edge-Aware Alpha Matting Loss (ISBD v1.00):
+    Directly addresses fine flyaway hair and semi-transparent alpha boundaries.
+    Weights transition regions (boundary trimap where edges occur) 3x higher than flat regions,
+    and penalizes second-order Laplacian differences along hair contours.
+    """
+    def __init__(self, laplacian_weight: float = 0.5, sobel_weight: float = 1.0, trimap_weight: float = 3.0):
+        super().__init__()
+        self.laplacian_weight = laplacian_weight
+        self.sobel_weight = sobel_weight
+        self.trimap_weight = trimap_weight
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        diff = torch.abs(pred - target)
+
+        with torch.no_grad():
+            gx = target[:, :, :, 1:] - target[:, :, :, :-1]
+            gy = target[:, :, 1:, :] - target[:, :, :-1, :]
+            gx = F.pad(gx, (0, 1, 0, 0))
+            gy = F.pad(gy, (0, 0, 0, 1))
+            edge_mag = torch.sqrt(gx ** 2 + gy ** 2 + 1e-6)
+            edge_norm = edge_mag / (edge_mag.max() + 1e-6)
+            weight_mask = 1.0 + (self.trimap_weight - 1.0) * edge_norm
+
+        weighted_l1 = (diff * weight_mask).mean()
+        edge_loss = sobel_edge_loss(pred, target)
+        lap_loss = laplacian_edge_loss(pred, target)
+
+        return weighted_l1 + self.sobel_weight * edge_loss + self.laplacian_weight * lap_loss
+
+

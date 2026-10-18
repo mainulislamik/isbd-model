@@ -22,6 +22,7 @@ import torch.nn as nn
 from PIL import Image, ImageFilter, ImageEnhance, ImageOps
 
 from isbd.model import SmallUNet, HumanResidualAdapter
+from isbd.loss import ISBDProLoss, ISBDFrequencySeparationLoss, ISBDMattingTrimapLoss
 
 ROOT = Path("/home/imon/isbd_model")
 DATA_DIR = ROOT / "data"
@@ -113,12 +114,13 @@ def create_domain_pair(img, domain):
         # Blend high frequency texture back
         arr_y = 0.7 * arr_y + 0.3 * arr_x
     elif domain == "matting":
-        # Edge mask & alpha trimap
+        # Continuous soft alpha trimap with feathered gradient edges
         gray = img.convert("L")
         edges = gray.filter(ImageFilter.FIND_EDGES)
-        arr_edges = np.array(edges, dtype=np.float32) / 255.0
-        mask = (arr_edges > 0.15).astype(np.float32)
-        arr_y = np.repeat(mask[:, :, np.newaxis], 3, axis=2)
+        soft_edges = edges.filter(ImageFilter.GaussianBlur(radius=0.8))
+        arr_edges = np.array(soft_edges, dtype=np.float32) / 255.0
+        arr_edges = np.clip(arr_edges * 2.2, 0.0, 1.0)
+        arr_y = np.repeat(arr_edges[:, :, np.newaxis], 3, axis=2)
     elif domain == "ecommerce":
         # Product sharpening and contrast pop
         enhancer = ImageEnhance.Sharpness(img)
@@ -179,7 +181,13 @@ def run_unique_stream_training():
     # Domain Adapters
     adapters = {}
     optimizers = {}
-    criterion = nn.MSELoss()
+    domain_criteria = {
+        "matting": ISBDMattingTrimapLoss(laplacian_weight=0.5, sobel_weight=1.0, trimap_weight=3.0),
+        "retouch": ISBDFrequencySeparationLoss(low_weight=0.6, high_weight=0.4),
+        "ecommerce": ISBDProLoss(ssim_weight=0.35, edge_weight=0.25, mse_weight=0.05),
+        "lighting": ISBDProLoss(ssim_weight=0.25, edge_weight=0.15, mse_weight=0.05),
+        "inpaint": ISBDProLoss(ssim_weight=0.30, edge_weight=0.30, mse_weight=0.05),
+    }
     for dom in all_urls.keys():
         ad = HumanResidualAdapter().to(DEVICE)
         ad_path = ADAPTERS_DIR / f"{dom}_adapter.pt"
@@ -215,6 +223,7 @@ def run_unique_stream_training():
         progress_state["current_domain"] = dom
         opt = optimizers[dom]
         adapter = adapters[dom]
+        criterion = domain_criteria.get(dom, nn.L1Loss())
         dom_losses = []
         
         # Stream in batches using concurrent.futures

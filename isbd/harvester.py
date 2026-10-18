@@ -224,8 +224,8 @@ def save_designer_sample(
         cur_Y = np.concatenate([cur_Y, y_t[None]], axis=0)
         _save_npz(SELF_POOL, cur_X, cur_Y, cap=5000)
 
-        # Golden Ground-Truth validation (Pillar 2)
-        is_golden = bool(meta.get("is_golden", False)) or float(meta.get("dwell_sec", 0)) >= 30.0
+        # Golden Ground-Truth validation (Pillar 2: Zero Undos & High Dwell)
+        is_golden = bool(meta.get("is_golden", False)) or (float(meta.get("dwell_sec", 0)) >= 30.0 and undos_filtered == 0)
         dwell_sec = float(meta.get("dwell_sec", 0.0))
         correction_type = str(meta.get("correction_type", "direct_refine"))
 
@@ -237,9 +237,17 @@ def save_designer_sample(
     except Exception as pool_err:
         print(f"[Harvester] pool append error: {pool_err}")
 
-    is_golden = bool(meta.get("is_golden", False)) or float(meta.get("dwell_sec", 0)) >= 30.0
+    is_golden = bool(meta.get("is_golden", False)) or (float(meta.get("dwell_sec", 0)) >= 30.0 and undos_filtered == 0)
     dwell_sec = float(meta.get("dwell_sec", 0.0))
     correction_type = str(meta.get("correction_type", "direct_refine"))
+
+    # Dynamic validation score based on designer certitude (Undo penalty)
+    if is_golden:
+        validation_score = 1.0
+    elif undos_filtered > 2:
+        validation_score = 0.50  # Hard negative / refined after multiple mistakes
+    else:
+        validation_score = 0.75
 
     sample_entry = {
         "id": sample_id,
