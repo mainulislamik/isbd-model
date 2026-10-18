@@ -370,12 +370,25 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     var domainNamesMap = {
-        "retouch": "স্কিন ও ফেস রিটাচ",
-        "matting": "হেয়ার/ফার ক্লিপিং ও মাস্ক",
-        "lighting": "লাইটিং ও টোন ব্যালেন্স",
-        "ecommerce": "ই-কমার্স প্রডাক্ট ও শ্যাডো",
+        "retouch": "স্কিন ও ফেস রিটাচিং ✨",
+        "matting": "হেয়ার/আলফা কাটআউট ✂️",
+        "lighting": "লাইটিং ও টোন ব্যালেন্স ☀️",
+        "ecommerce": "ই-কমার্স প্রডাক্ট ও শ্যাডো 🛍️",
+        "inpaint": "অবজেক্ট ইনপেইন্টিং 🩹",
         "general": "সাধারণ এডিটিং"
     };
+
+    var catOverrideEl = document.getElementById('select-category-override');
+    if (catOverrideEl) {
+        catOverrideEl.addEventListener('change', function() {
+            if (this.value !== 'auto') {
+                currentPrimaryDomain = this.value;
+                log('📌 কাজের ক্যাটাগরি ফিক্সড: ' + (domainNamesMap[this.value] || this.value));
+            } else {
+                log('⚡ স্বয়ংক্রিয় মাল্টি-অ্যাকশন ডিটেকশন মোড সক্রিয়।');
+            }
+        });
+    }
 
     function captureBaseline(showNotice) {
         var pEsc = baselinePath.replace(/\\/g, '/');
@@ -442,7 +455,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             recentToolsSequence.push(t.tool);
                             if (recentToolsSequence.length > 8) recentToolsSequence.shift();
                         }
-                        if (t.domain && t.domain !== 'general') {
+                        var catOverrideEl = document.getElementById('select-category-override');
+                        var isManual = catOverrideEl && catOverrideEl.value !== 'auto';
+                        if (isManual) {
+                            currentPrimaryDomain = catOverrideEl.value;
+                        } else if (t.domain && t.domain !== 'general') {
+                            // Check for Multi-Action Domain Shift on the same document!
+                            if (currentPrimaryDomain !== 'general' && currentPrimaryDomain !== t.domain && validStrokes >= 3) {
+                                log('🔄 একাধিক কাজ সনাক্ত: [' + (domainNamesMap[currentPrimaryDomain] || currentPrimaryDomain) + '] সম্পন্ন! [' + (domainNamesMap[t.domain] || t.domain) + '] শুরু হয়েছে। পূর্ববর্তী প্যাচ অটো-সংরক্ষণ হচ্ছে...');
+                                syncDesignerHarvest(true); // harvest prior task's patch against baseline
+                            }
                             currentPrimaryDomain = t.domain;
                         }
                     }
@@ -458,7 +480,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var domEl = document.getElementById('telemetry-domain');
                 if (domEl) {
-                    domEl.innerText = domainNamesMap[t.domain] || t.domain;
+                    var displayDom = (catOverrideEl && catOverrideEl.value !== 'auto') ? catOverrideEl.value : (t.domain || currentPrimaryDomain);
+                    domEl.innerText = domainNamesMap[displayDom] || displayDom;
                 }
 
                 var layerEl = document.getElementById('telemetry-layer-info');

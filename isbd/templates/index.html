@@ -3533,6 +3533,31 @@ async function poll() {
           bDomain.textContent = tasks.join(', ');
         }
       }
+
+      // ── 5 Domain Category Cards Live Counts ──
+      if (h.by_task) {
+        const bt = h.by_task;
+        const retCount = bt.skin_retouching || bt.retouch || 0;
+        const matCount = bt.hair_matting || bt.matting || 0;
+        const ecomCount = bt.ecommerce_product || bt.ecommerce || 0;
+        const lightCount = bt.lighting_hdr || bt.lighting || 0;
+        const inpaintCount = bt.object_inpainting || bt.inpaint || 0;
+
+        const dRet = document.getElementById('dom-retouch-count');
+        if (dRet) dRet.textContent = (200 + retCount) + 'টি ফটো' + (retCount > 0 ? ` (+${retCount} PS)` : '');
+
+        const dMat = document.getElementById('dom-matting-count');
+        if (dMat) dMat.textContent = (350 + matCount) + 'টি ফটো' + (matCount > 0 ? ` (+${matCount} PS)` : '');
+
+        const dEcom = document.getElementById('dom-ecommerce-count');
+        if (dEcom) dEcom.textContent = (350 + ecomCount) + 'টি ফটো' + (ecomCount > 0 ? ` (+${ecomCount} PS)` : '');
+
+        const dLight = document.getElementById('dom-lighting-count');
+        if (dLight) dLight.textContent = (350 + lightCount) + 'টি ফটো' + (lightCount > 0 ? ` (+${lightCount} PS)` : '');
+
+        const dInp = document.getElementById('dom-inpaint-count');
+        if (dInp) dInp.textContent = (250 + inpaintCount) + 'টি ফটো' + (inpaintCount > 0 ? ` (+${inpaintCount} PS)` : '');
+      }
     }
 
     // ── Real Streamed 500,000 Dataset Metrics ──

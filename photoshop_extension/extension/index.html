@@ -104,7 +104,17 @@
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
                     <span style="font-size: 10px; color: #94a3b8;">কাজের ডোমেন:</span>
-                    <span id="telemetry-domain" style="font-weight: 600; color: #a78bfa; font-size: 10px;">সাধারণ</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <select id="select-category-override" style="background: #1e293b; border: 1px solid #475569; color: #a78bfa; font-size: 10px; border-radius: 4px; padding: 1px 4px; outline: none;" title="নির্দিষ্ট ক্যাটাগরি ফিক্স করতে পারেন অথবা অটো মাল্টি-অ্যাকশন ডিটেকশন ব্যবহার করতে পারেন">
+                            <option value="auto">⚡ অটো (মাল্টি-অ্যাকশন)</option>
+                            <option value="retouch">✨ স্কিন রিটাচিং</option>
+                            <option value="matting">✂️ হেয়ার কাটআউট</option>
+                            <option value="ecommerce">🛍️ ই-কমার্স প্রডাক্ট</option>
+                            <option value="lighting">☀️ লাইটিং ও HDR</option>
+                            <option value="inpaint">🩹 অবজেক্ট ইনপেইন্ট</option>
+                        </select>
+                        <span id="telemetry-domain" style="font-weight: 600; color: #a78bfa; font-size: 10px; display: none;">সাধারণ</span>
+                    </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
                     <span style="font-size: 10px; color: #94a3b8;">লেয়ার মোড/অপাসিটি:</span>

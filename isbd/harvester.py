@@ -26,6 +26,21 @@ GOLDEN_POOL = DATA / "golden_pool.npz"
 _DEDUP_CACHE = []  # Stores (dhash_str, timestamp)
 _DEDUP_FILTERED_COUNT = 0
 
+CANONICAL_DOMAINS = {
+    "retouch": "skin_retouching",
+    "skin_retouching": "skin_retouching",
+    "matting": "hair_matting",
+    "hair_matting": "hair_matting",
+    "isolate": "hair_matting",
+    "ecommerce": "ecommerce_product",
+    "ecommerce_product": "ecommerce_product",
+    "lighting": "lighting_hdr",
+    "lighting_hdr": "lighting_hdr",
+    "color_grade": "lighting_hdr",
+    "inpaint": "object_inpainting",
+    "object_inpainting": "object_inpainting",
+}
+
 
 def _compute_dhash(img_bgr: np.ndarray) -> str:
     """Compute 64-bit difference perceptual hash (dHash) on downsampled grayscale image."""
@@ -148,7 +163,8 @@ def save_designer_sample(
     cv2.imwrite(str(after_path), img_after)
 
     meta = metadata or {}
-    task_domain = meta.get("domain") or meta.get("task_domain", "general")
+    raw_domain = meta.get("domain") or meta.get("task_domain", "skin_retouching")
+    task_domain = CANONICAL_DOMAINS.get(str(raw_domain).lower(), "skin_retouching")
     designer_id = meta.get("designer_id") or meta.get("editor_id", "designer_pc")
     tools_used = meta.get("tools_used", ["retouch", "curves"])
     stroke_count = int(meta.get("stroke_count", 1))
@@ -270,7 +286,13 @@ def get_harvester_stats() -> Dict[str, Any]:
     manifest = get_manifest()
     samples = manifest.get("samples", [])
     total_size_mb = 0.0
-    by_task: Dict[str, int] = {}
+    by_task: Dict[str, int] = {
+        "skin_retouching": 0,
+        "hair_matting": 0,
+        "ecommerce_product": 0,
+        "lighting_hdr": 0,
+        "object_inpainting": 0,
+    }
     by_editor: Dict[str, Dict[str, int]] = {}
     corrections_count = 0
     total_strokes = 0
@@ -279,7 +301,8 @@ def get_harvester_stats() -> Dict[str, Any]:
 
     for s in samples:
         total_size_mb += s.get("file_size_kb", 0.0) / 1024.0
-        t = s.get("task_domain", "general")
+        raw_t = s.get("task_domain", "skin_retouching")
+        t = CANONICAL_DOMAINS.get(str(raw_t).lower(), "skin_retouching")
         by_task[t] = by_task.get(t, 0) + 1
         
         ed = s.get("designer_id", "designer_pc")

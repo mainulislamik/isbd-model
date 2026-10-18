@@ -17,38 +17,53 @@ function _safeEscape(str) {
     return ("" + str).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
 }
 
-function classifyToolDomain(toolName, historyName) {
+function classifyToolDomain(toolName, historyName, layerName, isAdjustment) {
     var t = (toolName || "").toLowerCase();
     var h = (historyName || "").toLowerCase();
+    var l = (layerName || "").toLowerCase();
     
-    // Retouch: Healing brushes, patch tool, clone stamp, frequency separation
+    // 1. Object Inpainting: Content-Aware Fill, Generative, Eraser, Watermark/Object Clean, Patch removal
+    if (h.indexOf("content-aware") !== -1 || h.indexOf("content aware") !== -1 || h.indexOf("fill") !== -1 ||
+        h.indexOf("inpaint") !== -1 || h.indexOf("generative") !== -1 || h.indexOf("remove") !== -1 ||
+        t.indexOf("contentaware") !== -1 || t.indexOf("eraser") !== -1 || l.indexOf("inpaint") !== -1 ||
+        l.indexOf("clean") !== -1 || l.indexOf("watermark") !== -1) {
+        return "inpaint";
+    }
+    
+    // 2. Skin Retouching: Healing brushes, patch tool, clone stamp, frequency separation
     if (t.indexOf("healing") !== -1 || t.indexOf("patch") !== -1 || t.indexOf("stamp") !== -1 ||
         h.indexOf("healing") !== -1 || h.indexOf("stamp") !== -1 || h.indexOf("skin") !== -1 ||
-        h.indexOf("frequency") !== -1 || h.indexOf("high pass") !== -1 || h.indexOf("dust") !== -1) {
+        h.indexOf("blemish") !== -1 || h.indexOf("frequency") !== -1 || h.indexOf("high pass") !== -1 ||
+        h.indexOf("dust") !== -1 || l.indexOf("skin") !== -1 || l.indexOf("retouch") !== -1 ||
+        l.indexOf("high frequency") !== -1 || l.indexOf("low frequency") !== -1) {
         return "retouch";
     }
     
-    // Matting: Pen tool, Lasso, Quick Select, Magic Wand, Object Select, Layer Masks
+    // 3. Hair & Alpha Matting: Pen tool, Lasso, Quick Select, Magic Wand, Object Select, Layer Masks
     if (t.indexOf("pen") !== -1 || t.indexOf("select") !== -1 || t.indexOf("lasso") !== -1 ||
         t.indexOf("wand") !== -1 || h.indexOf("mask") !== -1 || h.indexOf("matting") !== -1 ||
-        h.indexOf("refine edge") !== -1 || h.indexOf("select subject") !== -1) {
+        h.indexOf("refine edge") !== -1 || h.indexOf("select subject") !== -1 || h.indexOf("clipping") !== -1 ||
+        l.indexOf("mask") !== -1 || l.indexOf("cutout") !== -1 || l.indexOf("path") !== -1) {
         return "matting";
     }
     
-    // Lighting: Dodge, Burn, Sponge, Curves, Levels, Exposure, Brightness/Contrast
-    if (t.indexOf("dodge") !== -1 || t.indexOf("burn") !== -1 || t.indexOf("sponge") !== -1 ||
+    // 4. Lighting & HDR Grading: Dodge, Burn, Sponge, Curves, Levels, Exposure, Brightness/Contrast
+    if (isAdjustment || t.indexOf("dodge") !== -1 || t.indexOf("burn") !== -1 || t.indexOf("sponge") !== -1 ||
         h.indexOf("curves") !== -1 || h.indexOf("levels") !== -1 || h.indexOf("exposure") !== -1 ||
-        h.indexOf("brightness") !== -1 || h.indexOf("shadow") !== -1 || h.indexOf("highlight") !== -1) {
+        h.indexOf("brightness") !== -1 || h.indexOf("contrast") !== -1 || h.indexOf("shadow") !== -1 ||
+        h.indexOf("highlight") !== -1 || h.indexOf("hdr") !== -1 || l.indexOf("curves") !== -1 ||
+        l.indexOf("levels") !== -1 || l.indexOf("tone") !== -1 || l.indexOf("grade") !== -1) {
         return "lighting";
     }
     
-    // E-Commerce: Crop, White background, Solid color fill, Drop shadow
+    // 5. E-Commerce Product & Shadow: Crop, White background, Solid color fill, Drop shadow
     if (t.indexOf("crop") !== -1 || h.indexOf("crop") !== -1 || h.indexOf("white") !== -1 ||
-        h.indexOf("canvas size") !== -1 || h.indexOf("shadow") !== -1) {
+        h.indexOf("canvas size") !== -1 || h.indexOf("shadow") !== -1 || h.indexOf("trim") !== -1 ||
+        l.indexOf("white bg") !== -1 || l.indexOf("shadow") !== -1 || l.indexOf("product") !== -1) {
         return "ecommerce";
     }
     
-    return "general";
+    return "retouch";
 }
 
 function getLiveEditorTelemetry() {
@@ -104,7 +119,7 @@ function getLiveEditorTelemetry() {
             selBoundsStr = "null";
         }
         
-        var domain = classifyToolDomain(tool, histName);
+        var domain = classifyToolDomain(tool, histName, layerName, isAdjustment);
         
         var json = '{' +
             '"ok":true,' +
