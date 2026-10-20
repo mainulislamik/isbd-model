@@ -27,8 +27,8 @@ services:
       # Docker socket + CLI — panel reads trainer logs & controls trainer container
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
-    mem_limit: 1536m
-    cpus: 1.5
+    mem_limit: 3500m
+    cpus: 2.5
     environment:
       - PYTHONUNBUFFERED=1
     env_file:
