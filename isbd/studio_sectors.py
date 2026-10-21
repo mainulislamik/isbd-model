@@ -54,25 +54,39 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
     cv_img = np.array(img.convert("RGB"))
     w, h = img.size
 
-    if service_id == "clipping_path":
-        # AI/CV Edge & Alpha Matte Cutout (Transparent BG)
-        gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        
-        # Smooth contour edges
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
-        
-        rgba = cv2.cvtColor(cv_img, cv2.COLOR_RGB2RGBA)
-        rgba[:, :, 3] = thresh
-        return Image.fromarray(rgba), "Clipping Path (স্বচ্ছ আলফা ব্যাকগ্রাউন্ড কাটআউট সম্পন্ন)"
+    from isbd.advanced_tools import (
+        multiple_clipping_path_engine,
+        ghost_mannequin_neck_joint,
+        commercial_frequency_retouch,
+        digital_ironing_wrinkle_cleaner,
+        jewelry_metal_gemstone_shiner,
+        dual_zone_ground_shadow_and_reflection,
+        StudioResult,
+    )
+
+    if service_id in ("clipping_path", "multi_clipping_path"):
+        return multiple_clipping_path_engine(img)
+
+    elif service_id in ("ghost_mannequin", "neck_joint"):
+        return ghost_mannequin_neck_joint(img)
+
+    elif service_id in ("image_retouching", "skin_retouch"):
+        return commercial_frequency_retouch(img)
+
+    elif service_id in ("dress_wrinkle_cleaner", "wrinkle_cleaner"):
+        return digital_ironing_wrinkle_cleaner(img)
+
+    elif service_id in ("jewelry_metal_shiner", "jewelry_retouch"):
+        return jewelry_metal_gemstone_shiner(img)
+
+    elif service_id in ("cast_shadow_3d", "shadow_making", "reflection", "natural_shadow"):
+        return dual_zone_ground_shadow_and_reflection(img)
 
     elif service_id == "background_removal":
         try:
             from isbd.opensource_ai import birefnet_hair_matting
             out_img, desc = birefnet_hair_matting(img)
-            return out_img, f"Background Removal (BiRefNet/IS-Net ম্যাজিক রিমুভ সম্পন্ন)"
+            return StudioResult(out_img, f"Background Removal (BiRefNet/IS-Net ম্যাজিক রিমুভ সম্পন্ন)", ok=True)
         except Exception as e:
             try:
                 from isbd.opensource_ai import get_rembg_session, clean_outer_artifacts
@@ -81,22 +95,10 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
                 if s:
                     out_img = rembg.remove(img, session=s, post_process_mask=True)
                     out_img = clean_outer_artifacts(out_img)
-                    return out_img, "Background Removal (U2Net/IS-Net AI ম্যাজিক রিমুভ সম্পন্ন)"
+                    return StudioResult(out_img, "Background Removal (U2Net/IS-Net AI ম্যাজিক রিমুভ সম্পন্ন)", ok=True)
             except Exception:
                 pass
-            return img, f"Background Removal (ত্রুটি: {str(e)})"
-
-    elif service_id == "dress_wrinkle_cleaner":
-        from isbd.advanced_tools import dress_wrinkle_cleaner
-        return dress_wrinkle_cleaner(img)
-
-    elif service_id == "cast_shadow_3d":
-        from isbd.advanced_tools import cast_shadow_3d
-        return cast_shadow_3d(img)
-
-    elif service_id == "jewelry_metal_shiner":
-        from isbd.advanced_tools import jewelry_metal_shiner
-        return jewelry_metal_shiner(img)
+            return StudioResult(img, f"Background Removal (ত্রুটি: {str(e)})", ok=False)
 
     elif service_id == "apparel_recolor":
         from isbd.advanced_tools import apparel_recolor
@@ -112,25 +114,18 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
 
     elif service_id == "super_resolution_4k":
         from isbd.opensource_ai import super_resolution_4k
-        return super_resolution_4k(img, scale=2)
+        out_img, desc = super_resolution_4k(img, scale=2)
+        return StudioResult(out_img, desc, ok=True)
 
     elif service_id == "face_beauty_retouch":
         from isbd.opensource_ai import face_beauty_retouch
-        return face_beauty_retouch(img)
+        out_img, desc = face_beauty_retouch(img)
+        return StudioResult(out_img, desc, ok=True)
 
     elif service_id == "smart_part_selector":
         from isbd.opensource_ai import smart_part_selector
-        return smart_part_selector(img)
-
-    elif service_id == "multi_clipping_path":
-        # Multi-region segmentation
-        hsv = cv2.cvtColor(cv_img, cv2.COLOR_RGB2HSV)
-        h_chan = hsv[:, :, 0]
-        # Quantize colors into distinct paths
-        quant = (h_chan // 30) * 30
-        quant_rgb = cv2.applyColorMap((quant * (255 // 180)).astype(np.uint8), cv2.COLORMAP_JET)
-        blended = cv2.addWeighted(cv_img, 0.5, quant_rgb, 0.5, 0)
-        return Image.fromarray(blended), "Multiple Clipping Path (মাল্টি-সেগমেন্ট পাথ আইসোলেশন)"
+        out_img, desc = smart_part_selector(img)
+        return StudioResult(out_img, desc, ok=True)
 
     elif service_id == "image_masking":
         # Soft hair/fur edge feather masking
@@ -141,55 +136,7 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         mask_soft = np.clip(gray.astype(np.float32) + edges_blur.astype(np.float32), 0, 255).astype(np.uint8)
         rgba = cv2.cvtColor(cv_img, cv2.COLOR_RGB2RGBA)
         rgba[:, :, 3] = mask_soft
-        return Image.fromarray(rgba), "Image Masking (ফাইন হেয়ার ও ফেদার মাস্কিং)"
-
-    elif service_id == "neck_joint":
-        # Ghost mannequin inner collar seamless blending simulation
-        canvas = Image.new("RGBA", (w, h), (255, 255, 255, 0))
-        # Draw symmetric inner collar illusion
-        draw = ImageDraw.Draw(canvas)
-        cx = w // 2
-        draw.ellipse([cx - w//4, 10, cx + w//4, h//3], fill=(80, 80, 90, 255), outline=(50, 50, 60, 255), width=2)
-        canvas.paste(img.convert("RGBA"), (0, 0), img.convert("RGBA"))
-        return canvas.convert("RGB"), "Neck Joint (গোস্ট ম্যানিকুইন ইনার কলার কম্পোজিট)"
-
-    elif service_id == "image_retouching":
-        # Frequency Separation skin retouching
-        gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
-        blur = cv2.bilateralFilter(cv_img, d=9, sigmaColor=75, sigmaSpace=75)
-        # Add high-pass micro-texture
-        high_pass = cv2.subtract(cv_img, cv2.GaussianBlur(cv_img, (5, 5), 0)) + 128
-        retouched = cv2.addWeighted(blur, 0.85, high_pass, 0.15, 0)
-        return Image.fromarray(retouched), "Image Retouching (স্কিন গ্ল্যামার ও ফ্রিকোয়েন্সি সেপারেশন)"
-
-    elif service_id == "shadow_making":
-        # Create realistic product drop shadow underneath
-        bg = Image.new("RGB", (w, h + int(h * 0.2)), (255, 255, 255))
-        shadow = Image.new("RGBA", (w, int(h * 0.25)), (0, 0, 0, 0))
-        s_draw = ImageDraw.Draw(shadow)
-        s_draw.ellipse([int(w * 0.15), 5, int(w * 0.85), int(h * 0.18)], fill=(0, 0, 0, 160))
-        shadow = shadow.filter(ImageFilter.GaussianBlur(8))
-        
-        bg.paste(shadow, (0, h - int(h * 0.08)), shadow)
-        bg.paste(img, (0, 0))
-        return bg.resize((w, h)), "Shadow Making (ন্যাচারাল ড্রপ ও কন্টাক্ট শ্যাডো)"
-
-    elif service_id == "reflection":
-        # Create mirror reflection on glossy floor
-        mirror_h = int(h * 0.4)
-        flipped = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM).crop((0, 0, w, mirror_h))
-        
-        # Create gradient alpha fade
-        alpha_mask = Image.new("L", (w, mirror_h))
-        for y in range(mirror_h):
-            fade = int(180 * (1.0 - y / mirror_h))
-            for x in range(w):
-                alpha_mask.putpixel((x, y), fade)
-        
-        composite = Image.new("RGB", (w, h + mirror_h), (255, 255, 255))
-        composite.paste(img, (0, 0))
-        composite.paste(flipped, (0, h), alpha_mask)
-        return composite.resize((w, h)), "Reflection (লাক্সারি মিরর রিফ্লেকশন শ্যাডো)"
+        return StudioResult(Image.fromarray(rgba), "Image Masking (ফাইন হেয়ার ও ফেদার মাস্কিং)", ok=True)
 
     elif service_id == "color_correction":
         # Pure CV Gray-World White balance & S-Curve contrast tone correction
@@ -198,16 +145,16 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         g_avg = np.mean(img_f[:, :, 1])
         b_avg = np.mean(img_f[:, :, 2])
         gray_avg = (r_avg + g_avg + b_avg) / 3.0
-        
+
         img_f[:, :, 0] = np.clip(img_f[:, :, 0] * (gray_avg / max(1.0, r_avg)), 0, 255)
         img_f[:, :, 1] = np.clip(img_f[:, :, 1] * (gray_avg / max(1.0, g_avg)), 0, 255)
         img_f[:, :, 2] = np.clip(img_f[:, :, 2] * (gray_avg / max(1.0, b_avg)), 0, 255)
         balanced = img_f.astype(np.uint8)
-        
+
         # S-Curve contrast boost
         look_up_table = np.array([np.clip(255 * (i / 255.0) ** 1.15, 0, 255) for i in range(256)]).astype(np.uint8)
         corrected = cv2.LUT(balanced, look_up_table)
-        return Image.fromarray(corrected), "Color Correction (ন্যাচারাল হোয়াইট ব্যালেন্স ও এস-কার্ভ)"
+        return StudioResult(Image.fromarray(corrected), "Color Correction (ন্যাচারাল হোয়াইট ব্যালেন্স ও এস-কার্ভ)", ok=True)
 
     elif service_id == "image_enhancement":
         # HDR tone map + Unsharp masking
@@ -215,7 +162,7 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         arr_f = hdr.astype(np.float32) / 255.0
         sharpened = skimage.filters.unsharp_mask(arr_f, radius=1.8, amount=1.8)
         enhanced = np.ascontiguousarray(np.clip(sharpened * 255, 0, 255).astype(np.uint8))
-        return Image.fromarray(enhanced), "Image Enhancement (এইচডিআর টেক্সচার ও হাই-পাস শার্পেনিং)"
+        return StudioResult(Image.fromarray(enhanced), "Image Enhancement (এইচডিআর টেক্সচার ও হাই-পাস শার্পেনিং)", ok=True)
 
     elif service_id == "image_manipulation":
         # Creative dynamic lighting & cinematic tone blend
@@ -225,7 +172,7 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
         cl = clahe.apply(l)
         manipulated = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_LAB2RGB)
-        return Image.fromarray(manipulated), "Image Manipulation (ক্রিয়েটিভ লাইটিং ও ড্রামাটিক টোন)"
+        return StudioResult(Image.fromarray(manipulated), "Image Manipulation (ক্রিয়েটিভ লাইটিং ও ড্রামাটিক টোন)", ok=True)
 
     elif service_id == "raster_to_vector":
         # Vector line contour & trace visualization
@@ -235,6 +182,6 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         # Invert to look like black & white clean vector lines
         vector_look = 255 - edges
         vector_rgb = cv2.cvtColor(vector_look, cv2.COLOR_GRAY2RGB)
-        return Image.fromarray(vector_rgb), "Raster To Vector (ক্লিন ভেক্টর লাইন ও পাথ ট্রেসিং)"
+        return StudioResult(Image.fromarray(vector_rgb), "Raster To Vector (ক্লিন ভেক্টর লাইন ও পাথ ট্রেসিং)", ok=True)
 
-    return img, "Original"
+    return StudioResult(img, "Original", ok=True)
