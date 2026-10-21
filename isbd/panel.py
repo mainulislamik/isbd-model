@@ -1031,6 +1031,14 @@ async def process_service_api(
             out_img, desc = execute_studio_service(img, resolved_service_id)
             active_name = resolved_model_id
 
+        # Self-Learning Harvesting: Save input & processed output pair for autonomous weekend continuous training
+        try:
+            from isbd.self_learner import learn_from_real_pair
+            # Store in background/non-blocking
+            learn_from_real_pair(img, out_img, label=resolved_service_id, augment=2, trigger_finetune=False)
+        except Exception:
+            pass
+
         # 2. If an External VLM Model (Gemini / Claude / DeepSeek) is selected, run VLM Engine
         vlm_log = f"Processed with {active_name} Engine."
         if resolved_model_id and resolved_model_id != "isbd_v1":
