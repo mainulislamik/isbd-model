@@ -274,5 +274,18 @@
       ],
       "summary_bn": "⚡ ১টি র ছবি থেকে 3টি ডেলিভারেবল আউটপুট শনাক্ত হয়েছে: আউটপুট #1 (Color Fix (কালার কারেকশন), Exposure Fix (এক্সপোজার ব্যালান্স)) | আউটপুট #2 (Color Fix (কালার কারেকশন), Exposure Fix (এক্সপোজার ব্যালান্স)) | আউটপুট #3 (Color Fix (কালার কারেকশন), Retouching (রিটাচিং))"
     }
+  },
+  {
+    "ts": "2026-10-21 09:11:02",
+    "mode": "1_to_1",
+    "label": "clipping_path",
+    "before_px": "120×120",
+    "after_px": "120×120",
+    "patches_256": 1,
+    "total_pairs": 197,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
   }
 ]
