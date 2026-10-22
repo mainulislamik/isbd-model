@@ -300,5 +300,70 @@
     "reference_count": 0,
     "references": [],
     "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:11:29",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "3000×2000",
+    "after_px": "3000×2000",
+    "patches_256": 4,
+    "total_pairs": 207,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:15:39",
+    "mode": "1_to_1",
+    "label": "clipping_path",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 212,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:15:53",
+    "mode": "1_to_1",
+    "label": "clipping_path",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 217,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:15:57",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 222,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:16:11",
+    "mode": "1_to_1",
+    "label": "face_beauty_retouch",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 227,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
   }
 ]
