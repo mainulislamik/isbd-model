@@ -365,5 +365,57 @@
     "reference_count": 0,
     "references": [],
     "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:32:10",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 232,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:32:24",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "3000×2000",
+    "after_px": "3000×2000",
+    "patches_256": 4,
+    "total_pairs": 237,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:32:43",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "5760×3840",
+    "after_px": "5760×3840",
+    "patches_256": 4,
+    "total_pairs": 242,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 17:32:59",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "503×759",
+    "after_px": "503×759",
+    "patches_256": 4,
+    "total_pairs": 247,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
   }
 ]
