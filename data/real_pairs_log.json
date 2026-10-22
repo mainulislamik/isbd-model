@@ -287,5 +287,18 @@
     "reference_count": 0,
     "references": [],
     "multi_info": {}
+  },
+  {
+    "ts": "2026-10-22 16:05:00",
+    "mode": "1_to_1",
+    "label": "background_removal",
+    "before_px": "1800×2700",
+    "after_px": "1800×2700",
+    "patches_256": 4,
+    "total_pairs": 202,
+    "has_references": false,
+    "reference_count": 0,
+    "references": [],
+    "multi_info": {}
   }
 ]
