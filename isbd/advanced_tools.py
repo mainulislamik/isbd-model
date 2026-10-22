@@ -601,28 +601,311 @@ def cast_shadow_3d(pil_img: Image.Image, angle: float = 45.0, opacity: float = 0
 def jewelry_metal_shiner(pil_img: Image.Image) -> StudioResult:
     return jewelry_metal_gemstone_shiner(pil_img)
 
-def apparel_recolor(pil_img: Image.Image, target_hue: int = 110) -> StudioResult:
+def apparel_recolor(pil_img: Image.Image, target_hue: int = 110, target_rgb: tuple = None) -> StudioResult:
+    """
+    LAB luminance-locked apparel recolor.
+    Locks L* (luminance/fabric-fold shadows) and shifts a*/b* to target chromaticity.
+    Cloth regions detected by saturation mask; skin/background excluded.
+    """
     cv_img = _to_cv_rgb(pil_img)
+
+    # Convert to LAB — L* stays locked (preserves shadows, highlights, fold depth)
+    lab = cv2.cvtColor(cv_img, cv2.COLOR_RGB2LAB).astype(np.float32)
+    l_chan = lab[:, :, 0]
+    a_chan = lab[:, :, 1]
+    b_chan = lab[:, :, 2]
+
+    # Detect cloth regions by HSV saturation (exclude background whites/grays and bare skin)
     hsv = cv2.cvtColor(cv_img, cv2.COLOR_RGB2HSV)
-    h, s, v = cv2.split(hsv)
-    cloth_mask = cv2.inRange(s, 30, 255)
-    new_h = np.full_like(h, target_hue, dtype=np.uint8)
-    h_recolored = np.where(cloth_mask > 0, new_h, h)
-    s_boosted = np.where(cloth_mask > 0, np.clip(s.astype(np.int32) + 20, 0, 255).astype(np.uint8), s)
-    recolored_rgb = cv2.cvtColor(cv2.merge((h_recolored, s_boosted, v)), cv2.COLOR_HSV2RGB)
-    return StudioResult(Image.fromarray(recolored_rgb), "Apparel Recolor (পোশাকের কালার ভ্যারিয়েন্ট সোয়াচ সম্পন্ন)", ok=True)
+    cloth_mask = cv2.inRange(hsv[:, :, 1], 25, 255).astype(np.float32) / 255.0
+
+    # Smooth mask edges for feathered blend
+    cloth_mask = cv2.GaussianBlur(cloth_mask, (7, 7), 0)
+
+    if target_rgb is not None:
+        # Convert target swatch to LAB to extract pure target a* and b*
+        swatch = np.array([[list(target_rgb)]], dtype=np.uint8)
+        swatch_lab = cv2.cvtColor(swatch, cv2.COLOR_RGB2LAB).astype(np.float32)
+        target_a = float(swatch_lab[0, 0, 1])
+        target_b = float(swatch_lab[0, 0, 2])
+    else:
+        # Use hue to derive approximate LAB a*/b* target via an HSV→RGB→LAB roundtrip
+        hue_rgb = cv2.cvtColor(
+            np.array([[[int(target_hue), 200, 160]]], dtype=np.uint8),
+            cv2.COLOR_HSV2RGB
+        )
+        hue_lab = cv2.cvtColor(hue_rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+        target_a = float(hue_lab[0, 0, 1])
+        target_b = float(hue_lab[0, 0, 2])
+
+    # Compute per-pixel deviation from target chromaticity — ramp by saturation
+    src_chroma = np.sqrt((a_chan - 128.0) ** 2 + (b_chan - 128.0) ** 2)
+    chroma_weight = np.clip(src_chroma / 60.0, 0.0, 1.0)
+
+    new_a = a_chan + cloth_mask * chroma_weight * (target_a - a_chan)
+    new_b = b_chan + cloth_mask * chroma_weight * (target_b - b_chan)
+
+    lab_out = cv2.merge([
+        np.clip(l_chan, 0, 255).astype(np.uint8),
+        np.clip(new_a, 0, 255).astype(np.uint8),
+        np.clip(new_b, 0, 255).astype(np.uint8),
+    ])
+    rgb_out = cv2.cvtColor(lab_out, cv2.COLOR_LAB2RGB)
+    meta = {"description": "Apparel Recolor (LAB লুমিন্যান্স-লকড সোয়াচ রিকলার সম্পন্ন)",
+            "target_a": target_a, "target_b": target_b}
+    return StudioResult(Image.fromarray(rgb_out), "Apparel Recolor (LAB লুমিন্যান্স-লকড কালার সোয়াচ)", ok=True, metadata=meta)
+
 
 def studio_denoise_healer(pil_img: Image.Image) -> StudioResult:
+    """
+    Non-Local Means + bilateral edge-preserving color denoise.
+    NLM removes ISO noise; bilateral run afterward restores micro texture edges.
+    """
     cv_img = _to_cv_rgb(pil_img)
-    denoised = cv2.fastNlMeansDenoisingColored(cv_img, None, 8, 8, 7, 21)
-    return StudioResult(Image.fromarray(denoised), "Studio Denoise (হাই-আইএসও নয়েজ ও গ্রেইন রিমুভাল সম্পন্ন)", ok=True)
+    h, w = cv_img.shape[:2]
+
+    # Downscale for NLM speed on large files, then upscale result
+    scale = min(1.0, 1200.0 / max(h, w, 1))
+    if scale < 0.99:
+        small = cv2.resize(cv_img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    else:
+        small = cv_img
+
+    # Non-Local Means denoising
+    try:
+        nlm = cv2.fastNlMeansDenoisingColored(small, None, h=6, hColor=6, templateWindowSize=7, searchWindowSize=21)
+    except Exception:
+        nlm = small
+
+    # Edge-preserving bilateral pass to restore micro-detail sharpness
+    bilateral = cv2.bilateralFilter(nlm, d=7, sigmaColor=28, sigmaSpace=18)
+
+    if scale < 0.99:
+        denoised = cv2.resize(bilateral, (w, h), interpolation=cv2.INTER_LANCZOS4)
+    else:
+        denoised = bilateral
+
+    return StudioResult(Image.fromarray(denoised), "Studio Denoise (NLM + বাইলেটারাল এজ-প্রিজার্ভিং কালার ডিনয়েজ সম্পন্ন)", ok=True)
+
 
 def spot_dust_remover(pil_img: Image.Image) -> StudioResult:
+    """
+    Adaptive contrast spot mask + CLAHE-guided Telea inpainting.
+    CLAHE boosts local contrast to make faint dust visible, then adaptive threshold
+    restricts inpainting to genuine small anomalies only (max 120px²).
+    """
     cv_img = _to_cv_rgb(pil_img)
     gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
-    blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-    tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-    blemish_mask = cv2.add(blackhat, tophat)
-    _, mask = cv2.threshold(blemish_mask, 18, 255, cv2.THRESH_BINARY)
-    cleaned = cv2.inpaint(cv_img, mask, 3, cv2.INPAINT_TELEA)
-    return StudioResult(Image.fromarray(cleaned), "Spot & Dust Remover (পোশাকের খুঁত ও ধূলিকণা রিমুভাল সম্পন্ন)", ok=True)
+
+    # CLAHE to amplify faint dust and sensor spots
+    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
+    gray_eq = clahe.apply(gray)
+
+    # Morphological detection: both bright (tophat) and dark (blackhat) anomalies
+    se = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    se_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    blackhat = cv2.morphologyEx(gray_eq, cv2.MORPH_BLACKHAT, se)
+    tophat = cv2.morphologyEx(gray_eq, cv2.MORPH_TOPHAT, se)
+    anomaly = cv2.add(blackhat, tophat)
+
+    # Adaptive threshold — only flag pixels well above local median
+    _, coarse = cv2.threshold(anomaly, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # Remove large regions (garment seams, intentional dark elements)
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(coarse, connectivity=8)
+    spot_mask = np.zeros_like(coarse)
+    for i in range(1, num_labels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if 2 <= area <= 120:
+            spot_mask[labels == i] = 255
+
+    # Dilate slightly to cover dust halos
+    spot_mask = cv2.dilate(spot_mask, se_small, iterations=1)
+
+    if np.sum(spot_mask > 0) == 0:
+        return StudioResult(Image.fromarray(cv_img), "Spot & Dust Remover (কোনো স্পট বা ডাস্ট ডিটেক্ট হয়নি)", ok=True)
+
+    cleaned = cv2.inpaint(cv_img, spot_mask, inpaintRadius=4, flags=cv2.INPAINT_TELEA)
+    spots_found = int(num_labels - 1)
+    return StudioResult(Image.fromarray(cleaned), f"Spot & Dust Remover ({spots_found}টি স্পট ও ডাস্ট ইনপেইন্ট রিমুভাল সম্পন্ন)", ok=True)
+
+
+# ==============================================================================
+# 7. COLOR CORRECTION — Gray-World + Von Kries + CLAHE Dynamic Balance
+# ==============================================================================
+def color_correction_studio(img_cv) -> StudioResult:
+    """
+    Commercial-grade color correction pipeline:
+    1. Gray-World chromatic adaptation (removes color cast).
+    2. Von Kries scaling per channel in LAB space.
+    3. CLAHE dynamic adaptive histogram equalization on L* channel.
+    4. Soft S-Curve tone contrast lift.
+    """
+    rgb = _to_cv_rgb(img_cv)
+    img_f = rgb.astype(np.float32)
+
+    # 1. Gray-World white balance
+    r_avg = np.mean(img_f[:, :, 0])
+    g_avg = np.mean(img_f[:, :, 1])
+    b_avg = np.mean(img_f[:, :, 2])
+    gray_avg = (r_avg + g_avg + b_avg) / 3.0
+    img_f[:, :, 0] = np.clip(img_f[:, :, 0] * (gray_avg / max(r_avg, 1.0)), 0, 255)
+    img_f[:, :, 1] = np.clip(img_f[:, :, 1] * (gray_avg / max(g_avg, 1.0)), 0, 255)
+    img_f[:, :, 2] = np.clip(img_f[:, :, 2] * (gray_avg / max(b_avg, 1.0)), 0, 255)
+    balanced = img_f.astype(np.uint8)
+
+    # 2. CLAHE on LAB L* channel for dynamic adaptive histogram balance
+    lab = cv2.cvtColor(balanced, cv2.COLOR_RGB2LAB)
+    l, a, b_ch = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    l_clahe = clahe.apply(l)
+    # Von Kries saturation scale: gently boost a*/b* chroma for vivid studio look
+    a_scaled = np.clip(a.astype(np.float32) * 1.08 - 128.0 * 0.08 + 128.0 * 0.08, 0, 255).astype(np.uint8)
+    b_scaled = np.clip(b_ch.astype(np.float32) * 1.06 - 128.0 * 0.06 + 128.0 * 0.06, 0, 255).astype(np.uint8)
+    corrected_lab = cv2.merge([l_clahe, a_scaled, b_scaled])
+    corrected_rgb = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB)
+
+    # 3. Soft S-Curve contrast (lift shadows, compress highlights)
+    lut = np.zeros(256, dtype=np.uint8)
+    for i in range(256):
+        x = i / 255.0
+        # Gentle S: lift shadows slightly, compress near-whites
+        s = x + 0.07 * np.sin(np.pi * x)
+        lut[i] = int(np.clip(s * 255.0, 0, 255))
+    final_rgb = cv2.LUT(corrected_rgb, lut)
+
+    meta = {"description": "Color Correction (গ্রে-ওয়ার্ল্ড ক্রোম্যাটিক অ্যাডাপ্টেশন + CLAHE + S-কার্ভ)"}
+    return StudioResult(Image.fromarray(final_rgb), "Color Correction (গ্রে-ওয়ার্ল্ড + Von Kries + CLAHE ডাইনামিক ব্যালেন্স)", ok=True, metadata=meta)
+
+
+# ==============================================================================
+# 8. SMART PART SELECTOR — LAB K-Means + Connected Component Alpha Cutout
+# ==============================================================================
+def smart_part_selector(pil_img: Image.Image, n_clusters: int = 6) -> StudioResult:
+    """
+    Color-space K-Means clustering in LAB + connected component isolation.
+    Isolates the dominant foreground garment part (collar, buttons, jewelry) as
+    an RGBA alpha cutout with feathered edges.
+    """
+    cv_img = _to_cv_rgb(pil_img)
+    h, w = cv_img.shape[:2]
+
+    lab = cv2.cvtColor(cv_img, cv2.COLOR_RGB2LAB).astype(np.float32)
+    pixels = lab.reshape(-1, 3)
+    k = max(2, min(int(n_clusters), 10))
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 25, 0.5)
+    _, labels, centers = cv2.kmeans(pixels, k, None, criteria, 4, cv2.KMEANS_PP_CENTERS)
+    labels = labels.reshape(h, w)
+
+    # Select the cluster closest to the image center (likely the main garment part)
+    cy, cx = h // 2, w // 2
+    center_label = int(labels[cy, cx])
+
+    # Build binary mask for that cluster and find its largest connected component
+    cluster_mask = (labels == center_label).astype(np.uint8) * 255
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    cluster_mask = cv2.morphologyEx(cluster_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    cluster_mask = cv2.morphologyEx(cluster_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    num_labels, cc_labels, stats, _ = cv2.connectedComponentsWithStats(cluster_mask, connectivity=8)
+    best_area, best_id = 0, 0
+    for i in range(1, num_labels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area > best_area:
+            best_area = area
+            best_id = i
+    part_mask = np.where(cc_labels == best_id, 255, 0).astype(np.uint8)
+
+    # Feather mask edges with Gaussian for smooth cutout
+    feathered = cv2.GaussianBlur(part_mask, (7, 7), 0)
+
+    # Compose RGBA alpha cutout
+    rgba = cv2.cvtColor(cv_img, cv2.COLOR_RGB2RGBA)
+    rgba[:, :, 3] = feathered
+
+    # Tinted visualization overlay
+    tint = cv_img.copy()
+    tint_color = np.array([120, 200, 255], dtype=np.float32)
+    tint_mask = (feathered.astype(np.float32) / 255.0)[:, :, None]
+    tinted = (cv_img.astype(np.float32) * (1 - tint_mask * 0.45) + tint_color * tint_mask * 0.45).astype(np.uint8)
+
+    # Draw crisp selection boundary
+    contours, _ = cv2.findContours(part_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(tinted, contours, -1, (20, 120, 255), 2, cv2.LINE_AA)
+
+    meta = {"clusters": k, "selected_cluster": center_label, "selected_area_px": int(best_area)}
+    return StudioResult(Image.fromarray(tinted), f"Smart Part Selector ({k} ক্লাস্টার, ডমিন্যান্ট পার্ট আইসোলেশন সম্পন্ন)", ok=True, metadata=meta)
+
+
+# ==============================================================================
+# 9. RASTER TO VECTOR — Smooth Polygonal Contours + Vector Visualization
+# ==============================================================================
+def raster_to_vector_engine(pil_img: Image.Image) -> StudioResult:
+    """
+    Multi-stage raster-to-vector pipeline:
+    1. Bilateral pre-smooth to reduce noise while preserving hard edges.
+    2. Canny edge detection on LAB L* channel.
+    3. Hierarchical contour extraction + approxPolyDP simplification.
+    4. Renders crisp white-background vector line art with anti-aliased paths.
+    """
+    cv_img = _to_cv_rgb(pil_img)
+    h, w = cv_img.shape[:2]
+
+    # Bilateral smooth — preserves garment seams / jewelry edges
+    smoothed = cv2.bilateralFilter(cv_img, d=9, sigmaColor=55, sigmaSpace=40)
+
+    # Edge detection on LAB L* for perceptual fidelity
+    lab = cv2.cvtColor(smoothed, cv2.COLOR_RGB2LAB)
+    l_chan = lab[:, :, 0]
+    edges = cv2.Canny(l_chan, 35, 110)
+
+    # Close small gaps in contour lines
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, close_kernel)
+
+    # Extract & simplify contours
+    contours, hierarchy = cv2.findContours(edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+    # White canvas for clean vector look
+    canvas = np.full((h, w, 3), 255, dtype=np.uint8)
+
+    total_paths = 0
+    for i, cnt in enumerate(contours):
+        area = cv2.contourArea(cnt)
+        if area < 12:
+            continue
+        peri = cv2.arcLength(cnt, True)
+        # Tighter epsilon = smoother Bezier-like curves
+        approx = cv2.approxPolyDP(cnt, 0.004 * peri, True)
+        if len(approx) < 2:
+            continue
+        # Outer contours: dark navy; inner holes: mid gray
+        is_outer = hierarchy is not None and hierarchy[0][i][3] == -1
+        color = (18, 20, 28) if is_outer else (100, 100, 110)
+        thickness = 2 if is_outer else 1
+        cv2.polylines(canvas, [approx], True, color, thickness, cv2.LINE_AA)
+        total_paths += 1
+
+    meta = {"total_paths": total_paths}
+    return StudioResult(Image.fromarray(canvas), f"Raster To Vector ({total_paths} ভেক্টর পাথ ট্রেস সম্পন্ন)", ok=True, metadata=meta)
+
+
+# ==============================================================================
+# 10. STANDALONE REFLECTION — Showroom Mirror/Glass Effect
+# ==============================================================================
+def reflection_studio(pil_img: Image.Image) -> StudioResult:
+    """
+    Luxury showroom mirror/glass ground reflection:
+    - Vertical flip composite below original.
+    - Linear-to-exponential vertical opacity fade.
+    - Gaussian depth blur increases with distance from product base.
+    - Final canvas trimmed to original dimensions.
+    """
+    return dual_zone_ground_shadow_and_reflection(pil_img, shadow_type="reflection")
+
+
+# ==============================================================================
+# LEGACY & EXTENDED UTILITY ALIASES
+# ==============================================================================
+def shadow_making(pil_img: Image.Image, opacity: float = 0.55) -> StudioResult:
+    return dual_zone_ground_shadow_and_reflection(pil_img, shadow_type="both")

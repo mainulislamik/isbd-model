@@ -61,6 +61,14 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         digital_ironing_wrinkle_cleaner,
         jewelry_metal_gemstone_shiner,
         dual_zone_ground_shadow_and_reflection,
+        apparel_recolor,
+        studio_denoise_healer,
+        spot_dust_remover,
+        color_correction_studio,
+        smart_part_selector,
+        raster_to_vector_engine,
+        shadow_making,
+        reflection_studio,
         StudioResult,
     )
 
@@ -79,8 +87,14 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
     elif service_id in ("jewelry_metal_shiner", "jewelry_retouch"):
         return jewelry_metal_gemstone_shiner(img)
 
-    elif service_id in ("cast_shadow_3d", "shadow_making", "reflection", "natural_shadow"):
-        return dual_zone_ground_shadow_and_reflection(img)
+    elif service_id in ("cast_shadow_3d", "natural_shadow"):
+        return dual_zone_ground_shadow_and_reflection(img, shadow_type="both")
+
+    elif service_id == "shadow_making":
+        return shadow_making(img)
+
+    elif service_id == "reflection":
+        return reflection_studio(img)
 
     elif service_id == "background_removal":
         try:
@@ -101,15 +115,12 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
             return StudioResult(img, f"Background Removal (ত্রুটি: {str(e)})", ok=False)
 
     elif service_id == "apparel_recolor":
-        from isbd.advanced_tools import apparel_recolor
         return apparel_recolor(img)
 
     elif service_id == "studio_denoise":
-        from isbd.advanced_tools import studio_denoise_healer
         return studio_denoise_healer(img)
 
     elif service_id == "spot_dust_remover":
-        from isbd.advanced_tools import spot_dust_remover
         return spot_dust_remover(img)
 
     elif service_id == "super_resolution_4k":
@@ -118,43 +129,53 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         return StudioResult(out_img, desc, ok=True)
 
     elif service_id == "face_beauty_retouch":
-        from isbd.opensource_ai import face_beauty_retouch
-        out_img, desc = face_beauty_retouch(img)
-        return StudioResult(out_img, desc, ok=True)
+        try:
+            from isbd.opensource_ai import face_beauty_retouch
+            out_img, desc = face_beauty_retouch(img)
+            return StudioResult(out_img, desc, ok=True)
+        except Exception:
+            return commercial_frequency_retouch(img)
 
     elif service_id == "smart_part_selector":
-        from isbd.opensource_ai import smart_part_selector
-        out_img, desc = smart_part_selector(img)
-        return StudioResult(out_img, desc, ok=True)
+        try:
+            from isbd.opensource_ai import smart_part_selector as ai_smart_part
+            out_img, desc = ai_smart_part(img)
+            return StudioResult(out_img, desc, ok=True)
+        except Exception:
+            return smart_part_selector(img)
 
     elif service_id == "image_masking":
-        # Soft hair/fur edge feather masking
+        # Commercial hair/fur feather masking with Guided Filter alpha refinement
         gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        edges_blur = cv2.GaussianBlur(edges, (5, 5), 0)
-        # Soft mask composite
-        mask_soft = np.clip(gray.astype(np.float32) + edges_blur.astype(np.float32), 0, 255).astype(np.uint8)
+        # Multi-level threshold for soft hair edge detection
+        _, thresh_low = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)
+        _, thresh_high = cv2.threshold(gray, 220, 255, cv2.THRESH_BINARY_INV)
+        coarse_fg = cv2.bitwise_and(thresh_low, thresh_high)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        coarse_fg = cv2.morphologyEx(coarse_fg, cv2.MORPH_CLOSE, kernel, iterations=2)
+        # Edge-aware alpha refinement via guided box filter
+        alpha_f = coarse_fg.astype(np.float32) / 255.0
+        guide = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+        r = 4
+        eps = 0.01
+        mean_alpha = cv2.boxFilter(alpha_f, -1, (2 * r + 1, 2 * r + 1))
+        mean_guide = cv2.boxFilter(guide, -1, (2 * r + 1, 2 * r + 1))
+        mean_ag = cv2.boxFilter(alpha_f * guide, -1, (2 * r + 1, 2 * r + 1))
+        cov_ag = mean_ag - mean_alpha * mean_guide
+        mean_gg = cv2.boxFilter(guide * guide, -1, (2 * r + 1, 2 * r + 1))
+        var_g = mean_gg - mean_guide * mean_guide
+        a_k = cov_ag / (var_g + eps)
+        b_k = mean_alpha - a_k * mean_guide
+        mean_ak = cv2.boxFilter(a_k, -1, (2 * r + 1, 2 * r + 1))
+        mean_bk = cv2.boxFilter(b_k, -1, (2 * r + 1, 2 * r + 1))
+        refined_alpha = np.clip(mean_ak * guide + mean_bk, 0.0, 1.0)
+        refined_mask = (refined_alpha * 255).astype(np.uint8)
         rgba = cv2.cvtColor(cv_img, cv2.COLOR_RGB2RGBA)
-        rgba[:, :, 3] = mask_soft
-        return StudioResult(Image.fromarray(rgba), "Image Masking (ফাইন হেয়ার ও ফেদার মাস্কিং)", ok=True)
+        rgba[:, :, 3] = refined_mask
+        return StudioResult(Image.fromarray(rgba), "Image Masking (গাইডেড ফিল্টার ফাইন হেয়ার ফেদার মাস্কিং সম্পন্ন)", ok=True)
 
     elif service_id == "color_correction":
-        # Pure CV Gray-World White balance & S-Curve contrast tone correction
-        img_f = cv_img.astype(np.float32)
-        r_avg = np.mean(img_f[:, :, 0])
-        g_avg = np.mean(img_f[:, :, 1])
-        b_avg = np.mean(img_f[:, :, 2])
-        gray_avg = (r_avg + g_avg + b_avg) / 3.0
-
-        img_f[:, :, 0] = np.clip(img_f[:, :, 0] * (gray_avg / max(1.0, r_avg)), 0, 255)
-        img_f[:, :, 1] = np.clip(img_f[:, :, 1] * (gray_avg / max(1.0, g_avg)), 0, 255)
-        img_f[:, :, 2] = np.clip(img_f[:, :, 2] * (gray_avg / max(1.0, b_avg)), 0, 255)
-        balanced = img_f.astype(np.uint8)
-
-        # S-Curve contrast boost
-        look_up_table = np.array([np.clip(255 * (i / 255.0) ** 1.15, 0, 255) for i in range(256)]).astype(np.uint8)
-        corrected = cv2.LUT(balanced, look_up_table)
-        return StudioResult(Image.fromarray(corrected), "Color Correction (ন্যাচারাল হোয়াইট ব্যালেন্স ও এস-কার্ভ)", ok=True)
+        return color_correction_studio(img)
 
     elif service_id == "image_enhancement":
         # HDR tone map + Unsharp masking
@@ -175,13 +196,6 @@ def execute_studio_service(img: Image.Image, service_id: str, mask: Image.Image 
         return StudioResult(Image.fromarray(manipulated), "Image Manipulation (ক্রিয়েটিভ লাইটিং ও ড্রামাটিক টোন)", ok=True)
 
     elif service_id == "raster_to_vector":
-        # Vector line contour & trace visualization
-        gray = cv2.cvtColor(cv_img, cv2.COLOR_RGB2GRAY)
-        blurred = cv2.bilateralFilter(gray, 7, 50, 50)
-        edges = cv2.Canny(blurred, 60, 160)
-        # Invert to look like black & white clean vector lines
-        vector_look = 255 - edges
-        vector_rgb = cv2.cvtColor(vector_look, cv2.COLOR_GRAY2RGB)
-        return StudioResult(Image.fromarray(vector_rgb), "Raster To Vector (ক্লিন ভেক্টর লাইন ও পাথ ট্রেসিং)", ok=True)
+        return raster_to_vector_engine(img)
 
     return StudioResult(img, "Original", ok=True)

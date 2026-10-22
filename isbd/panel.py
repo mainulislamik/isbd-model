@@ -250,14 +250,14 @@ async def add_pair(before: UploadFile = File(...), after: UploadFile = File(...)
         return {"ok": True, "dup": True, "pairs": len(hs)}
 
     def prep(bs):
-        img = Image.open(io.BytesIO(bs)).convert("RGB")
+        img = safe_load_image(bs, target_mode="RGB")
         arr = np.asarray(img.resize((IMG, IMG), Image.Resampling.LANCZOS), dtype=np.float32) / 255.0
         return np.ascontiguousarray(arr.transpose(2, 0, 1))
 
     try:
         x, y = prep(b), prep(a)
     except Exception:
-        raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+        raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP/TIFF দিন")
 
     if NPZ.exists():
         with np.load(NPZ) as d:
@@ -307,12 +307,15 @@ async def train(
     return {"queued": True, "steps": steps, "lr": lr, "batch": batch, "pairs": _n_pairs()}
 
 
-def safe_load_image(raw_bytes: bytes) -> Image.Image:
+def safe_load_image(raw_bytes: bytes, target_mode: str = "RGB") -> Image.Image:
     """
-    Safely load any photography studio format (TIF, TIFF, PSD, CMYK, 16-bit, RGBA, WebP, JPEG, RAW).
-    Ensures pixel data is fully loaded in memory and cleanly converted to RGB/RGBA.
+    Safely load any photography studio format (TIF, TIFF, multi-page TIFF, PSD, CMYK,
+    16-bit, RGBA, WebP, BMP, PNG, JPG, JPEG, RAW).
+    Ensures pixel data is fully loaded in memory and cleanly converted to RGB or RGBA.
     """
     img = Image.open(io.BytesIO(raw_bytes))
+    if getattr(img, "n_frames", 1) > 1:
+        img.seek(0)
     img.load()
     if img.mode in ("I;16", "I;16L", "I;16B", "I", "F"):
         arr = np.array(img)
@@ -324,10 +327,26 @@ def safe_load_image(raw_bytes: bytes) -> Image.Image:
     elif img.mode == "CMYK":
         img = img.convert("RGB")
     elif img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
-        img = img.convert("RGBA")
-    elif img.mode != "RGB":
+        if target_mode == "RGB":
+            img = img.convert("RGB")
+        else:
+            img = img.convert("RGBA")
+    elif img.mode == "1":
         img = img.convert("RGB")
+    elif img.mode != target_mode:
+        img = img.convert(target_mode)
     return img
+
+
+def safe_load_cv2_bgr(raw_bytes: bytes) -> np.ndarray:
+    """
+    Safely decode any image format (including CMYK TIFF, multi-page TIFF, WebP, etc.)
+    into an OpenCV BGR uint8 NumPy array. Avoids silent cv2.imdecode None failures.
+    """
+    import cv2
+    pil_img = safe_load_image(raw_bytes, target_mode="RGB")
+    arr_rgb = np.array(pil_img)
+    return cv2.cvtColor(arr_rgb, cv2.COLOR_RGB2BGR)
 
 
 @app.post("/api/preview-thumbnail")
@@ -342,7 +361,7 @@ async def preview_thumbnail_api(file: UploadFile = File(...)):
         if not raw_bytes:
             raise HTTPException(400, "ফাইল খালি")
             
-        pil_img = safe_load_image(raw_bytes)
+        pil_img = safe_load_image(raw_bytes, target_mode="RGBA")
         
         # If RGBA, blend over white background for clean preview
         if pil_img.mode == "RGBA":
@@ -474,7 +493,7 @@ async def learn_from_real_pair_api(
                 doc_text = "\n".join([p.text for p in doc_obj.paragraphs if p.text.strip()])
                 if doc_text:
                     extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[Word: {fname}]: {doc_text}"
-            elif fname.endswith(('.png', '.jpg', '.jpeg', '.webp')):
+            elif fname.endswith(('.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp')):
                 extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[Visual Markup Ref: {fname}]"
         except Exception as e:
             extracted_instruction = (extracted_instruction + "\n" if extracted_instruction else "") + f"[{fname} Attached]"
@@ -655,10 +674,10 @@ async def feedback_correction_api(
     if not raw_in or not raw_corr:
         raise HTTPException(400, "ইনপুট এবং কারেক্টেড দুটি ছবিই প্রদান করুন")
     try:
-        img_in = Image.open(io.BytesIO(raw_in)).convert("RGB")
-        img_corr = Image.open(io.BytesIO(raw_corr)).convert("RGB")
+        img_in = safe_load_image(raw_in, target_mode="RGB")
+        img_corr = safe_load_image(raw_corr, target_mode="RGB")
     except Exception:
-        raise HTTPException(400, "ছবি পড়তে ব্যর্থ হয়েছে — সঠিক JPG/PNG/WebP ফাইল দিন")
+        raise HTTPException(400, "ছবি পড়তে ব্যর্থ হয়েছে — সঠিক JPG/PNG/WebP/TIFF ফাইল দিন")
 
     from isbd.self_learner import learn_from_real_pair, get_bucket_stats
     result = learn_from_real_pair(
@@ -731,9 +750,9 @@ async def ps_teach_api(
         if len(raw) > MAX_FILE:
             raise HTTPException(413, "ছবি 25MB-এর বেশি")
         try:
-            pil_img = _Image.open(io.BytesIO(raw)).convert("RGB")
+            pil_img = safe_load_image(raw, target_mode="RGB")
         except Exception:
-            raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP দিন")
+            raise HTTPException(400, "ছবি পড়া যায়নি — JPG/PNG/WebP/TIFF দিন")
         import numpy as _np
         cv_img = cv2.cvtColor(_np.array(pil_img), cv2.COLOR_RGB2BGR)
         # save temporarily for the teacher script
@@ -776,10 +795,10 @@ async def distillery_harvest_api(
 
     if image and image.filename:
         raw = await image.read()
-        nparr = np.frombuffer(raw, np.uint8)
-        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img_bgr is None:
-            raise HTTPException(400, "ছবি ডিকোড করা যায়নি — বৈধ JPG/PNG দিন")
+        try:
+            img_bgr = safe_load_cv2_bgr(raw)
+        except Exception:
+            raise HTTPException(400, "ছবি ডিকোড করা যায়নি — বৈধ JPG/PNG/TIFF দিন")
     else:
         sample_path = "/app/samples/selftest_input.png"
         img_bgr = cv2.imread(sample_path)
@@ -831,7 +850,7 @@ async def bulk_pairs_api(
         raise HTTPException(400, f"অবৈধ জিপ ফাইল: {str(e)}")
 
     namelist = [n for n in zf.namelist() if not n.startswith("__MACOSX/") and not n.endswith("/")]
-    image_exts = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff')
+    image_exts = ('.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif')
     img_files = [n for n in namelist if n.lower().endswith(image_exts)]
 
     # Pair discovery strategy
@@ -882,8 +901,8 @@ async def bulk_pairs_api(
         try:
             b_bytes = zf.read(b_file)
             a_bytes = zf.read(a_file)
-            img_b = Image.open(io.BytesIO(b_bytes)).convert("RGB")
-            img_a = Image.open(io.BytesIO(a_bytes)).convert("RGB")
+            img_b = safe_load_image(b_bytes, target_mode="RGB")
+            img_a = safe_load_image(a_bytes, target_mode="RGB")
             res = learn_from_real_pair(
                 before_pil=img_b,
                 after_pil=img_a,
@@ -966,7 +985,7 @@ async def smart_studio_api(
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
     try:
         from isbd.smart_studio import execute_smart_one_click_studio
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
 
         # Execute 4-Stage All-in-One Studio Enhancement
         res_img, desc = execute_smart_one_click_studio(img, model_id=model_id)
@@ -1020,7 +1039,7 @@ async def process_service_api(
 
     try:
         from isbd.studio_sectors import execute_studio_service
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
         
         # 1. Execute Service with Model-Specific Neural Pipeline
         if resolved_service_id in ["image_retouching", "image_enhancement", "color_correction"]:
@@ -1084,7 +1103,7 @@ async def detect_api(
     if not raw:
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
     try:
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
         
         if mode == "full_body":
             from isbd.part_tracker import parse_human_body_and_apparel
@@ -1146,7 +1165,7 @@ async def cv_filter_api(
         raise HTTPException(400, "ছবি পাওয়া যায়নি")
     try:
         from isbd.detector import apply_cv_filter, analyze_image_colors
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
         
         filtered_img, desc = apply_cv_filter(img, filter_type)
         palette = analyze_image_colors(img, num_colors=5)
@@ -1233,7 +1252,7 @@ async def infer_image(
     try:
         from isbd.model import TinyUNet, SmallUNet
         from isbd.self_learner import harvest_and_synthesize_pair
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
         
         # Autonomous Self-Supervised Learning trigger: Learn from this image in background
         try:
@@ -1285,8 +1304,8 @@ async def heatmap_api(
         raise HTTPException(400, "Before এবং After দুটি ছবিই প্রদান করুন")
     try:
         from isbd.heatmap import generate_difference_heatmap
-        img_b = Image.open(io.BytesIO(raw_b)).convert("RGB")
-        img_a = Image.open(io.BytesIO(raw_a)).convert("RGB")
+        img_b = safe_load_image(raw_b, target_mode="RGB")
+        img_a = safe_load_image(raw_a, target_mode="RGB")
 
         hm_img, ov_img, stats = generate_difference_heatmap(
             img_b, img_a, colormap_type=colormap, blend_alpha=blend, boost_sensitivity=sensitivity
@@ -1322,8 +1341,8 @@ async def inpaint_api(
         raise HTTPException(400, "ছবি এবং ব্রাশ মাস্ক প্রদান করুন")
     try:
         from isbd.inpaint import inpaint_image
-        img = Image.open(io.BytesIO(raw_img)).convert("RGB")
-        mask_img = Image.open(io.BytesIO(raw_mask)).convert("L")
+        img = safe_load_image(raw_img, target_mode="RGB")
+        mask_img = safe_load_image(raw_mask, target_mode="L")
 
         res_img = inpaint_image(img, mask_img, radius=radius, method=method)
 
@@ -1447,11 +1466,8 @@ async def mediapipe_retouch_api(
     try:
         import cv2
         from isbd.mediapipe_retouch import mediapipe_pro_retouch
-        
-        nparr = np.frombuffer(raw, np.uint8)
-        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img_bgr is None:
-            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        img_bgr = safe_load_cv2_bgr(raw)
 
         res = mediapipe_pro_retouch(
             img_bgr,
@@ -1487,11 +1503,8 @@ async def alpha_matting_api(
     try:
         import cv2
         from isbd.alpha_matting import extract_alpha_matte
-        
-        nparr = np.frombuffer(raw, np.uint8)
-        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img_bgr is None:
-            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        img_bgr = safe_load_cv2_bgr(raw)
 
         # Estimate coarse segmentation mask via saliency/otsu thresholding
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
@@ -1532,11 +1545,8 @@ async def export_bezier_svg_api(
     try:
         import cv2
         from isbd.vector_path import mask_to_bezier_svg
-        
-        nparr = np.frombuffer(raw, np.uint8)
-        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img_bgr is None:
-            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        img_bgr = safe_load_cv2_bgr(raw)
 
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -1559,11 +1569,8 @@ async def export_psd_api(
         import cv2
         from isbd.psd_exporter import create_commercial_psd
         from isbd.frequency_engine import commercial_frequency_retouch
-        
-        nparr = np.frombuffer(raw, np.uint8)
-        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img_bgr is None:
-            raise HTTPException(400, "অবৈধ ইমেজ ফরম্যাট")
+
+        img_bgr = safe_load_cv2_bgr(raw)
 
         # Layer 1: Frequency retouched tone
         freq_res = commercial_frequency_retouch(img_bgr)
@@ -1797,7 +1804,7 @@ async def api_birefnet_matting(image: UploadFile = File(...)):
         raise HTTPException(400, "ছবি প্রদান করুন")
     try:
         from isbd.opensource_ai import birefnet_hair_matting, apply_human_residual_boost
-        pil_img = Image.open(io.BytesIO(raw)).convert("RGB")
+        pil_img = safe_load_image(raw, target_mode="RGB")
         cutout, msg = birefnet_hair_matting(pil_img)
         cutout = apply_human_residual_boost(pil_img, cutout, domain="matting")
         b64_str = _pil_to_base64_png(cutout)
@@ -1819,7 +1826,7 @@ async def api_smart_inpaint(
         raise HTTPException(400, "ছবি প্রদান করুন")
     try:
         from isbd.opensource_ai import lama_inpaint_object_remover, apply_human_residual_boost
-        img = Image.open(io.BytesIO(raw_img)).convert("RGB")
+        img = safe_load_image(raw_img, target_mode="RGB")
         
         mask_img = None
         if mask is not None:
@@ -1846,7 +1853,7 @@ async def api_realesrgan_superres(
         raise HTTPException(400, "ছবি প্রদান করুন")
     try:
         from isbd.opensource_ai import realesrgan_texture_upscaler, apply_human_residual_boost
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
         up_img, msg = realesrgan_texture_upscaler(img, scale=scale)
         up_img = apply_human_residual_boost(img, up_img, domain="superres")
         b64_str = _pil_to_base64_png(up_img)
@@ -1866,7 +1873,7 @@ async def api_codeformer_beauty(
         raise HTTPException(400, "ছবি প্রদান করুন")
     try:
         from isbd.opensource_ai import codeformer_beauty_retouch, apply_human_residual_boost
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = safe_load_image(raw, target_mode="RGB")
         beauty_img, msg = codeformer_beauty_retouch(img, smooth_strength=smooth_strength)
         beauty_img = apply_human_residual_boost(img, beauty_img, domain="retouch")
         b64_str = _pil_to_base64_png(beauty_img)
